@@ -1,0 +1,5 @@
+{
+    "url": "https://data.alpaca.markets/v2/stocks/trades/latest",
+    "feed": "delayed_sip",
+    "indices": ["SOXX", "NVDA", "MRVL"]
+}
