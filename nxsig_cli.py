@@ -41,6 +41,7 @@ BUY_COLOR = "\033[32m"
 SELL_COLOR = "\033[31m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
+PROMPT_COLOR = LOGO_COLORS[2]  # teal from the logo gradient
 
 
 def _supports_color():
@@ -70,7 +71,8 @@ commands:
 
 class NxSigShell(cmd.Cmd):
     intro = _banner()
-    prompt = "nX-sig> "
+    # \001/\002 tell readline the escape codes are zero-width so line editing stays aligned
+    prompt = f"\001{PROMPT_COLOR}\002nX-sig>\001{RESET}\002 " if _supports_color() else "nX-sig> "
 
     # ---------------- transactions ----------------
 
