@@ -130,9 +130,12 @@ class NxSigShell(cmd.Cmd):
             return
 
         color = _supports_color()
-        header = f"{'Date':>10} | {'Time':>5} | {'Type':>4} | {'Count':>6} | {'Price':>10}"
+        column_sep = f"{DIM} | {RESET}" if color else " | "
+        header_cols = [f"{'Date':>10}", f"{'Time':>5}", f"{'Type':>4}", f"{'Count':>6}", f"{'Price':>10}"]
+        if color:
+            header_cols = [f"{HEADER_COLOR}{col}{RESET}" for col in header_cols]
         print()
-        print(f"{HEADER_COLOR}{header}{RESET}" if color else header)
+        print(column_sep.join(header_cols))
         separator = "-" * 48
         print(f"{SEPARATOR_COLOR}{separator}{RESET}" if color else separator)
         for t in transactions:
@@ -150,7 +153,7 @@ class NxSigShell(cmd.Cmd):
                 time = f"{t['Time']:>5}"
                 count = f"{t['Count']:>6}"
                 price = f"{t['Price']:>10.2f}"
-            print(f"{date} | {time} | {transaction_type} | {count} | {price}")
+            print(column_sep.join([date, time, transaction_type, count, price]))
 
         total_count, total_price = transactions_total_get(stock)
         print(f"{SEPARATOR_COLOR}{separator}{RESET}" if color else separator)
