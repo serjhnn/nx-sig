@@ -1,8 +1,8 @@
 # interactive shell for nX-sig
 #
 # commands:
-#   transactions add <stock> <buy|sell> <count> <price>
-#   transactions get <stock>
+#   transactions, tr add <stock> <buy|sell> <count> <price>
+#   transactions, tr get <stock>
 #   strategy [run/stop/list/get]     (not implemented yet)
 #   help, exit, quit, q
 
@@ -61,11 +61,11 @@ def _banner():
 
 HELP = """
 commands:
-  transactions add <stock> <buy|sell> <count> <price>  record a transaction
-  transactions get <stock>                             show transactions and total
-  strategy [run/stop/list/get]                         (not implemented yet)
-  help [command]                                       show help
-  exit, quit, q                                        leave the shell
+  transactions, tr add <stock> <buy|sell> <count> <price>  record a transaction
+  transactions, tr get <stock>                             show transactions and total
+  strategy [run/stop/list/get]                             (not implemented yet)
+  help [command]                                           show help
+  exit, quit, q                                            leave the shell
 """
 
 
@@ -171,6 +171,9 @@ class NxSigShell(cmd.Cmd):
     def complete_transactions(self, text, line, begidx, endidx):
         return _complete(text, line, [["add", "get"], [s.name for s in Stock],
                                       [t.name.lower() for t in TransactionType]])
+
+    do_tr = do_transactions
+    complete_tr = complete_transactions
 
     # ---------------- strategy ----------------
 
