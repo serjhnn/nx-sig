@@ -31,15 +31,30 @@ SUBTITLE = "  nX-sig shell. Type 'help' for commands, 'q' to quit."
 # 256-color gradient, one per logo line, top to bottom: light blue -> dark green
 LOGO_COLORS = [f"\033[38;5;{c}m" for c in (117, 80, 43, 36, 29, 22)]
 DIM = "\033[2m"
+HEADER_COLOR = "\033[1;36m"
+DATE_COLOR = "\033[36m"
+COUNT_COLOR = "\033[35m"
+PRICE_COLOR = "\033[33m"
+TOTAL_STOCK_COLOR = "\033[38;5;22m"
+TOTAL_PRICE_COLOR = "\033[38;5;208m"
+SEPARATOR_COLOR = "\033[90m"
+BUY_COLOR = "\033[32m"
+SELL_COLOR = "\033[31m"
+BOLD = "\033[1m"
 RESET = "\033[0m"
 
 
-def _banner():
+def _supports_color():
     if not sys.stdout.isatty() or os.environ.get("NO_COLOR"):
-        return f"{LOGO}\n{SUBTITLE}\n"
-
+        return False
     if os.name == "nt":
         os.system("")  # enables ANSI escape codes in the Windows console
+    return True
+
+
+def _banner():
+    if not _supports_color():
+        return f"{LOGO}\n{SUBTITLE}\n"
     lines = LOGO.strip("\n").split("\n")
     colored = [f"{LOGO_COLORS[min(i, len(LOGO_COLORS) - 1)]}{line}{RESET}" for i, line in enumerate(lines)]
     return "\n" + "\n".join(colored) + f"\n\n{DIM}{SUBTITLE}{RESET}\n"
@@ -114,15 +129,44 @@ class NxSigShell(cmd.Cmd):
             print(f"no transactions for {stock.name}")
             return
 
-        print(f"{'Date':>10} | {'Time':>5} | {'Type':>4} | {'Count':>6} | {'Price':>10}")
-        print("-" * 48)
+        color = _supports_color()
+        header = f"{'Date':>10} | {'Time':>5} | {'Type':>4} | {'Count':>6} | {'Price':>10}"
+        print()
+        print(f"{HEADER_COLOR}{header}{RESET}" if color else header)
+        separator = "-" * 48
+        print(f"{SEPARATOR_COLOR}{separator}{RESET}" if color else separator)
         for t in transactions:
-            print(f"{t['Date']:>10} | {t['Time']:>5} | {t['Type'].name:>4} | "
-                  f"{t['Count']:>6} | {t['Price']:>10.2f}")
+            transaction_type = t['Type'].name
+            if color:
+                type_color = BUY_COLOR if transaction_type == "BUY" else SELL_COLOR
+                transaction_type = f"{BOLD}{type_color}{transaction_type:>4}{RESET}"
+                date = f"{DATE_COLOR}{t['Date']:>10}{RESET}"
+                time = f"{DIM}{t['Time']:>5}{RESET}"
+                count = f"{COUNT_COLOR}{t['Count']:>6}{RESET}"
+                price = f"{PRICE_COLOR}{t['Price']:>10.2f}{RESET}"
+            else:
+                transaction_type = f"{transaction_type:>4}"
+                date = f"{t['Date']:>10}"
+                time = f"{t['Time']:>5}"
+                count = f"{t['Count']:>6}"
+                price = f"{t['Price']:>10.2f}"
+            print(f"{date} | {time} | {transaction_type} | {count} | {price}")
 
         total_count, total_price = transactions_total_get(stock)
-        print("-" * 48)
-        print(f"total: {total_count} {stock.name}, avg buy price {total_price:.2f}")
+        print(f"{SEPARATOR_COLOR}{separator}{RESET}" if color else separator)
+        if color:
+            total_line = (
+                f"{BOLD}{HEADER_COLOR}total: {RESET}"
+                f"{BOLD}{COUNT_COLOR}{total_count}{RESET} "
+                f"{BOLD}{TOTAL_STOCK_COLOR}{stock.name}{RESET}, "
+                f"{DIM}avg buy price{RESET} "
+                f"{BOLD}{TOTAL_PRICE_COLOR}{total_price:.2f}{RESET}"
+            )
+        else:
+            total_line = f"total: {total_count} {stock.name}, avg buy price {total_price:.2f}"
+        print(total_line)
+        print()
+
 
     def complete_transaction(self, text, line, begidx, endidx):
         return _complete(text, line, [["add", "get"], [s.name for s in Stock],
