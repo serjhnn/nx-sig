@@ -1,5 +1,14 @@
 # handle read and write requests to database
 # use csv file as a first approach
+#
+# public functions:
+#   transaction_add(stock, transaction_type, count, price)
+#       record a BUY/SELL transaction in {stock}_transactions.csv
+#       and update the stock's totals in transactions_total.csv
+#   transactions_get(stock)
+#       return all recorded transactions for a stock
+#   transactions_total_get(stock)
+#       return (count held, average buy price) for a stock
 
 # usage example
 # transaction_add(Stock.NVDA, TransactionType.BUY, 1, 100)
@@ -47,6 +56,8 @@ def transaction_add(stock, transaction_type, count, price):
             "Price": price,
         })
 
+    _transactions_total_save(stock, transaction_type, count, price)
+
 def transactions_get(stock):
     """
         return all transactions stored in file {stock_name}_transactions.csv
@@ -72,7 +83,7 @@ def _transactions_path(stock):
     return os.path.join(DB_DIR, f"{stock.name.lower()}_transactions.csv")
 
 
-def transactions_total_save(stock, transaction_type, count, price):
+def _transactions_total_save(stock, transaction_type, count, price):
     """
         save transactions total in transactions_total.csv file
 
@@ -202,20 +213,20 @@ if __name__ == "__main__":
             self.assertEqual(transactions_get(Stock.MRVL)[0]["Count"], 2)
 
         def test_total_buy_averages_price(self):
-            transactions_total_save(Stock.MRVL, TransactionType.BUY, 10, 250)
-            transactions_total_save(Stock.MRVL, TransactionType.BUY, 10, 270)
+            transaction_add(Stock.MRVL, TransactionType.BUY, 10, 250)
+            transaction_add(Stock.MRVL, TransactionType.BUY, 10, 270)
 
             self.assertEqual(transactions_total_get(Stock.MRVL), (20, 260.0))
 
         def test_total_sell_keeps_price(self):
-            transactions_total_save(Stock.MRVL, TransactionType.BUY, 10, 250)
-            transactions_total_save(Stock.MRVL, TransactionType.SELL, 4, 300)
+            transaction_add(Stock.MRVL, TransactionType.BUY, 10, 250)
+            transaction_add(Stock.MRVL, TransactionType.SELL, 4, 300)
 
             self.assertEqual(transactions_total_get(Stock.MRVL), (6, 250.0))
 
         def test_total_stocks_in_one_file(self):
-            transactions_total_save(Stock.NVDA, TransactionType.BUY, 1, 100)
-            transactions_total_save(Stock.MRVL, TransactionType.BUY, 2, 200)
+            transaction_add(Stock.NVDA, TransactionType.BUY, 1, 100)
+            transaction_add(Stock.MRVL, TransactionType.BUY, 2, 200)
 
             with open(_transactions_total_path(), newline="") as f:
                 rows = list(csv.reader(f))
