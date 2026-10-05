@@ -37,7 +37,6 @@ COUNT_COLOR = "\033[35m"
 PRICE_COLOR = "\033[33m"
 TOTAL_STOCK_COLOR = "\033[38;5;22m"
 TOTAL_PRICE_COLOR = "\033[38;5;208m"
-SEPARATOR_COLOR = "\033[90m"
 BUY_COLOR = "\033[32m"
 SELL_COLOR = "\033[31m"
 BOLD = "\033[1m"
@@ -137,7 +136,7 @@ class NxSigShell(cmd.Cmd):
         print()
         print(column_sep.join(header_cols))
         separator = "-" * 48
-        print(f"{SEPARATOR_COLOR}{separator}{RESET}" if color else separator)
+        print(f"{DIM}{separator}{RESET}" if color else separator)
         for t in transactions:
             transaction_type = t['Type'].name
             if color:
@@ -156,7 +155,7 @@ class NxSigShell(cmd.Cmd):
             print(column_sep.join([date, time, transaction_type, count, price]))
 
         total_count, total_price = transactions_total_get(stock)
-        print(f"{SEPARATOR_COLOR}{separator}{RESET}" if color else separator)
+        print(f"{DIM}{separator}{RESET}" if color else separator)
         if color:
             total_line = (
                 f"{BOLD}{HEADER_COLOR}total: {RESET}"
