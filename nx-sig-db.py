@@ -11,6 +11,7 @@ from enum import Enum
 
 DB_DIR = os.path.dirname(os.path.abspath(__file__))
 FIELDNAMES = ["Date", "Time", "Type", "Count", "Price"]
+TOTAL_FIELDNAMES = ["Type", "Count", "Price"]
 
 class Stock(Enum):
     NVDA = 1
@@ -71,6 +72,78 @@ def _transactions_path(stock):
     return os.path.join(DB_DIR, f"{stock.name.lower()}_transactions.csv")
 
 
+def transactions_total_save(stock, transaction_type, count, price):
+    """
+        save transactions total in transactions_total.csv file
+
+            transactions_total.csv
+     ______________________
+    | Type | Count | Price |
+    | MRVL |    10 |   250 |
+
+    where
+        Count and price are repeatedly updated after every transaction 
+        Count - total sum of all stocks buyed and still not sold
+        Price - average price for a stock for multiple buy transaction  
+
+        if BUY :
+            total_price = (total_price * total_count + price * count) / (total_count + count) 
+            total_count += count
+        else : # sell
+            total_count -= count
+
+        place total_count in "Count" row
+        place total_price in "Price" row 
+
+        for a specified stock
+
+
+    """
+    path = _transactions_total_path()
+    rows = []
+    if os.path.exists(path):
+        with open(path, newline="") as f:
+            rows = list(csv.DictReader(f))
+
+    row = next((r for r in rows if r["Type"] == stock.name), None)
+    if row is None:
+        row = {"Type": stock.name, "Count": 0, "Price": 0}
+        rows.append(row)
+
+    total_count = int(row["Count"])
+    total_price = float(row["Price"])
+
+    if transaction_type == TransactionType.BUY:
+        if total_count + count > 0:
+            total_price = (total_price * total_count + price * count) / (total_count + count)
+        total_count += count
+    else:  # sell
+        total_count -= count
+
+    row["Count"] = total_count
+    row["Price"] = total_price
+
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=TOTAL_FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(rows)
+
+def transactions_total_get(stock):
+    """
+        return (total_count, total_price) for a stock from transactions_total.csv
+    """
+    path = _transactions_total_path()
+    if os.path.exists(path):
+        with open(path, newline="") as f:
+            for row in csv.DictReader(f):
+                if row["Type"] == stock.name:
+                    return int(row["Count"]), float(row["Price"])
+    return 0, 0.0
+
+def _transactions_total_path():
+    return os.path.join(DB_DIR, "transactions_total.csv")
+
+
 if __name__ == "__main__":
     import tempfile
     import unittest
@@ -127,6 +200,29 @@ if __name__ == "__main__":
             self.assertEqual(len(transactions_get(Stock.NVDA)), 1)
             self.assertEqual(len(transactions_get(Stock.MRVL)), 1)
             self.assertEqual(transactions_get(Stock.MRVL)[0]["Count"], 2)
+
+        def test_total_buy_averages_price(self):
+            transactions_total_save(Stock.MRVL, TransactionType.BUY, 10, 250)
+            transactions_total_save(Stock.MRVL, TransactionType.BUY, 10, 270)
+
+            self.assertEqual(transactions_total_get(Stock.MRVL), (20, 260.0))
+
+        def test_total_sell_keeps_price(self):
+            transactions_total_save(Stock.MRVL, TransactionType.BUY, 10, 250)
+            transactions_total_save(Stock.MRVL, TransactionType.SELL, 4, 300)
+
+            self.assertEqual(transactions_total_get(Stock.MRVL), (6, 250.0))
+
+        def test_total_stocks_in_one_file(self):
+            transactions_total_save(Stock.NVDA, TransactionType.BUY, 1, 100)
+            transactions_total_save(Stock.MRVL, TransactionType.BUY, 2, 200)
+
+            with open(_transactions_total_path(), newline="") as f:
+                rows = list(csv.reader(f))
+            self.assertEqual(rows[0], TOTAL_FIELDNAMES)
+            self.assertEqual(len(rows), 3)
+            self.assertEqual(transactions_total_get(Stock.NVDA), (1, 100.0))
+            self.assertEqual(transactions_total_get(Stock.MRVL), (2, 200.0))
 
     unittest.main()
 
