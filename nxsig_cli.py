@@ -4,7 +4,7 @@
 #   transaction add <stock> <buy|sell> <count> <price>
 #   transaction get <stock>
 #   strategy [run/stop/list/get]     (not implemented yet)
-#   help, exit
+#   help, exit, quit, q
 
 import cmd
 import os
@@ -26,7 +26,7 @@ LOGO = r"""
   |_| |_|/_/\_\      |___/ |_| \__, |
                                |___/
 """
-SUBTITLE = "  nX-sig shell. Type 'help' for commands, 'exit' to quit."
+SUBTITLE = "  nX-sig shell. Type 'help' for commands, 'q' to quit."
 
 # 256-color gradient, one per logo line, top to bottom: light blue -> dark green
 LOGO_COLORS = [f"\033[38;5;{c}m" for c in (117, 80, 43, 36, 29, 22)]
@@ -50,7 +50,7 @@ commands:
   transaction get <stock>                              show transactions and total
   strategy [run/stop/list/get]                         (not implemented yet)
   help [command]                                       show help
-  exit, quit                                           leave the shell
+  exit, quit, q                                        leave the shell
 """
 
 
@@ -155,6 +155,7 @@ class NxSigShell(cmd.Cmd):
         return True
 
     do_quit = do_exit
+    do_q = do_exit
 
     def do_EOF(self, arg):
         print()
