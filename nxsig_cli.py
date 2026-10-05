@@ -1,8 +1,8 @@
 # interactive shell for nX-sig
 #
 # commands:
-#   transaction add <stock> <buy|sell> <count> <price>
-#   transaction get <stock>
+#   transactions add <stock> <buy|sell> <count> <price>
+#   transactions get <stock>
 #   strategy [run/stop/list/get]     (not implemented yet)
 #   help, exit, quit, q
 
@@ -61,8 +61,8 @@ def _banner():
 
 HELP = """
 commands:
-  transaction add <stock> <buy|sell> <count> <price>   record a transaction
-  transaction get <stock>                              show transactions and total
+  transactions add <stock> <buy|sell> <count> <price>  record a transaction
+  transactions get <stock>                             show transactions and total
   strategy [run/stop/list/get]                         (not implemented yet)
   help [command]                                       show help
   exit, quit, q                                        leave the shell
@@ -73,18 +73,18 @@ class NxSigShell(cmd.Cmd):
     intro = _banner()
     prompt = "nX-sig> "
 
-    # ---------------- transaction ----------------
+    # ---------------- transactions ----------------
 
-    def do_transaction(self, arg):
+    def do_transactions(self, arg):
         """
-        transaction add <stock> <buy|sell> <count> <price>
-            record a transaction, e.g. 'transaction add NVDA buy 10 120.5'
-        transaction get <stock>
+        transactions add <stock> <buy|sell> <count> <price>
+            record a transaction, e.g. 'transactions add NVDA buy 10 120.5'
+        transactions get <stock>
             show all transactions and the current total for a stock
         """
         args = arg.split()
         if not args:
-            print("usage: transaction [add/get] ...")
+            print("usage: transactions [add/get] ...")
             return
 
         sub, rest = args[0].lower(), args[1:]
@@ -97,7 +97,7 @@ class NxSigShell(cmd.Cmd):
 
     def _transaction_add(self, args):
         if len(args) != 4:
-            print("usage: transaction add <stock> <buy|sell> <count> <price>")
+            print("usage: transactions add <stock> <buy|sell> <count> <price>")
             return
         try:
             stock = _parse_stock(args[0])
@@ -116,7 +116,7 @@ class NxSigShell(cmd.Cmd):
 
     def _transaction_get(self, args):
         if len(args) != 1:
-            print("usage: transaction get <stock>")
+            print("usage: transactions get <stock>")
             return
         try:
             stock = _parse_stock(args[0])
@@ -168,7 +168,7 @@ class NxSigShell(cmd.Cmd):
         print()
 
 
-    def complete_transaction(self, text, line, begidx, endidx):
+    def complete_transactions(self, text, line, begidx, endidx):
         return _complete(text, line, [["add", "get"], [s.name for s in Stock],
                                       [t.name.lower() for t in TransactionType]])
 
