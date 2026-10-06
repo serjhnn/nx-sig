@@ -1,11 +1,16 @@
 import urllib.request
-
-def notify(msg, title="Termux"):
+import os
+from dotenv import load_dotenv
+ 
+load_dotenv()
+ 
+def notify(msg, title="nX-siG"):
     req = urllib.request.Request(
-        "https://ntfy.sh/myphone-alerts-7f3k2",
+        f"https://ntfy.sh/{os.environ["NTFY_TOPIC"]}",
         data=msg.encode(),
-        headers={"Title": title, "Priority": "high"},
+        headers={"Title": title,
+                 "Priority": "default"},
     )
     urllib.request.urlopen(req)
-
-notify("Script finished!")
+ 
+notify("test notification !!!")
