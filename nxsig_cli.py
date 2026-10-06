@@ -150,7 +150,7 @@ class NxSigShell(cmd.Cmd):
         column_sep = f"{DIM} | {RESET}" if color else " | "
         header_cols = [f"{'Date':>10}", f"{'Time':>5}", f"{'Type':>4}", f"{'Count':>6}", f"{'Price':>10}"]
         if color:
-            header_cols = [f"{HEADER_COLOR}{col}{RESET}" for col in header_cols]
+            header_cols = [f"{DIM}{col}{RESET}" for col in header_cols]
         print()
         print(column_sep.join(header_cols))
         separator = "-" * WIDTH
