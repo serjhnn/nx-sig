@@ -37,13 +37,13 @@ WIDTH = 48
 # 256-color gradient, one per logo line, top to bottom: light blue -> dark green
 LOGO_COLORS = [f"\033[38;5;{c}m" for c in (117, 80, 43, 36, 29, 22)]
 DIM = "\033[2m"
-DATE_COLOR = "\033[36m"
-COUNT_COLOR = "\033[35m"
-PRICE_COLOR = "\033[33m"
+DATE_COLOR = "\033[38;5;30m"
+COUNT_COLOR = "\033[38;5;96m"
+PRICE_COLOR = "\033[38;5;136m"
 TOTAL_STOCK_COLOR = "\033[38;5;22m"
 TOTAL_PRICE_COLOR = "\033[33m"
-BUY_COLOR = "\033[32m"
-SELL_COLOR = "\033[31m"
+BUY_COLOR = "\033[38;5;28m"
+SELL_COLOR = "\033[38;5;124m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
 PROMPT_COLOR = LOGO_COLORS[2]  # teal from the logo gradient
@@ -158,7 +158,7 @@ class NxSigShell(cmd.Cmd):
             transaction_type = t['Type'].name
             if color:
                 type_color = BUY_COLOR if transaction_type == "BUY" else SELL_COLOR
-                transaction_type = f"{BOLD}{type_color}{transaction_type:>4}{RESET}"
+                transaction_type = f"{type_color}{transaction_type:>4}{RESET}"
                 date = f"{DATE_COLOR}{t['Date']:>10}{RESET}"
                 time = f"{DIM}{t['Time']:>5}{RESET}"
                 count = f"{COUNT_COLOR}{t['Count']:>6}{RESET}"
