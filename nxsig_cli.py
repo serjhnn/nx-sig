@@ -8,8 +8,10 @@
 #   help, exit, quit, q
 
 import cmd
+import inspect
 import os
 import sys
+import textwrap
 
 from nx_sig_db import (
     Stock,
@@ -27,7 +29,10 @@ LOGO = r"""
   |_| |_|/_/\_\      |___/ |_| \__, |
                                |___/
 """
-SUBTITLE = "  nX-sig shell. Type 'help' for commands, 'q' to quit."
+SUBTITLE = "  nX-sig shell. 'help' for commands, 'q' to quit"
+
+# all output is kept within the width of the 'tr get' table so it fits a mobile screen
+WIDTH = 48
 
 # 256-color gradient, one per logo line, top to bottom: light blue -> dark green
 LOGO_COLORS = [f"\033[38;5;{c}m" for c in (117, 80, 43, 36, 29, 22)]
@@ -62,12 +67,18 @@ def _banner():
 
 HELP = """
 commands:
-  transactions, tr add <stock> <buy|sell> <count> <price>  record a transaction
-  transactions, tr get <stock>                             show transactions and total
-  ls <stock>                                               alias for 'tr get <stock>'
-  strategy [run/stop/list/get]                             (not implemented yet)
-  help [command]                                           show help
-  exit, quit, q                                            leave the shell
+  tr add <stock> <buy|sell> <count> <price>
+      record a transaction
+  tr get <stock>, ls <stock>
+      show transactions and total
+  strategy [run/stop/list/get]
+      not implemented yet
+  help [command]
+      show help
+  exit, quit, q
+      leave the shell
+
+  tr is short for transactions
 """
 
 
@@ -80,14 +91,17 @@ class NxSigShell(cmd.Cmd):
 
     def do_transactions(self, arg):
         """
-        transactions add <stock> <buy|sell> <count> <price>
-            record a transaction, e.g. 'transactions add NVDA buy 10 120.5'
-        transactions get <stock>
-            show all transactions and the current total for a stock
+        tr add <stock> <buy|sell> <count> <price>
+            record a transaction,
+            e.g. 'tr add NVDA buy 10 120.5'
+        tr get <stock>
+            show all transactions and the current
+            total for a stock
+        tr is short for transactions
         """
         args = arg.split()
         if not args:
-            print("usage: transactions [add/get] ...")
+            print("usage: tr [add/get] ...")
             return
 
         sub, rest = args[0].lower(), args[1:]
@@ -96,11 +110,11 @@ class NxSigShell(cmd.Cmd):
         elif sub == "get":
             self._transaction_get(rest)
         else:
-            print(f"unknown subcommand '{sub}', expected add/get")
+            _print_wrapped(f"unknown subcommand '{sub}', expected add/get")
 
     def _transaction_add(self, args):
         if len(args) != 4:
-            print("usage: transactions add <stock> <buy|sell> <count> <price>")
+            print("usage: tr add <stock> <buy|sell> <count> <price>")
             return
         try:
             stock = _parse_stock(args[0])
@@ -108,23 +122,23 @@ class NxSigShell(cmd.Cmd):
             count = int(args[2])
             price = float(args[3])
         except ValueError as e:
-            print(f"error: {e}")
+            _print_wrapped(f"error: {e}")
             return
         if count <= 0 or price <= 0:
             print("error: count and price must be positive")
             return
 
         transaction_add(stock, transaction_type, count, price)
-        print(f"added {transaction_type.name} {count} {stock.name} @ {price}")
+        _print_wrapped(f"added {transaction_type.name} {count} {stock.name} @ {price}")
 
     def _transaction_get(self, args):
         if len(args) != 1:
-            print("usage: transactions get <stock>")
+            print("usage: tr get <stock>")
             return
         try:
             stock = _parse_stock(args[0])
         except ValueError as e:
-            print(f"error: {e}")
+            _print_wrapped(f"error: {e}")
             return
 
         transactions = transactions_get(stock)
@@ -139,7 +153,7 @@ class NxSigShell(cmd.Cmd):
             header_cols = [f"{HEADER_COLOR}{col}{RESET}" for col in header_cols]
         print()
         print(column_sep.join(header_cols))
-        separator = "-" * 48
+        separator = "-" * WIDTH
         print(f"{DIM}{separator}{RESET}" if color else separator)
         for t in transactions:
             transaction_type = t['Type'].name
@@ -195,7 +209,8 @@ class NxSigShell(cmd.Cmd):
 
     def do_strategy(self, arg):
         """
-        strategy [run/stop/list/get]   (not implemented yet)
+        strategy [run/stop/list/get]
+            not implemented yet
         """
         args = arg.split()
         if not args:
@@ -206,7 +221,7 @@ class NxSigShell(cmd.Cmd):
         if sub in ("run", "stop", "list", "get"):
             print(f"strategy {sub}: not implemented yet")
         else:
-            print(f"unknown subcommand '{sub}', expected run/stop/list/get")
+            _print_wrapped(f"unknown subcommand '{sub}', expected run/stop/list/get")
 
     def complete_strategy(self, text, line, begidx, endidx):
         return _complete(text, line, [["run", "stop", "list", "get"]])
@@ -225,9 +240,14 @@ class NxSigShell(cmd.Cmd):
         return True
 
     def do_help(self, arg):
-        """show available commands, or details with 'help <command>'"""
+        """show commands, or details with 'help <cmd>'"""
         if arg:
-            return super().do_help(arg)
+            command = getattr(self, f"do_{arg}", None)
+            if command and command.__doc__:
+                print(inspect.cleandoc(command.__doc__))
+            else:
+                _print_wrapped(f"no help on '{arg}'")
+            return
         print(HELP)
 
     def precmd(self, line):
@@ -239,7 +259,12 @@ class NxSigShell(cmd.Cmd):
         pass
 
     def default(self, line):
-        print(f"unknown command: {line.split()[0]}. Type 'help' for commands.")
+        _print_wrapped(f"unknown command: {line.split()[0]}. Type 'help' for commands.")
+
+
+def _print_wrapped(text):
+    """print plain text wrapped to WIDTH"""
+    print(textwrap.fill(text, WIDTH, subsequent_indent="  ", break_on_hyphens=False))
 
 
 def _parse_stock(name):
