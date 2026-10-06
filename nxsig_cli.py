@@ -244,11 +244,11 @@ class NxSigShell(cmd.Cmd):
         if arg:
             command = getattr(self, f"do_{arg}", None)
             if command and command.__doc__:
-                print(inspect.cleandoc(command.__doc__))
+                _print_dim(inspect.cleandoc(command.__doc__))
             else:
                 _print_wrapped(f"no help on '{arg}'")
             return
-        print(HELP)
+        _print_dim(HELP)
 
     def precmd(self, line):
         # Windows consoles/pipes may prefix input with a UTF-8 BOM
@@ -260,6 +260,10 @@ class NxSigShell(cmd.Cmd):
 
     def default(self, line):
         _print_wrapped(f"unknown command: {line.split()[0]}. Type 'help' for commands.")
+
+
+def _print_dim(text):
+    print(f"{DIM}{text}{RESET}" if _supports_color() else text)
 
 
 def _print_wrapped(text):
