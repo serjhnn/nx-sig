@@ -3,6 +3,7 @@
 # commands:
 #   transactions, tr add <stock> <buy|sell> <count> <price>
 #   transactions, tr get <stock>
+#   ls <stock>                       (alias for 'tr get <stock>')
 #   strategy [run/stop/list/get]     (not implemented yet)
 #   help, exit, quit, q
 
@@ -63,6 +64,7 @@ HELP = """
 commands:
   transactions, tr add <stock> <buy|sell> <count> <price>  record a transaction
   transactions, tr get <stock>                             show transactions and total
+  ls <stock>                                               alias for 'tr get <stock>'
   strategy [run/stop/list/get]                             (not implemented yet)
   help [command]                                           show help
   exit, quit, q                                            leave the shell
@@ -178,6 +180,16 @@ class NxSigShell(cmd.Cmd):
 
     do_tr = do_transactions
     complete_tr = complete_transactions
+
+    def do_ls(self, arg):
+        """
+        ls <stock>
+            alias for 'transactions get <stock>'
+        """
+        self._transaction_get(arg.split())
+
+    def complete_ls(self, text, line, begidx, endidx):
+        return _complete(text, line, [[s.name for s in Stock]])
 
     # ---------------- strategy ----------------
 
