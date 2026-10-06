@@ -172,8 +172,8 @@ class NxSigShell(cmd.Cmd):
                 price = f"{t['Price']:>10.2f}"
             print(column_sep.join([date, time, transaction_type, count, price]))
 
-        total_count, total_price = transactions_total_get(stock)
-        total_sum = total_count * total_price
+        total_count, avg_price = transactions_total_get(stock)
+        total_sum = total_count * avg_price
         print(f"{DIM}{separator}{RESET}" if color else separator)
         if color:
             total_line = (
@@ -181,12 +181,12 @@ class NxSigShell(cmd.Cmd):
                 f"{BOLD}{COUNT_COLOR}{total_count}{RESET} "
                 f"{BOLD}{TOTAL_STOCK_COLOR}{stock.name}{RESET}, "
                 f"{DIM}avg buy{RESET} "
-                f"{BOLD}{TOTAL_PRICE_COLOR}{total_price:.2f}{RESET}, "
+                f"{BOLD}{TOTAL_PRICE_COLOR}{avg_price:.2f}{RESET}, "
                 f"{DIM}sum{RESET} "
                 f"{BOLD}{TOTAL_PRICE_COLOR}{total_sum:.2f}{RESET}"
             )
         else:
-            total_line = f"total: {total_count} {stock.name}, avg buy {total_price:.2f}, sum {total_sum:.2f}"
+            total_line = f"total: {total_count} {stock.name}, avg buy {avg_price:.2f}, sum {total_sum:.2f}"
         print(total_line)
         print()
 

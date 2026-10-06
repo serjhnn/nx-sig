@@ -98,13 +98,13 @@ def _transactions_total_save(stock, transaction_type, count, price):
         Price - average price for a stock for multiple buy transaction  
 
         if BUY :
-            total_price = (total_price * total_count + price * count) / (total_count + count) 
+            avg_price = (avg_price * total_count + price * count) / (total_count + count) 
             total_count += count
         else : # sell
             total_count -= count
 
         place total_count in "Count" row
-        place total_price in "Price" row 
+        place avg_price in "Price" row 
 
         for a specified stock
 
@@ -122,17 +122,17 @@ def _transactions_total_save(stock, transaction_type, count, price):
         rows.append(row)
 
     total_count = int(row["Count"])
-    total_price = float(row["Price"])
+    avg_price = float(row["Price"])
 
     if transaction_type == TransactionType.BUY:
         if total_count + count > 0:
-            total_price = (total_price * total_count + price * count) / (total_count + count)
+            avg_price = (avg_price * total_count + price * count) / (total_count + count)
         total_count += count
     else:  # sell
         total_count -= count
 
     row["Count"] = total_count
-    row["Price"] = total_price
+    row["Price"] = avg_price
 
     with open(path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=TOTAL_FIELDNAMES)
@@ -141,7 +141,7 @@ def _transactions_total_save(stock, transaction_type, count, price):
 
 def transactions_total_get(stock):
     """
-        return (total_count, total_price) for a stock from transactions_total.csv
+        return (total_count, avg_price) for a stock from transactions_total.csv
     """
     path = _transactions_total_path()
     if os.path.exists(path):
