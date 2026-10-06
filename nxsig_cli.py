@@ -177,10 +177,10 @@ class NxSigShell(cmd.Cmd):
             total_line = (
                 f"{DIM}total:{RESET} "
                 f"{BOLD}{COUNT_COLOR}{total_count}{RESET} "
-                f"{BOLD}{TOTAL_STOCK_COLOR}{stock.name}{RESET}, "
-                f"{DIM}avg buy{RESET} "
-                f"{BOLD}{PRICE_COLOR}{avg_price:.2f}{RESET}, "
-                f"{DIM}sum{RESET} "
+                f"{BOLD}{TOTAL_STOCK_COLOR}{stock.name}{RESET}"
+                f"{DIM}, avg buy{RESET} "
+                f"{BOLD}{PRICE_COLOR}{avg_price:.2f}{RESET}"
+                f"{DIM}, sum{RESET} "
                 f"{BOLD}{PRICE_COLOR}{total_sum:.2f}{RESET}"
             )
         else:
