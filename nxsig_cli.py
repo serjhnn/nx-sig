@@ -37,7 +37,6 @@ WIDTH = 48
 # 256-color gradient, one per logo line, top to bottom: light blue -> dark green
 LOGO_COLORS = [f"\033[38;5;{c}m" for c in (117, 80, 43, 36, 29, 22)]
 DIM = "\033[2m"
-HEADER_COLOR = "\033[1;36m"
 DATE_COLOR = "\033[36m"
 COUNT_COLOR = "\033[35m"
 PRICE_COLOR = "\033[33m"
@@ -101,7 +100,7 @@ class NxSigShell(cmd.Cmd):
         """
         args = arg.split()
         if not args:
-            print("usage: tr [add/get] ...")
+            _print_wrapped("usage: tr [add/get] ...")
             return
 
         sub, rest = args[0].lower(), args[1:]
@@ -110,11 +109,11 @@ class NxSigShell(cmd.Cmd):
         elif sub == "get":
             self._transaction_get(rest)
         else:
-            _print_wrapped(f"unknown subcommand '{sub}', expected add/get")
+            _print_error(f"unknown subcommand '{sub}', expected add/get")
 
     def _transaction_add(self, args):
         if len(args) != 4:
-            print("usage: tr add <stock> <buy|sell> <count> <price>")
+            _print_wrapped("usage: tr add <stock> <buy|sell> <count> <price>")
             return
         try:
             stock = _parse_stock(args[0])
@@ -122,10 +121,10 @@ class NxSigShell(cmd.Cmd):
             count = int(args[2])
             price = float(args[3])
         except ValueError as e:
-            _print_wrapped(f"error: {e}")
+            _print_error(f"error: {e}")
             return
         if count <= 0 or price <= 0:
-            print("error: count and price must be positive")
+            _print_error("error: count and price must be positive")
             return
 
         transaction_add(stock, transaction_type, count, price)
@@ -133,17 +132,17 @@ class NxSigShell(cmd.Cmd):
 
     def _transaction_get(self, args):
         if len(args) != 1:
-            print("usage: tr get <stock>")
+            _print_wrapped("usage: tr get <stock>")
             return
         try:
             stock = _parse_stock(args[0])
         except ValueError as e:
-            _print_wrapped(f"error: {e}")
+            _print_error(f"error: {e}")
             return
 
         transactions = transactions_get(stock)
         if not transactions:
-            print(f"no transactions for {stock.name}")
+            _print_wrapped(f"no transactions for {stock.name}")
             return
 
         color = _supports_color()
@@ -177,7 +176,7 @@ class NxSigShell(cmd.Cmd):
         print(f"{DIM}{separator}{RESET}" if color else separator)
         if color:
             total_line = (
-                f"{BOLD}{HEADER_COLOR}total: {RESET}"
+                f"{DIM}total:{RESET} "
                 f"{BOLD}{COUNT_COLOR}{total_count}{RESET} "
                 f"{BOLD}{TOTAL_STOCK_COLOR}{stock.name}{RESET}, "
                 f"{DIM}avg buy{RESET} "
@@ -217,14 +216,14 @@ class NxSigShell(cmd.Cmd):
         """
         args = arg.split()
         if not args:
-            print("usage: strategy [run/stop/list/get]")
+            _print_wrapped("usage: strategy [run/stop/list/get]")
             return
 
         sub = args[0].lower()
         if sub in ("run", "stop", "list", "get"):
-            print(f"strategy {sub}: not implemented yet")
+            _print_wrapped(f"strategy {sub}: not implemented yet")
         else:
-            _print_wrapped(f"unknown subcommand '{sub}', expected run/stop/list/get")
+            _print_error(f"unknown subcommand '{sub}', expected run/stop/list/get")
 
     def complete_strategy(self, text, line, begidx, endidx):
         return _complete(text, line, [["run", "stop", "list", "get"]])
@@ -249,7 +248,7 @@ class NxSigShell(cmd.Cmd):
             if command and command.__doc__:
                 _print_dim(inspect.cleandoc(command.__doc__))
             else:
-                _print_wrapped(f"no help on '{arg}'")
+                _print_error(f"no help on '{arg}'")
             return
         _print_dim(HELP)
 
@@ -262,7 +261,7 @@ class NxSigShell(cmd.Cmd):
         pass
 
     def default(self, line):
-        _print_wrapped(f"unknown command: {line.split()[0]}. Type 'help' for commands.")
+        _print_error(f"unknown command: {line.split()[0]}. Type 'help' for commands.")
 
 
 def _print_dim(text):
@@ -270,8 +269,17 @@ def _print_dim(text):
 
 
 def _print_wrapped(text):
-    """print plain text wrapped to WIDTH"""
-    print(textwrap.fill(text, WIDTH, subsequent_indent="  ", break_on_hyphens=False))
+    """print plain text wrapped to WIDTH, dimmed"""
+    _print_dim(_wrap(text))
+
+
+def _print_error(text):
+    """print an error wrapped to WIDTH, not dimmed so it stands out"""
+    print(_wrap(text))
+
+
+def _wrap(text):
+    return textwrap.fill(text, WIDTH, subsequent_indent="  ", break_on_hyphens=False)
 
 
 def _parse_stock(name):
