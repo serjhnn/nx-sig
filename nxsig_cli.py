@@ -32,7 +32,7 @@ LOGO = r"""
 SUBTITLE = "  nX-sig shell. 'help' for commands, 'q' to quit"
 
 # all output is kept within the width of the 'tr get' table so it fits a mobile screen
-WIDTH = 56
+WIDTH = 48
 
 # 256-color gradient, one per logo line, top to bottom: light blue -> dark green
 LOGO_COLORS = [f"\033[38;5;{c}m" for c in (117, 80, 43, 36, 29, 22)]
@@ -146,7 +146,7 @@ class NxSigShell(cmd.Cmd):
 
         color = _supports_color()
         column_sep = f"{DIM} | {RESET}" if color else " | "
-        header_cols = [f"{'Index':>5}", f"{'Date':>10}", f"{'Time':>5}", f"{'Type':>4}", f"{'Count':>6}", f"{'Price':>10}"]
+        header_cols = [f"{'Id':>4}", f"{'Date':>8}", f"{'Time':>5}", f"{'Type':>4}", f"{'Count':>5}", f"{'Price':>7}"]
         if color:
             header_cols = [f"{DIM}{col}{RESET}" for col in header_cols]
         print()
@@ -158,18 +158,18 @@ class NxSigShell(cmd.Cmd):
             if color:
                 type_color = BUY_COLOR if transaction_type == "BUY" else SELL_COLOR
                 transaction_type = f"{type_color}{transaction_type:>4}{RESET}"
-                date = f"{DATE_COLOR}{t['Date']:>10}{RESET}"
+                date = f"{DATE_COLOR}{_short_date(t['Date']):>8}{RESET}"
                 time = f"{DIM}{t['Time']:>5}{RESET}"
-                count = f"{COUNT_COLOR}{t['Count']:>6}{RESET}"
-                price = f"{PRICE_COLOR}{t['Price']:>10.2f}{RESET}"
-                index = f"{DIM}{t['Index']:>5}{RESET}"
+                count = f"{COUNT_COLOR}{t['Count']:>5}{RESET}"
+                price = f"{PRICE_COLOR}{t['Price']:>7.2f}{RESET}"
+                index = f"{DIM}{t['Index']:>4}{RESET}"
             else:
-                index = f"{t['Index']:>5}"
+                index = f"{t['Index']:>4}"
                 transaction_type = f"{transaction_type:>4}"
-                date = f"{t['Date']:>10}"
+                date = f"{_short_date(t['Date']):>8}"
                 time = f"{t['Time']:>5}"
-                count = f"{t['Count']:>6}"
-                price = f"{t['Price']:>10.2f}"
+                count = f"{t['Count']:>5}"
+                price = f"{t['Price']:>7.2f}"
             print(column_sep.join([index, date, time, transaction_type, count, price]))
 
         total_count, avg_price = transactions_total_get(stock)
@@ -289,6 +289,11 @@ def _parse_stock(name):
     except KeyError:
         raise ValueError(f"unknown stock '{name}', expected one of: "
                          f"{', '.join(s.name for s in Stock)}")
+
+
+def _short_date(value):
+    """Display stored dd.mm.yyyy dates as dd.mm.yy."""
+    return f"{value[:6]}{value[-2:]}" if len(value) == 10 else value
 
 
 def _parse_transaction_type(name):
