@@ -257,7 +257,8 @@ class NxSigShell(cmd.Cmd):
             alias for 'transactions get <stock>'
         ls
             show count, average buy price and
-            total price of all stocks held
+            total price of all stocks held,
+            and growth % (not implemented yet, 0)
         """
         args = arg.split()
         if not args:
@@ -275,7 +276,7 @@ class NxSigShell(cmd.Cmd):
 
         color = _supports_color()
         column_sep = _column_sep(color)
-        header_cols = [f"{'Name':<5}", f"{'Count':>5}", f"{'Avg Price':>9}", f"{'Total':>8}"]
+        header_cols = [f"{'Name':<5}", f"{'Count':>5}", f"{'Avg Price':>9}", f"{'Total':>8}", f"{'Growth %':>8}"]
         if color:
             header_cols = [f"{DIM}{col}{RESET}" for col in header_cols]
         separator = "-" * WIDTH
@@ -287,12 +288,14 @@ class NxSigShell(cmd.Cmd):
             count = f"{total_count:>5}"
             avg = f"{avg_price:>9.2f}"
             total = f"{total_count * avg_price:>8.2f}"
+            growth = f"{0.0:>8.2f}"  # TODO: implement growth % calculation
             if color:
                 name = f"{BOLD}{TOTAL_STOCK_COLOR}{name}{RESET}"
                 count = f"{COUNT_COLOR}{count}{RESET}"
                 avg = f"{PRICE_COLOR}{avg}{RESET}"
                 total = f"{PRICE_COLOR}{total}{RESET}"
-            print(column_sep.join([name, count, avg, total]))
+                growth = f"{DIM}{growth}{RESET}"
+            print(column_sep.join([name, count, avg, total, growth]))
         print()
 
     def complete_ls(self, text, line, begidx, endidx):
