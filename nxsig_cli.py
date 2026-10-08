@@ -221,8 +221,12 @@ class NxSigShell(cmd.Cmd):
 
 
     def complete_transactions(self, text, line, begidx, endidx):
-        return _complete(text, line, [["add", "get", "del"], [s.name for s in Stock],
-                                      [t.name.lower() for t in TransactionType]])
+        options = [["add", "get", "del"], [s.name for s in Stock]]
+        # only 'add' takes a transaction type after the stock name
+        args = line.split()
+        if len(args) > 1 and args[1].lower() == "add":
+            options.append([t.name.lower() for t in TransactionType])
+        return _complete(text, line, options)
 
     do_tr = do_transactions
     complete_tr = complete_transactions
