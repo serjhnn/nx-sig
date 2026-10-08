@@ -3,7 +3,8 @@
 # commands:
 #   transactions, tr add <stock> <buy|sell> <count> <price>
 #   transactions, tr get <stock>
-#   transactions, tr del <stock> <index>
+#   transactions, tr del-last <stock>
+#   transactions, tr del <stock> <index>   (disabled, use 'tr del-last')
 #   ls <stock>                       (alias for 'tr get <stock>')
 #   strategy [run/stop/list/get]     (not implemented yet)
 #   help, exit, quit, q
@@ -72,8 +73,8 @@ commands:
       record a transaction
   tr get <stock>, ls <stock>
       show transactions and total
-  tr del <stock> <index>
-      delete a transaction by its Id
+  tr del-last <stock>
+      delete the last transaction
   strategy [run/stop/list/get]
       not implemented yet
   help [command]
@@ -90,6 +91,14 @@ class NxSigShell(cmd.Cmd):
     # \001/\002 tell readline the escape codes are zero-width so line editing stays aligned
     prompt = f"\001{PROMPT_COLOR}\002nX-sig>\001{RESET}\002 " if _supports_color() else "nX-sig> "
 
+    def preloop(self):
+        # keep '-' inside words so 'del-last' completes as one word
+        try:
+            import readline
+            readline.set_completer_delims(readline.get_completer_delims().replace("-", ""))
+        except ImportError:
+            pass
+
     # ---------------- transactions ----------------
 
     def do_transactions(self, arg):
@@ -100,15 +109,15 @@ class NxSigShell(cmd.Cmd):
         tr get <stock>
             show all transactions and the current
             total for a stock
-        tr del <stock> <index>
-            show the transaction with the given Id
+        tr del-last <stock>
+            show the last transaction of a stock
             and delete it after confirmation,
-            e.g. 'tr del NVDA 2'
+            e.g. 'tr del-last NVDA'
         tr is short for transactions
         """
         args = arg.split()
         if not args:
-            _print_wrapped("usage: tr [add/get/del] ...")
+            _print_wrapped("usage: tr [add/get/del-last] ...")
             return
 
         sub, rest = args[0].lower(), args[1:]
@@ -116,10 +125,13 @@ class NxSigShell(cmd.Cmd):
             self._transactions_add_one(rest)
         elif sub == "get":
             self._transaction_get(rest)
-        elif sub == "del":
-            self._transactions_delete(rest)
+        elif sub == "del-last":
+            self._transactions_delete_last(rest)
+        # 'tr del <stock> <index>' is disabled in favour of 'tr del-last <stock>'
+        # elif sub == "del":
+        #     self._transactions_delete(rest)
         else:
-            _print_error(f"unknown subcommand '{sub}', expected add/get/del")
+            _print_error(f"unknown subcommand '{sub}', expected add/get/del-last")
 
     def _transactions_add_one(self, args):
         if len(args) != 4:
@@ -158,7 +170,28 @@ class NxSigShell(cmd.Cmd):
         if transaction is None:
             _print_error(f"error: no {stock.name} transaction with Id {index}")
             return
+        self._confirm_and_delete(stock, transaction)
 
+    def _transactions_delete_last(self, args):
+        if len(args) != 1:
+            _print_wrapped("usage: tr del-last <stock>")
+            return
+        try:
+            stock = _parse_stock(args[0])
+        except ValueError as e:
+            _print_error(f"error: {e}")
+            return
+
+        transactions = transactions_get_all(stock)
+        if not transactions:
+            _print_wrapped(f"no transactions for {stock.name}")
+            return
+        # transactions are appended, so the last row is the latest one
+        self._confirm_and_delete(stock, transactions[-1])
+
+    def _confirm_and_delete(self, stock, transaction):
+        """show a transaction, ask for confirmation, delete it and show the new total"""
+        index = transaction["Index"]
         color = _supports_color()
         print()
         _print_transactions_header(color)
@@ -206,7 +239,7 @@ class NxSigShell(cmd.Cmd):
 
 
     def complete_transactions(self, text, line, begidx, endidx):
-        options = [["add", "get", "del"], [s.name for s in Stock]]
+        options = [["add", "get", "del-last"], [s.name for s in Stock]]
         # only 'add' takes a transaction type after the stock name
         args = line.split()
         if len(args) > 1 and args[1].lower() == "add":
