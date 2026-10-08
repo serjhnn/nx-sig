@@ -17,8 +17,13 @@ import csv
 import os
 from datetime import datetime
 from enum import Enum
+import json
 
-DB_DIR = os.path.dirname(os.path.abspath(__file__))
+with open("config.json") as f:
+    config = json.load(f)
+
+# DB_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_DIR = config["storage_dir"]
 FIELDNAMES = ["Date", "Time", "Type", "Count", "Price"]
 TOTAL_FIELDNAMES = ["Type", "Count", "Price"]
 
