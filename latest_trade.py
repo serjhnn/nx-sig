@@ -21,14 +21,16 @@ response = requests.get(config["url"],
         "symbols": ",".join(config["indices"]), 
         "feed": config["feed"]
         },
-    headers=headers)
+    headers=headers,
+    timeout=15)
+response.raise_for_status()
 
 data = response.json()
 
 c_ = ["bold magenta", "bold green"]
 
 print("\n".join(
-    f"[{c_[0]}]{index}[/{c_[0]}]: [{c_[1]}]{data['trades'][index]['p']:.2f}[/{c_[1]}]" 
+    f"[{c_[0]}]{index:5s}[/{c_[0]}]: [{c_[1]}]{data['trades'][index]['p']:.2f}[/{c_[1]}]" 
     for index in config["indices"])
     )
 
