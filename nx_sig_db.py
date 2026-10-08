@@ -7,6 +7,9 @@
 #       and update the stock's totals in transactions_total.csv
 #   transactions_get_all(stock)
 #       return all recorded transactions for a stock
+#   transactions_delete(stock, index)
+#       delete the transaction with the given Index from {stock}_transactions.csv
+#       and recalculate the stock's totals in transactions_total.csv
 #   transactions_total_get(stock)
 #       return (count held, average buy price) for a stock
 
@@ -60,7 +63,8 @@ def transactions_add_one(stock, transaction_type, count, price):
                 writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
                 writer.writeheader()
                 writer.writerows(rows)
-    next_index = len(rows) + 1
+    # Indexes stay stable after deletions, so continue from the highest one.
+    next_index = max((int(row["Index"]) for row in rows), default=0) + 1
     write_header = not os.path.exists(path) or os.path.getsize(path) == 0
     now = datetime.now()
 
@@ -100,6 +104,31 @@ def transactions_get_all(stock):
             }
             for index, row in enumerate(csv.DictReader(f), 1)
         ]
+
+def transactions_delete(stock, index):
+    """
+        delete the transaction with the given Index from {stock_name}_transactions.csv
+        and recalculate the stock's totals in transactions_total.csv
+
+        remaining transactions keep their Index
+        return True if a transaction was deleted, False if the index was not found
+    """
+    transactions = transactions_get_all(stock)
+    remaining = [t for t in transactions if t["Index"] != index]
+    if len(remaining) == len(transactions):
+        return False
+
+    with open(_transactions_path(stock), "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writeheader()
+        for t in remaining:
+            writer.writerow({**t, "Type": t["Type"].name})
+
+    # replay the remaining transactions to rebuild the totals from scratch
+    _transactions_total_reset(stock)
+    for t in remaining:
+        _transactions_total_save(stock, t["Type"], t["Count"], t["Price"])
+    return True
 
 def _transactions_path(stock):
     return os.path.join(DB_DIR, f"{stock.name.lower()}_transactions.csv")
@@ -157,6 +186,24 @@ def _transactions_total_save(stock, transaction_type, count, price):
     row["Count"] = total_count
     row["Price"] = avg_price
 
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=TOTAL_FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(rows)
+
+def _transactions_total_reset(stock):
+    """
+        set Count and Price of a stock to 0 in transactions_total.csv
+    """
+    path = _transactions_total_path()
+    if not os.path.exists(path):
+        return
+    with open(path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    for row in rows:
+        if row["Type"] == stock.name:
+            row["Count"] = 0
+            row["Price"] = 0
     with open(path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=TOTAL_FIELDNAMES)
         writer.writeheader()
@@ -259,6 +306,51 @@ if __name__ == "__main__":
             self.assertEqual(len(rows), 3)
             self.assertEqual(transactions_total_get(Stock.NVDA), (1, 100.0))
             self.assertEqual(transactions_total_get(Stock.MRVL), (2, 200.0))
+
+        def test_delete_removes_row_and_keeps_indexes(self):
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 250)
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 270)
+            transactions_add_one(Stock.MRVL, TransactionType.SELL, 5, 300)
+
+            self.assertTrue(transactions_delete(Stock.MRVL, 2))
+
+            transactions = transactions_get_all(Stock.MRVL)
+            self.assertEqual([t["Index"] for t in transactions], [1, 3])
+            self.assertEqual(transactions[1]["Type"], TransactionType.SELL)
+
+        def test_delete_recalculates_total(self):
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 250)
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 270)
+            transactions_add_one(Stock.MRVL, TransactionType.SELL, 5, 300)
+            transactions_add_one(Stock.NVDA, TransactionType.BUY, 1, 100)
+
+            transactions_delete(Stock.MRVL, 2)
+
+            self.assertEqual(transactions_total_get(Stock.MRVL), (5, 250.0))
+            self.assertEqual(transactions_total_get(Stock.NVDA), (1, 100.0))
+
+        def test_delete_last_transaction_resets_total(self):
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 250)
+
+            self.assertTrue(transactions_delete(Stock.MRVL, 1))
+
+            self.assertEqual(transactions_get_all(Stock.MRVL), [])
+            self.assertEqual(transactions_total_get(Stock.MRVL), (0, 0.0))
+
+        def test_delete_unknown_index_returns_false(self):
+            self.assertFalse(transactions_delete(Stock.MRVL, 1))
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 250)
+
+            self.assertFalse(transactions_delete(Stock.MRVL, 5))
+            self.assertEqual(len(transactions_get_all(Stock.MRVL)), 1)
+
+        def test_add_after_delete_does_not_reuse_index(self):
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 250)
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 270)
+            transactions_delete(Stock.MRVL, 1)
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 1, 100)
+
+            self.assertEqual([t["Index"] for t in transactions_get_all(Stock.MRVL)], [2, 3])
 
     unittest.main()
 
