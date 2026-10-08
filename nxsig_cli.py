@@ -16,8 +16,8 @@ import textwrap
 from nx_sig_db import (
     Stock,
     TransactionType,
-    transaction_add,
-    transactions_get,
+    transactions_add_one,
+    transactions_get_all,
     transactions_total_get,
 )
 
@@ -104,13 +104,13 @@ class NxSigShell(cmd.Cmd):
 
         sub, rest = args[0].lower(), args[1:]
         if sub == "add":
-            self._transaction_add(rest)
+            self._transactions_add_one(rest)
         elif sub == "get":
             self._transaction_get(rest)
         else:
             _print_error(f"unknown subcommand '{sub}', expected add/get")
 
-    def _transaction_add(self, args):
+    def _transactions_add_one(self, args):
         if len(args) != 4:
             _print_wrapped("usage: tr add <stock> <buy|sell> <count> <price>")
             return
@@ -126,7 +126,7 @@ class NxSigShell(cmd.Cmd):
             _print_error("error: count and price must be positive")
             return
 
-        transaction_add(stock, transaction_type, count, price)
+        transactions_add_one(stock, transaction_type, count, price)
         _print_wrapped(f"added {transaction_type.name} {count} {stock.name} @ {price}")
 
     def _transaction_get(self, args):
@@ -139,7 +139,7 @@ class NxSigShell(cmd.Cmd):
             _print_error(f"error: {e}")
             return
 
-        transactions = transactions_get(stock)
+        transactions = transactions_get_all(stock)
         if not transactions:
             _print_wrapped(f"no transactions for {stock.name}")
             return

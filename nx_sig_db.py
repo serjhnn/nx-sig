@@ -2,16 +2,16 @@
 # use csv file as a first approach
 #
 # public functions:
-#   transaction_add(stock, transaction_type, count, price)
+#   transactions_add_one(stock, transaction_type, count, price)
 #       record a BUY/SELL transaction in {stock}_transactions.csv
 #       and update the stock's totals in transactions_total.csv
-#   transactions_get(stock)
+#   transactions_get_all(stock)
 #       return all recorded transactions for a stock
 #   transactions_total_get(stock)
 #       return (count held, average buy price) for a stock
 
 # usage example
-# transaction_add(Stock.NVDA, TransactionType.BUY, 1, 100)
+# transactions_add_one(Stock.NVDA, TransactionType.BUY, 1, 100)
 
 import csv
 import os
@@ -35,7 +35,7 @@ class TransactionType(Enum):
     BUY = 1
     SELL = 2
 
-def transaction_add(stock, transaction_type, count, price):
+def transactions_add_one(stock, transaction_type, count, price):
     """ 
     Add transaction to {stock_name}_transactions.csv file 
     
@@ -63,7 +63,7 @@ def transaction_add(stock, transaction_type, count, price):
 
     _transactions_total_save(stock, transaction_type, count, price)
 
-def transactions_get(stock):
+def transactions_get_all(stock):
     """
         return all transactions stored in file {stock_name}_transactions.csv
         in a dictionary
@@ -178,10 +178,10 @@ if __name__ == "__main__":
             self._tmp.cleanup()
 
         def test_get_without_file_returns_empty(self):
-            self.assertEqual(transactions_get(Stock.NVDA), [])
+            self.assertEqual(transactions_get_all(Stock.NVDA), [])
 
         def test_add_creates_file_with_header(self):
-            transaction_add(Stock.MRVL, TransactionType.BUY, 10, 250)
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 250)
 
             with open(_transactions_path(Stock.MRVL), newline="") as f:
                 rows = list(csv.reader(f))
@@ -190,10 +190,10 @@ if __name__ == "__main__":
             self.assertEqual(len(rows), 2)
 
         def test_add_and_get_roundtrip(self):
-            transaction_add(Stock.MRVL, TransactionType.BUY, 10, 250)
-            transaction_add(Stock.MRVL, TransactionType.SELL, 5, 260.5)
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 250)
+            transactions_add_one(Stock.MRVL, TransactionType.SELL, 5, 260.5)
 
-            transactions = transactions_get(Stock.MRVL)
+            transactions = transactions_get_all(Stock.MRVL)
             self.assertEqual(len(transactions), 2)
             self.assertEqual(transactions[0]["Type"], TransactionType.BUY)
             self.assertEqual(transactions[0]["Count"], 10)
@@ -203,35 +203,35 @@ if __name__ == "__main__":
             self.assertEqual(transactions[1]["Price"], 260.5)
 
         def test_date_and_time_format(self):
-            transaction_add(Stock.NVDA, TransactionType.BUY, 1, 100)
+            transactions_add_one(Stock.NVDA, TransactionType.BUY, 1, 100)
 
-            transaction = transactions_get(Stock.NVDA)[0]
+            transaction = transactions_get_all(Stock.NVDA)[0]
             datetime.strptime(transaction["Date"], "%d.%m.%Y")
             datetime.strptime(transaction["Time"], "%H:%M")
 
         def test_stocks_are_stored_separately(self):
-            transaction_add(Stock.NVDA, TransactionType.BUY, 1, 100)
-            transaction_add(Stock.MRVL, TransactionType.BUY, 2, 200)
+            transactions_add_one(Stock.NVDA, TransactionType.BUY, 1, 100)
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 2, 200)
 
-            self.assertEqual(len(transactions_get(Stock.NVDA)), 1)
-            self.assertEqual(len(transactions_get(Stock.MRVL)), 1)
-            self.assertEqual(transactions_get(Stock.MRVL)[0]["Count"], 2)
+            self.assertEqual(len(transactions_get_all(Stock.NVDA)), 1)
+            self.assertEqual(len(transactions_get_all(Stock.MRVL)), 1)
+            self.assertEqual(transactions_get_all(Stock.MRVL)[0]["Count"], 2)
 
         def test_total_buy_averages_price(self):
-            transaction_add(Stock.MRVL, TransactionType.BUY, 10, 250)
-            transaction_add(Stock.MRVL, TransactionType.BUY, 10, 270)
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 250)
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 270)
 
             self.assertEqual(transactions_total_get(Stock.MRVL), (20, 260.0))
 
         def test_total_sell_keeps_price(self):
-            transaction_add(Stock.MRVL, TransactionType.BUY, 10, 250)
-            transaction_add(Stock.MRVL, TransactionType.SELL, 4, 300)
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 250)
+            transactions_add_one(Stock.MRVL, TransactionType.SELL, 4, 300)
 
             self.assertEqual(transactions_total_get(Stock.MRVL), (6, 250.0))
 
         def test_total_stocks_in_one_file(self):
-            transaction_add(Stock.NVDA, TransactionType.BUY, 1, 100)
-            transaction_add(Stock.MRVL, TransactionType.BUY, 2, 200)
+            transactions_add_one(Stock.NVDA, TransactionType.BUY, 1, 100)
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 2, 200)
 
             with open(_transactions_total_path(), newline="") as f:
                 rows = list(csv.reader(f))
@@ -242,5 +242,5 @@ if __name__ == "__main__":
 
     unittest.main()
 
-    #transaction_add(Stock.NVDA, TransactionType.BUY, 1, 100)
-    #transaction_add(Stock.MRVL, TransactionType.BUY, 2, 200)
+    #transactions_add_one(Stock.NVDA, TransactionType.BUY, 1, 100)
+    #transactions_add_one(Stock.MRVL, TransactionType.BUY, 2, 200)
