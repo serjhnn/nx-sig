@@ -12,3 +12,10 @@
 #   strategy signals, transaction confirmations).
 #   on the watch they should be short and precise, so they can be read
 #   at a glance and acted on quickly (e.g. confirm / dismiss).
+#
+# server location (to be checked):
+#   maybe the watch app can call localhost (127.0.0.1) on the paired phone,
+#   and that request can be redirected to a web server running in Termux,
+#   so no external server would be needed.
+#   check that Connect IQ really allows requests to localhost, and whether
+#   plain http is accepted there or https is required.
