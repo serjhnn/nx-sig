@@ -75,7 +75,7 @@ commands:
   tr get <stock>, ls <stock>
       show transactions and total
   ls
-      show totals of all stocks
+      show totals of all stocks held
   tr del-last <stock>
       delete the last transaction
   strategy [run/stop/list/get]
@@ -257,7 +257,7 @@ class NxSigShell(cmd.Cmd):
             alias for 'transactions get <stock>'
         ls
             show count, average buy price and
-            total price of all stocks
+            total price of all stocks held
         """
         args = arg.split()
         if not args:
@@ -266,6 +266,13 @@ class NxSigShell(cmd.Cmd):
         self._transaction_get(args)
 
     def _totals_all(self):
+        # only stocks that are currently held
+        totals = [(stock, *transactions_total_get(stock)) for stock in Stock]
+        totals = [t for t in totals if t[1] != 0]
+        if not totals:
+            _print_wrapped("no stocks held")
+            return
+
         color = _supports_color()
         column_sep = _column_sep(color)
         header_cols = [f"{'Name':<5}", f"{'Count':>5}", f"{'Avg Price':>9}", f"{'Total':>8}"]
@@ -275,8 +282,7 @@ class NxSigShell(cmd.Cmd):
         print()
         print(column_sep.join(header_cols))
         print(f"{DIM}{separator}{RESET}" if color else separator)
-        for stock in Stock:
-            total_count, avg_price = transactions_total_get(stock)
+        for stock, total_count, avg_price in totals:
             name = f"{stock.name:<5}"
             count = f"{total_count:>5}"
             avg = f"{avg_price:>9.2f}"
