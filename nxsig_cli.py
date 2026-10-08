@@ -101,8 +101,9 @@ class NxSigShell(cmd.Cmd):
             show all transactions and the current
             total for a stock
         tr del <stock> <index>
-            delete the transaction with the given
-            Id, e.g. 'tr del NVDA 2'
+            show the transaction with the given Id
+            and delete it after confirmation,
+            e.g. 'tr del NVDA 2'
         tr is short for transactions
         """
         args = arg.split()
@@ -153,10 +154,28 @@ class NxSigShell(cmd.Cmd):
             return
         index = int(args[1])
 
-        if transactions_delete(stock, index):
-            _print_wrapped(f"deleted {stock.name} transaction {index}")
-        else:
+        transaction = next((t for t in transactions_get_all(stock) if t["Index"] == index), None)
+        if transaction is None:
             _print_error(f"error: no {stock.name} transaction with Id {index}")
+            return
+
+        color = _supports_color()
+        print()
+        _print_transactions_header(color)
+        _print_transaction_row(transaction, color)
+        print()
+        try:
+            answer = input(f"delete this {stock.name} transaction? [y/N] ")
+        except (EOFError, KeyboardInterrupt):
+            # Ctrl+D / Ctrl+C at the prompt cancels instead of leaving the shell
+            answer = ""
+            print()
+        if answer.strip().lower() not in ("y", "yes"):
+            _print_wrapped("cancelled")
+            return
+
+        transactions_delete(stock, index)
+        _print_wrapped(f"deleted {stock.name} transaction {index}")
 
     def _transaction_get(self, args):
         if len(args) != 1:
@@ -174,32 +193,11 @@ class NxSigShell(cmd.Cmd):
             return
 
         color = _supports_color()
-        column_sep = f"{DIM} | {RESET}" if color else " | "
-        header_cols = [f"{'Id':>4}", f"{'Date':>8}", f"{'Time':>5}", f"{'Type':>4}", f"{'Count':>5}", f"{'Price':<7}"]
-        if color:
-            header_cols = [f"{DIM}{col}{RESET}" for col in header_cols]
         print()
-        print(column_sep.join(header_cols))
-        separator = "-" * WIDTH
-        print(f"{DIM}{separator}{RESET}" if color else separator)
+        _print_transactions_header(color)
         for t in transactions:
-            transaction_type = t['Type'].name
-            if color:
-                type_color = BUY_COLOR if transaction_type == "BUY" else SELL_COLOR
-                transaction_type = f"{type_color}{transaction_type:>4}{RESET}"
-                date = f"{DATE_COLOR}{_short_date(t['Date']):>8}{RESET}"
-                time = f"{DIM}{t['Time']:>5}{RESET}"
-                count = f"{COUNT_COLOR}{t['Count']:>5}{RESET}"
-                price = f"{PRICE_COLOR}{t['Price']:<7.2f}{RESET}"
-                index = f"{DIM}{t['Index']:>4}{RESET}"
-            else:
-                index = f"{t['Index']:>4}"
-                transaction_type = f"{transaction_type:>4}"
-                date = f"{_short_date(t['Date']):>8}"
-                time = f"{t['Time']:>5}"
-                count = f"{t['Count']:>5}"
-                price = f"{t['Price']:<7.2f}"
-            print(column_sep.join([index, date, time, transaction_type, count, price]))
+            _print_transaction_row(t, color)
+        separator = "-" * WIDTH
 
         total_count, avg_price = transactions_total_get(stock)
         total_sum = total_count * avg_price
@@ -296,6 +294,41 @@ class NxSigShell(cmd.Cmd):
 
     def default(self, line):
         _print_error(f"unknown command: {line.split()[0]}. Type 'help' for commands.")
+
+
+def _column_sep(color):
+    return f"{DIM} | {RESET}" if color else " | "
+
+
+def _print_transactions_header(color):
+    """print the column names of the transactions table and a separator line"""
+    header_cols = [f"{'Id':>4}", f"{'Date':>8}", f"{'Time':>5}", f"{'Type':>4}", f"{'Count':>5}", f"{'Price':<7}"]
+    if color:
+        header_cols = [f"{DIM}{col}{RESET}" for col in header_cols]
+    print(_column_sep(color).join(header_cols))
+    separator = "-" * WIDTH
+    print(f"{DIM}{separator}{RESET}" if color else separator)
+
+
+def _print_transaction_row(t, color):
+    """print one transaction as a row of the transactions table"""
+    transaction_type = t['Type'].name
+    if color:
+        type_color = BUY_COLOR if transaction_type == "BUY" else SELL_COLOR
+        transaction_type = f"{type_color}{transaction_type:>4}{RESET}"
+        date = f"{DATE_COLOR}{_short_date(t['Date']):>8}{RESET}"
+        time = f"{DIM}{t['Time']:>5}{RESET}"
+        count = f"{COUNT_COLOR}{t['Count']:>5}{RESET}"
+        price = f"{PRICE_COLOR}{t['Price']:<7.2f}{RESET}"
+        index = f"{DIM}{t['Index']:>4}{RESET}"
+    else:
+        index = f"{t['Index']:>4}"
+        transaction_type = f"{transaction_type:>4}"
+        date = f"{_short_date(t['Date']):>8}"
+        time = f"{t['Time']:>5}"
+        count = f"{t['Count']:>5}"
+        price = f"{t['Price']:<7.2f}"
+    print(_column_sep(color).join([index, date, time, transaction_type, count, price]))
 
 
 def _print_dim(text):
