@@ -146,7 +146,7 @@ class NxSigShell(cmd.Cmd):
 
         color = _supports_color()
         column_sep = f"{DIM} | {RESET}" if color else " | "
-        header_cols = [f"{'Id':>4}", f"{'Date':>8}", f"{'Time':>5}", f"{'Type':>4}", f"{'Count':>5}", f"{'Price':>7}"]
+        header_cols = [f"{'Id':>4}", f"{'Date':>8}", f"{'Time':>5}", f"{'Type':>4}", f"{'Count':>5}", f"{'Price':<7}"]
         if color:
             header_cols = [f"{DIM}{col}{RESET}" for col in header_cols]
         print()
@@ -161,7 +161,7 @@ class NxSigShell(cmd.Cmd):
                 date = f"{DATE_COLOR}{_short_date(t['Date']):>8}{RESET}"
                 time = f"{DIM}{t['Time']:>5}{RESET}"
                 count = f"{COUNT_COLOR}{t['Count']:>5}{RESET}"
-                price = f"{PRICE_COLOR}{t['Price']:>7.2f}{RESET}"
+                price = f"{PRICE_COLOR}{t['Price']:<7.2f}{RESET}"
                 index = f"{DIM}{t['Index']:>4}{RESET}"
             else:
                 index = f"{t['Index']:>4}"
@@ -169,7 +169,7 @@ class NxSigShell(cmd.Cmd):
                 date = f"{_short_date(t['Date']):>8}"
                 time = f"{t['Time']:>5}"
                 count = f"{t['Count']:>5}"
-                price = f"{t['Price']:>7.2f}"
+                price = f"{t['Price']:<7.2f}"
             print(column_sep.join([index, date, time, transaction_type, count, price]))
 
         total_count, avg_price = transactions_total_get(stock)
