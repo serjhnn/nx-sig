@@ -1,9 +1,10 @@
 # trade engine: polls the latest trades for config["indices"] in a background thread
 #
 # public functions:
-#   start_polling(interval=5)
+#   start_polling(interval=5, on_update=print, on_error=...)
 #       start a thread that every `interval` seconds requests config["url"],
-#       collects {index: price} for config["indices"] and prints it.
+#       collects {index: price} for config["indices"] and passes it to
+#       on_update (prints it by default). failed requests go to on_error.
 #       returns a threading.Event, call .set() on it to stop the thread
 
 import json
@@ -20,14 +21,18 @@ with open(os.path.join(BASE_DIR, "config.json")) as f:
     config = json.load(f)
 
 
-def start_polling(interval=5):
+def _print_error(e):
+    print(f"trade engine: request failed: {e}")
+
+
+def start_polling(interval=5, on_update=print, on_error=_print_error):
     stop_event = threading.Event()
-    thread = threading.Thread(target=_poll, args=(interval, stop_event), daemon=True)
+    thread = threading.Thread(target=_poll, args=(interval, stop_event, on_update, on_error), daemon=True)
     thread.start()
     return stop_event
 
 
-def _poll(interval, stop_event):
+def _poll(interval, stop_event, on_update, on_error):
     headers = {
         "accept": "application/json",
         "APCA-API-KEY-ID": os.environ["APCA_API_KEY_ID"],
@@ -37,9 +42,9 @@ def _poll(interval, stop_event):
     # wait() returns True once stop_event is set, otherwise sleeps `interval` seconds
     while True:
         try:
-            print(_latest_prices(headers))
+            on_update(_latest_prices(headers))
         except requests.RequestException as e:
-            print(f"trade engine: request failed: {e}")
+            on_error(e)
 
         if stop_event.wait(interval):
             break
