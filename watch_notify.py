@@ -19,3 +19,13 @@
 #   so no external server would be needed.
 #   check that Connect IQ really allows requests to localhost, and whether
 #   plain http is accepted there or https is required.
+#
+# background polling:
+#   Connect IQ SDK has a background service (System.ServiceDelegate) that
+#   runs even when the app is not open. it can be scheduled with
+#   Background.registerForTemporalEvent() to periodically poll this server
+#   (the minimum interval is 5 minutes), and pass new notifications to the app
+#   with Background.exit(data), or ask the user to open the app with
+#   Background.requestApplicationWake(message).
+#   background code has a small memory limit, so server responses should be
+#   small (short text, few fields).
