@@ -18,6 +18,7 @@
 
 import csv
 import os
+import tempfile
 from datetime import datetime
 from enum import Enum
 import json
@@ -59,27 +60,19 @@ def transactions_add_one(stock, transaction_type, count, price):
         if "Index" not in (reader.fieldnames or []):
             for index, row in enumerate(rows, 1):
                 row["Index"] = index
-            with open(path, "w", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-                writer.writeheader()
-                writer.writerows(rows)
     # Indexes stay stable after deletions, so continue from the highest one.
     next_index = max((int(row["Index"]) for row in rows), default=0) + 1
-    write_header = not os.path.exists(path) or os.path.getsize(path) == 0
     now = datetime.now()
 
-    with open(path, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        if write_header:
-            writer.writeheader()
-        writer.writerow({
-            "Index": next_index,
-            "Date": now.strftime("%d.%m.%Y"),
-            "Time": now.strftime("%H:%M"),
-            "Type": transaction_type.name,
-            "Count": count,
-            "Price": price,
-        })
+    rows.append({
+        "Index": next_index,
+        "Date": now.strftime("%d.%m.%Y"),
+        "Time": now.strftime("%H:%M"),
+        "Type": transaction_type.name,
+        "Count": count,
+        "Price": price,
+    })
+    _write_csv_atomic(path, FIELDNAMES, rows)
 
     _transactions_total_save(stock, transaction_type, count, price)
 
@@ -118,20 +111,38 @@ def transactions_delete(stock, index):
     if len(remaining) == len(transactions):
         return False
 
-    with open(_transactions_path(stock), "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        writer.writeheader()
-        for t in remaining:
-            writer.writerow({**t, "Type": t["Type"].name})
+    _write_csv_atomic(_transactions_path(stock), FIELDNAMES,
+                      [{**t, "Type": t["Type"].name} for t in remaining])
 
     # replay the remaining transactions to rebuild the totals from scratch
-    _transactions_total_reset(stock)
+    total_count, avg_price = 0, 0.0
     for t in remaining:
-        _transactions_total_save(stock, t["Type"], t["Count"], t["Price"])
+        total_count, avg_price = _total_apply(total_count, avg_price, t["Type"], t["Count"], t["Price"])
+    _transactions_total_set(stock, total_count, avg_price)
     return True
 
 def _transactions_path(stock):
     return os.path.join(DB_DIR, f"{stock.name.lower()}_transactions.csv")
+
+def _write_csv_atomic(path, fieldnames, rows):
+    """
+        write rows to a temporary file in the same directory, then replace path with it,
+        so a crash or error mid-write never leaves a truncated or half-written csv file
+    """
+    directory = os.path.dirname(path) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".tmp_", suffix=".csv")
+    try:
+        with os.fdopen(fd, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)  # atomic on both POSIX and Windows
+    except BaseException:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
 
 
 def _transactions_total_save(stock, transaction_type, count, price):
@@ -161,6 +172,26 @@ def _transactions_total_save(stock, transaction_type, count, price):
 
 
     """
+    total_count, avg_price = transactions_total_get(stock)
+    total_count, avg_price = _total_apply(total_count, avg_price, transaction_type, count, price)
+    _transactions_total_set(stock, total_count, avg_price)
+
+def _total_apply(total_count, avg_price, transaction_type, count, price):
+    """
+        return (total_count, avg_price) after applying one transaction to them
+    """
+    if transaction_type == TransactionType.BUY:
+        if total_count + count > 0:
+            avg_price = (avg_price * total_count + price * count) / (total_count + count)
+        total_count += count
+    else:  # sell
+        total_count -= count
+    return total_count, avg_price
+
+def _transactions_total_set(stock, total_count, avg_price):
+    """
+        store total_count and avg_price of a stock in transactions_total.csv
+    """
     os.makedirs(DB_DIR, exist_ok=True)
     path = _transactions_total_path()
     rows = []
@@ -170,44 +201,12 @@ def _transactions_total_save(stock, transaction_type, count, price):
 
     row = next((r for r in rows if r["Type"] == stock.name), None)
     if row is None:
-        row = {"Type": stock.name, "Count": 0, "Price": 0}
+        row = {"Type": stock.name}
         rows.append(row)
-
-    total_count = int(row["Count"])
-    avg_price = float(row["Price"])
-
-    if transaction_type == TransactionType.BUY:
-        if total_count + count > 0:
-            avg_price = (avg_price * total_count + price * count) / (total_count + count)
-        total_count += count
-    else:  # sell
-        total_count -= count
-
     row["Count"] = total_count
     row["Price"] = avg_price
 
-    with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=TOTAL_FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(rows)
-
-def _transactions_total_reset(stock):
-    """
-        set Count and Price of a stock to 0 in transactions_total.csv
-    """
-    path = _transactions_total_path()
-    if not os.path.exists(path):
-        return
-    with open(path, newline="") as f:
-        rows = list(csv.DictReader(f))
-    for row in rows:
-        if row["Type"] == stock.name:
-            row["Count"] = 0
-            row["Price"] = 0
-    with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=TOTAL_FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(rows)
+    _write_csv_atomic(path, TOTAL_FIELDNAMES, rows)
 
 def transactions_total_get(stock):
     """
@@ -351,6 +350,32 @@ if __name__ == "__main__":
             transactions_add_one(Stock.MRVL, TransactionType.BUY, 1, 100)
 
             self.assertEqual([t["Index"] for t in transactions_get_all(Stock.MRVL)], [2, 3])
+
+        def test_failed_write_keeps_old_file_and_no_temp_files(self):
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 10, 250)
+            path = _transactions_path(Stock.MRVL)
+            with open(path, newline="") as f:
+                before = f.read()
+
+            class Boom(dict):
+                def keys(self):
+                    raise RuntimeError("boom")
+            with self.assertRaises(Exception):
+                _write_csv_atomic(path, FIELDNAMES, [{"Index": 1}, Boom()])
+
+            with open(path, newline="") as f:
+                self.assertEqual(f.read(), before)
+            self.assertEqual(sorted(os.listdir(DB_DIR)),
+                             ["mrvl_transactions.csv", "transactions_total.csv"])
+
+        def test_add_upgrades_file_without_index_column(self):
+            os.makedirs(DB_DIR, exist_ok=True)
+            with open(_transactions_path(Stock.MRVL), "w", newline="") as f:
+                f.write("Date,Time,Type,Count,Price\r\n05.10.2026,14:30,BUY,10,250\r\n")
+
+            transactions_add_one(Stock.MRVL, TransactionType.BUY, 1, 100)
+
+            self.assertEqual([t["Index"] for t in transactions_get_all(Stock.MRVL)], [1, 2])
 
     unittest.main()
 
