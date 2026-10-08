@@ -32,7 +32,7 @@ LOGO = r"""
 SUBTITLE = "  nX-sig shell. 'help' for commands, 'q' to quit"
 
 # all output is kept within the width of the 'tr get' table so it fits a mobile screen
-WIDTH = 48
+WIDTH = 56
 
 # 256-color gradient, one per logo line, top to bottom: light blue -> dark green
 LOGO_COLORS = [f"\033[38;5;{c}m" for c in (117, 80, 43, 36, 29, 22)]
@@ -146,7 +146,7 @@ class NxSigShell(cmd.Cmd):
 
         color = _supports_color()
         column_sep = f"{DIM} | {RESET}" if color else " | "
-        header_cols = [f"{'Date':>10}", f"{'Time':>5}", f"{'Type':>4}", f"{'Count':>6}", f"{'Price':>10}"]
+        header_cols = [f"{'Index':>5}", f"{'Date':>10}", f"{'Time':>5}", f"{'Type':>4}", f"{'Count':>6}", f"{'Price':>10}"]
         if color:
             header_cols = [f"{DIM}{col}{RESET}" for col in header_cols]
         print()
@@ -162,13 +162,15 @@ class NxSigShell(cmd.Cmd):
                 time = f"{DIM}{t['Time']:>5}{RESET}"
                 count = f"{COUNT_COLOR}{t['Count']:>6}{RESET}"
                 price = f"{PRICE_COLOR}{t['Price']:>10.2f}{RESET}"
+                index = f"{DIM}{t['Index']:>5}{RESET}"
             else:
+                index = f"{t['Index']:>5}"
                 transaction_type = f"{transaction_type:>4}"
                 date = f"{t['Date']:>10}"
                 time = f"{t['Time']:>5}"
                 count = f"{t['Count']:>6}"
                 price = f"{t['Price']:>10.2f}"
-            print(column_sep.join([date, time, transaction_type, count, price]))
+            print(column_sep.join([index, date, time, transaction_type, count, price]))
 
         total_count, avg_price = transactions_total_get(stock)
         total_sum = total_count * avg_price

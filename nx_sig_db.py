@@ -24,7 +24,7 @@ with open("config.json") as f:
 
 # DB_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_DIR = config["storage_dir"]
-FIELDNAMES = ["Date", "Time", "Type", "Count", "Price"]
+FIELDNAMES = ["Index", "Date", "Time", "Type", "Count", "Price"]
 TOTAL_FIELDNAMES = ["Type", "Count", "Price"]
 
 class Stock(Enum):
@@ -46,6 +46,20 @@ def transactions_add_one(stock, transaction_type, count, price):
 
     """
     path = _transactions_path(stock)
+    rows = []
+    if os.path.exists(path) and os.path.getsize(path) > 0:
+        with open(path, newline="") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        # Upgrade existing files that predate the Index column, preserving row order.
+        if "Index" not in (reader.fieldnames or []):
+            for index, row in enumerate(rows, 1):
+                row["Index"] = index
+            with open(path, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+                writer.writeheader()
+                writer.writerows(rows)
+    next_index = len(rows) + 1
     write_header = not os.path.exists(path) or os.path.getsize(path) == 0
     now = datetime.now()
 
@@ -54,6 +68,7 @@ def transactions_add_one(stock, transaction_type, count, price):
         if write_header:
             writer.writeheader()
         writer.writerow({
+            "Index": next_index,
             "Date": now.strftime("%d.%m.%Y"),
             "Time": now.strftime("%H:%M"),
             "Type": transaction_type.name,
@@ -75,13 +90,14 @@ def transactions_get_all(stock):
     with open(path, newline="") as f:
         return [
             {
+                "Index": int(row.get("Index") or index),
                 "Date": row["Date"],
                 "Time": row["Time"],
                 "Type": TransactionType[row["Type"]],
                 "Count": int(row["Count"]),
                 "Price": float(row["Price"]),
             }
-            for row in csv.DictReader(f)
+            for index, row in enumerate(csv.DictReader(f), 1)
         ]
 
 def _transactions_path(stock):
@@ -186,7 +202,8 @@ if __name__ == "__main__":
             with open(_transactions_path(Stock.MRVL), newline="") as f:
                 rows = list(csv.reader(f))
             self.assertEqual(rows[0], FIELDNAMES)
-            self.assertEqual(rows[1][2:], ["BUY", "10", "250"])
+            self.assertEqual(rows[1][0], "1")
+            self.assertEqual(rows[1][3:], ["BUY", "10", "250"])
             self.assertEqual(len(rows), 2)
 
         def test_add_and_get_roundtrip(self):
@@ -195,6 +212,7 @@ if __name__ == "__main__":
 
             transactions = transactions_get_all(Stock.MRVL)
             self.assertEqual(len(transactions), 2)
+            self.assertEqual([t["Index"] for t in transactions], [1, 2])
             self.assertEqual(transactions[0]["Type"], TransactionType.BUY)
             self.assertEqual(transactions[0]["Count"], 10)
             self.assertEqual(transactions[0]["Price"], 250.0)
