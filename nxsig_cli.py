@@ -190,7 +190,7 @@ class NxSigShell(cmd.Cmd):
         self._confirm_and_delete(stock, transactions[-1])
 
     def _confirm_and_delete(self, stock, transaction):
-        """show a transaction, ask for confirmation, delete it and show the new total"""
+        """show a transaction, ask for confirmation and delete it"""
         index = transaction["Index"]
         color = _supports_color()
         print()
@@ -209,7 +209,6 @@ class NxSigShell(cmd.Cmd):
 
         transactions_delete(stock, index)
         _print_wrapped(f"deleted {stock.name} transaction {index}")
-        _print_total(stock, color)
 
     def _transaction_get(self, args):
         if len(args) != 1:
