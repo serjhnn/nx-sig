@@ -268,7 +268,7 @@ class NxSigShell(cmd.Cmd):
     def _totals_all(self):
         color = _supports_color()
         column_sep = _column_sep(color)
-        header_cols = [f"{'Name':<5}", f"{'Count':>5}", f"{'Avg Price':>9}", f"{'Total Price':<11}"]
+        header_cols = [f"{'Name':<5}", f"{'Count':>5}", f"{'Avg Price':>9}", f"{'Total':>8}"]
         if color:
             header_cols = [f"{DIM}{col}{RESET}" for col in header_cols]
         separator = "-" * WIDTH
@@ -280,7 +280,7 @@ class NxSigShell(cmd.Cmd):
             name = f"{stock.name:<5}"
             count = f"{total_count:>5}"
             avg = f"{avg_price:>9.2f}"
-            total = f"{total_count * avg_price:<11.2f}"
+            total = f"{total_count * avg_price:>8.2f}"
             if color:
                 name = f"{BOLD}{TOTAL_STOCK_COLOR}{name}{RESET}"
                 count = f"{COUNT_COLOR}{count}{RESET}"
