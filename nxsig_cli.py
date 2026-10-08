@@ -39,8 +39,9 @@ LOGO_COLORS = [f"\033[38;5;{c}m" for c in (117, 80, 43, 36, 29, 22)]
 DIM = "\033[2m"
 DATE_COLOR = "\033[38;5;30m"
 COUNT_COLOR = "\033[38;5;96m"
+TOTAL_COUNT_COLOR = "\033[38;5;28m"
 PRICE_COLOR = "\033[38;5;136m"
-TOTAL_STOCK_COLOR = "\033[38;5;22m"
+TOTAL_STOCK_COLOR = "\033[38;5;117m"
 BUY_COLOR = "\033[38;5;28m"
 SELL_COLOR = "\033[38;5;124m"
 BOLD = "\033[1m"
@@ -178,7 +179,7 @@ class NxSigShell(cmd.Cmd):
         if color:
             total_line = (
                 f"{DIM}total:{RESET} "
-                f"{BOLD}{COUNT_COLOR}{total_count}{RESET} "
+                f"{BOLD}{TOTAL_COUNT_COLOR}{total_count}{RESET} "
                 f"{BOLD}{TOTAL_STOCK_COLOR}{stock.name}{RESET}"
                 f"{DIM}, avg buy{RESET} "
                 f"{BOLD}{PRICE_COLOR}{avg_price:.2f}{RESET}"
