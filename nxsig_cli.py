@@ -7,14 +7,17 @@
 #   transactions, tr del <stock> <index>   (disabled, use 'tr del-last')
 #   ls <stock>                       (alias for 'tr get <stock>')
 #   ls                               (totals of all stocks)
+#   top [sec]                        (live prices, updated every 5 or <sec> seconds)
 #   strategy [run/stop/list/get]     (not implemented yet)
 #   help, exit, quit, q
 
 import cmd
 import inspect
 import os
+import queue
 import sys
 import textwrap
+from datetime import datetime
 
 from nx_sig_db import (
     Stock,
@@ -24,6 +27,7 @@ from nx_sig_db import (
     transactions_get_all,
     transactions_total_get,
 )
+from trade_engine import config, start_polling
 
 LOGO = r"""
          __  __             _
@@ -78,6 +82,8 @@ commands:
       show totals of all stocks held
   tr del-last <stock>
       delete the last transaction
+  top [sec]
+      live prices, updated every 5 or <sec> seconds
   strategy [run/stop/list/get]
       not implemented yet
   help [command]
@@ -301,6 +307,62 @@ class NxSigShell(cmd.Cmd):
     def complete_ls(self, text, line, begidx, endidx):
         return _complete(text, line, [[s.name for s in Stock]])
 
+    # ---------------- top ----------------
+
+    def do_top(self, arg):
+        """
+        top [sec]
+            show latest prices of the config indices
+            in a table updated every 5 seconds, or
+            every <sec> seconds, e.g. 'top 10'.
+            Ctrl+C returns to the shell
+        """
+        args = arg.split()
+        if len(args) > 1:
+            _print_wrapped("usage: top [sec]")
+            return
+        interval = 5.0
+        if args:
+            try:
+                interval = float(args[0])
+            except ValueError:
+                interval = 0
+            if interval < 1:
+                _print_error(f"error: seconds must be a number >= 1, got '{args[0]}'")
+                return
+
+        # the polling thread only queues results, all drawing happens here in the main thread
+        updates = queue.Queue()
+        stop = start_polling(interval,
+                             on_update=lambda prices: updates.put((prices, None)),
+                             on_error=lambda e: updates.put((None, e)))
+
+        color = _supports_color()
+        prices, previous, error, updated = {}, {}, None, None
+        drawn = 0
+        if color:
+            print("\033[?25l", end="")  # hide the cursor while redrawing
+        try:
+            print()
+            drawn = _draw_top(_top_lines(prices, previous, error, updated, interval, color), drawn, color)
+            while True:
+                try:
+                    # short timeout so Ctrl+C is handled promptly, also on Windows
+                    new_prices, error = updates.get(timeout=0.2)
+                except queue.Empty:
+                    continue
+                if new_prices is not None:
+                    previous, prices = prices, new_prices
+                    updated = datetime.now()
+                drawn = _draw_top(_top_lines(prices, previous, error, updated, interval, color), drawn, color)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            stop.set()
+            if color:
+                print("\033[?25h", end="")
+            print()
+
     # ---------------- strategy ----------------
 
     def do_strategy(self, arg):
@@ -410,6 +472,60 @@ def _print_total(stock, color):
     else:
         total_line = f"total: {total_count} {stock.name}, avg buy {avg_price:.2f}, sum {total_sum:.2f}"
     print(total_line)
+
+
+def _top_lines(prices, previous, error, updated, interval, color):
+    """build the lines of the 'top' table; change is relative to the previous update"""
+    column_sep = _column_sep(color)
+    header_cols = [f"{'Name':<5}", f"{'Price':>9}", f"{'Change':>8}", f"{'Chg %':>7}"]
+    if color:
+        header_cols = [f"{DIM}{col}{RESET}" for col in header_cols]
+    separator = "-" * WIDTH
+    separator = f"{DIM}{separator}{RESET}" if color else separator
+    lines = [column_sep.join(header_cols), separator]
+
+    for index in config["indices"]:
+        name = f"{index:<5}"
+        price = f"{'-':>9}"
+        change = f"{'-':>8}"
+        change_pct = f"{'-':>7}"
+        change_color = DIM
+        if index in prices:
+            price = f"{prices[index]:>9.2f}"
+            if previous.get(index):
+                diff = prices[index] - previous[index]
+                change = f"{diff:>+8.2f}"
+                change_pct = f"{diff / previous[index] * 100:>+6.2f}%"
+                change_color = BUY_COLOR if diff > 0 else SELL_COLOR if diff < 0 else DIM
+        if color:
+            name = f"{BOLD}{TOTAL_STOCK_COLOR}{name}{RESET}"
+            price = f"{PRICE_COLOR}{price}{RESET}"
+            change = f"{change_color}{change}{RESET}"
+            change_pct = f"{change_color}{change_pct}{RESET}"
+        lines.append(column_sep.join([name, price, change, change_pct]))
+
+    lines.append(separator)
+    if updated is None:
+        status = "waiting for prices..."
+    else:
+        status = f"updated {updated:%H:%M:%S}, every {interval:g}s, Ctrl+C to stop"
+    lines.append(f"{DIM}{status}{RESET}" if color else status)
+    if error is not None:
+        # keep the error on one line so the redraw line count stays stable
+        lines.append(f"error: {error}"[:WIDTH])
+    return lines
+
+
+def _draw_top(lines, drawn, color):
+    """draw the 'top' table over the previously drawn one, return the number of lines drawn"""
+    if color and drawn:
+        # move the cursor up to the first line of the old table and clear everything below
+        sys.stdout.write(f"\033[{drawn}F\033[J")
+    elif not color and drawn:
+        print()
+    print("\n".join(lines))
+    sys.stdout.flush()
+    return len(lines)
 
 
 def _print_dim(text):
