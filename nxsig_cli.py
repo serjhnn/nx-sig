@@ -6,6 +6,7 @@
 #   transactions, tr del-last <stock>
 #   transactions, tr del <stock> <index>   (disabled, use 'tr del-last')
 #   ls <stock>                       (alias for 'tr get <stock>')
+#   ls                               (totals of all stocks)
 #   strategy [run/stop/list/get]     (not implemented yet)
 #   help, exit, quit, q
 
@@ -73,6 +74,8 @@ commands:
       record a transaction
   tr get <stock>, ls <stock>
       show transactions and total
+  ls
+      show totals of all stocks
   tr del-last <stock>
       delete the last transaction
   strategy [run/stop/list/get]
@@ -252,8 +255,39 @@ class NxSigShell(cmd.Cmd):
         """
         ls <stock>
             alias for 'transactions get <stock>'
+        ls
+            show count, average buy price and
+            total price of all stocks
         """
-        self._transaction_get(arg.split())
+        args = arg.split()
+        if not args:
+            self._totals_all()
+            return
+        self._transaction_get(args)
+
+    def _totals_all(self):
+        color = _supports_color()
+        column_sep = _column_sep(color)
+        header_cols = [f"{'Name':<5}", f"{'Count':>5}", f"{'Avg Price':<9}", f"{'Total Price':<11}"]
+        if color:
+            header_cols = [f"{DIM}{col}{RESET}" for col in header_cols]
+        separator = "-" * WIDTH
+        print()
+        print(column_sep.join(header_cols))
+        print(f"{DIM}{separator}{RESET}" if color else separator)
+        for stock in Stock:
+            total_count, avg_price = transactions_total_get(stock)
+            name = f"{stock.name:<5}"
+            count = f"{total_count:>5}"
+            avg = f"{avg_price:<9.2f}"
+            total = f"{total_count * avg_price:<11.2f}"
+            if color:
+                name = f"{BOLD}{TOTAL_STOCK_COLOR}{name}{RESET}"
+                count = f"{COUNT_COLOR}{count}{RESET}"
+                avg = f"{PRICE_COLOR}{avg}{RESET}"
+                total = f"{PRICE_COLOR}{total}{RESET}"
+            print(column_sep.join([name, count, avg, total]))
+        print()
 
     def complete_ls(self, text, line, begidx, endidx):
         return _complete(text, line, [[s.name for s in Stock]])

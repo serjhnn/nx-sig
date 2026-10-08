@@ -31,9 +31,8 @@ DB_DIR = config["storage_dir"]
 FIELDNAMES = ["Index", "Date", "Time", "Type", "Count", "Price"]
 TOTAL_FIELDNAMES = ["Type", "Count", "Price"]
 
-class Stock(Enum):
-    NVDA = 1
-    MRVL = 2
+# stocks are the "indices" listed in config.json
+Stock = Enum("Stock", config["indices"])
 
 class TransactionType(Enum):
     BUY = 1
