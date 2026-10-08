@@ -176,6 +176,7 @@ class NxSigShell(cmd.Cmd):
 
         transactions_delete(stock, index)
         _print_wrapped(f"deleted {stock.name} transaction {index}")
+        _print_total(stock, color)
 
     def _transaction_get(self, args):
         if len(args) != 1:
@@ -199,22 +200,8 @@ class NxSigShell(cmd.Cmd):
             _print_transaction_row(t, color)
         separator = "-" * WIDTH
 
-        total_count, avg_price = transactions_total_get(stock)
-        total_sum = total_count * avg_price
         print(f"{DIM}{separator}{RESET}" if color else separator)
-        if color:
-            total_line = (
-                f"{DIM}total:{RESET} "
-                f"{BOLD}{TOTAL_COUNT_COLOR}{total_count}{RESET} "
-                f"{BOLD}{TOTAL_STOCK_COLOR}{stock.name}{RESET}"
-                f"{DIM}, avg buy{RESET} "
-                f"{BOLD}{PRICE_COLOR}{avg_price:.2f}{RESET}"
-                f"{DIM}, sum{RESET} "
-                f"{BOLD}{PRICE_COLOR}{total_sum:.2f}{RESET}"
-            )
-        else:
-            total_line = f"total: {total_count} {stock.name}, avg buy {avg_price:.2f}, sum {total_sum:.2f}"
-        print(total_line)
+        _print_total(stock, color)
         print()
 
 
@@ -329,6 +316,25 @@ def _print_transaction_row(t, color):
         count = f"{t['Count']:>5}"
         price = f"{t['Price']:<7.2f}"
     print(_column_sep(color).join([index, date, time, transaction_type, count, price]))
+
+
+def _print_total(stock, color):
+    """print the stock's total count, average buy price and position sum"""
+    total_count, avg_price = transactions_total_get(stock)
+    total_sum = total_count * avg_price
+    if color:
+        total_line = (
+            f"{DIM}total:{RESET} "
+            f"{BOLD}{TOTAL_COUNT_COLOR}{total_count}{RESET} "
+            f"{BOLD}{TOTAL_STOCK_COLOR}{stock.name}{RESET}"
+            f"{DIM}, avg buy{RESET} "
+            f"{BOLD}{PRICE_COLOR}{avg_price:.2f}{RESET}"
+            f"{DIM}, sum{RESET} "
+            f"{BOLD}{PRICE_COLOR}{total_sum:.2f}{RESET}"
+        )
+    else:
+        total_line = f"total: {total_count} {stock.name}, avg buy {avg_price:.2f}, sum {total_sum:.2f}"
+    print(total_line)
 
 
 def _print_dim(text):
