@@ -45,6 +45,7 @@ def transactions_add_one(stock, transaction_type, count, price):
     | 05.10.2026 | 14:30 | MRVL |    10 |   250 |
 
     """
+    os.makedirs(DB_DIR, exist_ok=True)
     path = _transactions_path(stock)
     rows = []
     if os.path.exists(path) and os.path.getsize(path) > 0:
@@ -131,6 +132,7 @@ def _transactions_total_save(stock, transaction_type, count, price):
 
 
     """
+    os.makedirs(DB_DIR, exist_ok=True)
     path = _transactions_total_path()
     rows = []
     if os.path.exists(path):
