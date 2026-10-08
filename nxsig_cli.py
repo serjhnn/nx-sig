@@ -3,6 +3,7 @@
 # commands:
 #   transactions, tr add <stock> <buy|sell> <count> <price>
 #   transactions, tr get <stock>
+#   transactions, tr del <stock> <index>
 #   ls <stock>                       (alias for 'tr get <stock>')
 #   strategy [run/stop/list/get]     (not implemented yet)
 #   help, exit, quit, q
@@ -17,6 +18,7 @@ from nx_sig_db import (
     Stock,
     TransactionType,
     transactions_add_one,
+    transactions_delete,
     transactions_get_all,
     transactions_total_get,
 )
@@ -70,6 +72,8 @@ commands:
       record a transaction
   tr get <stock>, ls <stock>
       show transactions and total
+  tr del <stock> <index>
+      delete a transaction by its Id
   strategy [run/stop/list/get]
       not implemented yet
   help [command]
@@ -96,11 +100,14 @@ class NxSigShell(cmd.Cmd):
         tr get <stock>
             show all transactions and the current
             total for a stock
+        tr del <stock> <index>
+            delete the transaction with the given
+            Id, e.g. 'tr del NVDA 2'
         tr is short for transactions
         """
         args = arg.split()
         if not args:
-            _print_wrapped("usage: tr [add/get] ...")
+            _print_wrapped("usage: tr [add/get/del] ...")
             return
 
         sub, rest = args[0].lower(), args[1:]
@@ -108,8 +115,10 @@ class NxSigShell(cmd.Cmd):
             self._transactions_add_one(rest)
         elif sub == "get":
             self._transaction_get(rest)
+        elif sub == "del":
+            self._transactions_delete(rest)
         else:
-            _print_error(f"unknown subcommand '{sub}', expected add/get")
+            _print_error(f"unknown subcommand '{sub}', expected add/get/del")
 
     def _transactions_add_one(self, args):
         if len(args) != 4:
@@ -129,6 +138,25 @@ class NxSigShell(cmd.Cmd):
 
         transactions_add_one(stock, transaction_type, count, price)
         _print_wrapped(f"added {transaction_type.name} {count} {stock.name} @ {price}")
+
+    def _transactions_delete(self, args):
+        if len(args) != 2:
+            _print_wrapped("usage: tr del <stock> <index>")
+            return
+        try:
+            stock = _parse_stock(args[0])
+        except ValueError as e:
+            _print_error(f"error: {e}")
+            return
+        if not args[1].isdigit():
+            _print_error(f"error: index must be a number, got '{args[1]}'")
+            return
+        index = int(args[1])
+
+        if transactions_delete(stock, index):
+            _print_wrapped(f"deleted {stock.name} transaction {index}")
+        else:
+            _print_error(f"error: no {stock.name} transaction with Id {index}")
 
     def _transaction_get(self, args):
         if len(args) != 1:
@@ -193,7 +221,7 @@ class NxSigShell(cmd.Cmd):
 
 
     def complete_transactions(self, text, line, begidx, endidx):
-        return _complete(text, line, [["add", "get"], [s.name for s in Stock],
+        return _complete(text, line, [["add", "get", "del"], [s.name for s in Stock],
                                       [t.name.lower() for t in TransactionType]])
 
     do_tr = do_transactions
