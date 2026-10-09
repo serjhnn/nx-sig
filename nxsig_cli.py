@@ -59,7 +59,7 @@ SELL_COLOR = "\033[38;5;124m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
 PROMPT_COLOR = LOGO_COLORS[2]  # teal from the logo gradient
-RULE_COLOR = LOGO_COLORS[1]  # light teal from the logo gradient
+RULE_COLOR = LOGO_COLORS[-1]  # dark green, the last color of the logo gradient
 
 
 def _supports_color():
