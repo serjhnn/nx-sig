@@ -12,6 +12,12 @@
 #       and recalculate the stock's totals in transactions_total.csv
 #   transactions_total_get(stock)
 #       return (count held, average buy price) for a stock
+#   rules_get_all()
+#       return all personal rules from personal_rules.json, numbered from 1
+#   rules_add(rule)
+#       add a personal rule to personal_rules.json
+#   rules_delete(rule_id)
+#       delete a personal rule by its Id, the remaining rules are renumbered
 
 # usage example
 # transactions_add_one(Stock.NVDA, TransactionType.BUY, 1, 100)
@@ -125,16 +131,24 @@ def _transactions_path(stock):
 
 def _write_csv_atomic(path, fieldnames, rows):
     """
-        write rows to a temporary file in the same directory, then replace path with it,
-        so a crash or error mid-write never leaves a truncated or half-written csv file
+        write rows to a csv file atomically, see _write_atomic
+    """
+    def write(f):
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    _write_atomic(path, write)
+
+def _write_atomic(path, write):
+    """
+        call write(f) on a temporary file in the same directory, then replace path with it,
+        so a crash or error mid-write never leaves a truncated or half-written file
     """
     directory = os.path.dirname(path) or "."
-    fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".tmp_", suffix=".csv")
+    fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".tmp_", suffix=os.path.splitext(path)[1])
     try:
         with os.fdopen(fd, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(rows)
+            write(f)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_path, path)  # atomic on both POSIX and Windows
@@ -218,6 +232,48 @@ def transactions_total_get(stock):
                 if row["Type"] == stock.name:
                     return int(row["Count"]), float(row["Price"])
     return 0, 0.0
+
+def rules_get_all():
+    """
+        return all personal rules stored in personal_rules.json
+        as a list of {"Id": n, "Rule": text}, numbered from 1
+    """
+    path = _rules_path()
+    if not os.path.exists(path):
+        return []
+    with open(path) as f:
+        rules = json.load(f)
+    return [{"Id": i, "Rule": rule["Rule"]} for i, rule in enumerate(rules, 1)]
+
+def rules_add(rule):
+    """
+        add a personal rule to the end of personal_rules.json, return its Id
+    """
+    rules = rules_get_all()
+    rules.append({"Id": len(rules) + 1, "Rule": rule})
+    _rules_save(rules)
+    return len(rules)
+
+def rules_delete(rule_id):
+    """
+        delete the personal rule with the given Id from personal_rules.json,
+        the remaining rules are renumbered from 1
+        return the deleted rule text, or None if the Id was not found
+    """
+    rules = rules_get_all()
+    deleted = next((r["Rule"] for r in rules if r["Id"] == rule_id), None)
+    if deleted is None:
+        return None
+    _rules_save([r for r in rules if r["Id"] != rule_id])
+    return deleted
+
+def _rules_save(rules):
+    os.makedirs(DB_DIR, exist_ok=True)
+    rules = [{"Id": i, "Rule": r["Rule"]} for i, r in enumerate(rules, 1)]
+    _write_atomic(_rules_path(), lambda f: json.dump(rules, f, indent=4, ensure_ascii=False))
+
+def _rules_path():
+    return os.path.join(DB_DIR, "personal_rules.json")
 
 def _transactions_total_path():
     return os.path.join(DB_DIR, "transactions_total.csv")
@@ -366,6 +422,33 @@ if __name__ == "__main__":
                 self.assertEqual(f.read(), before)
             self.assertEqual(sorted(os.listdir(DB_DIR)),
                              ["mrvl_transactions.csv", "transactions_total.csv"])
+
+        def test_rules_without_file_returns_empty(self):
+            self.assertEqual(rules_get_all(), [])
+            self.assertIsNone(rules_delete(1))
+
+        def test_rules_add_and_get(self):
+            self.assertEqual(rules_add("never buy on a gap up"), 1)
+            self.assertEqual(rules_add("sell half at +20%"), 2)
+
+            self.assertEqual(rules_get_all(), [
+                {"Id": 1, "Rule": "never buy on a gap up"},
+                {"Id": 2, "Rule": "sell half at +20%"},
+            ])
+
+        def test_rules_delete_renumbers(self):
+            rules_add("first")
+            rules_add("second")
+            rules_add("third")
+
+            self.assertEqual(rules_delete(2), "second")
+
+            self.assertEqual(rules_get_all(), [
+                {"Id": 1, "Rule": "first"},
+                {"Id": 2, "Rule": "third"},
+            ])
+            self.assertIsNone(rules_delete(5))
+            self.assertEqual(len(rules_get_all()), 2)
 
         def test_add_upgrades_file_without_index_column(self):
             os.makedirs(DB_DIR, exist_ok=True)
