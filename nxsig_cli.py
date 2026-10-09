@@ -88,7 +88,8 @@ commands:
   tr del-last <stock>
       delete the last transaction
   xtop [sec]
-      live prices, updated every 5 or <sec> seconds
+      live prices, updated every 5 or <sec>
+      seconds
   rules
       show personal rules
   rules add <rule>, rules delete <id>
