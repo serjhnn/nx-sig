@@ -8,7 +8,7 @@
 #   ls <stock>                       (alias for 'tr get <stock>')
 #   ls                               (totals of all stocks)
 #   top [sec]                        (live prices, updated every 5 or <sec> seconds)
-#   myrules [add <rule>/delete <id>] (personal rules)
+#   rules [add <rule>/delete <id>]   (personal rules)
 #   strategy [run/stop/list/get]     (not implemented yet)
 #   help, exit, quit, q
 
@@ -89,9 +89,9 @@ commands:
       delete the last transaction
   top [sec]
       live prices, updated every 5 or <sec> seconds
-  myrules
+  rules
       show personal rules
-  myrules add <rule>, myrules delete <id>
+  rules add <rule>, rules delete <id>
       add or delete a personal rule
   strategy [run/stop/list/get]
       not implemented yet
@@ -374,14 +374,14 @@ class NxSigShell(cmd.Cmd):
 
     # ---------------- personal rules ----------------
 
-    def do_myrules(self, arg):
+    def do_rules(self, arg):
         """
-        myrules
+        rules
             show all personal rules
-        myrules add <rule>
-            add a rule, e.g. 'myrules add never
-            buy on a gap up'
-        myrules delete <id>
+        rules add <rule>
+            add a rule,
+            e.g. 'rules add never buy on a gap up'
+        rules delete <id>
             delete the rule with the given Id,
             the remaining rules are renumbered
         """
@@ -394,13 +394,13 @@ class NxSigShell(cmd.Cmd):
         rest = args[1].strip() if len(args) > 1 else ""
         if sub == "add":
             if not rest:
-                _print_wrapped("usage: myrules add <rule>")
+                _print_wrapped("usage: rules add <rule>")
                 return
             rule_id = rules_add(rest)
             _print_wrapped(f"added rule {rule_id}")
         elif sub == "delete":
             if not rest.isdigit():
-                _print_wrapped("usage: myrules delete <id>")
+                _print_wrapped("usage: rules delete <id>")
                 return
             deleted = rules_delete(int(rest))
             if deleted is None:
@@ -413,7 +413,7 @@ class NxSigShell(cmd.Cmd):
     def _rules_show(self):
         rules = rules_get_all()
         if not rules:
-            _print_wrapped("no rules yet, add one with 'myrules add <rule>'")
+            _print_wrapped("no rules yet, add one with 'rules add <rule>'")
             return
 
         color = _supports_color()
@@ -437,7 +437,7 @@ class NxSigShell(cmd.Cmd):
                 print(column_sep.join([rule_id, line]))
         print()
 
-    def complete_myrules(self, text, line, begidx, endidx):
+    def complete_rules(self, text, line, begidx, endidx):
         return _complete(text, line, [["add", "delete"]])
 
     # ---------------- strategy ----------------
