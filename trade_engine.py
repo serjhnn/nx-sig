@@ -6,6 +6,9 @@
 #       collects {index: price} for config["indices"] and passes it to
 #       on_update (prints it by default). failed requests go to on_error.
 #       returns a threading.Event, call .set() on it to stop the thread
+#   get_latest_prices()
+#       request config["url"] once and return {index: price} for config["indices"],
+#       raises requests.RequestException if the request fails
 
 import json
 import os
@@ -32,12 +35,20 @@ def start_polling(interval=5, on_update=print, on_error=_print_error):
     return stop_event
 
 
-def _poll(interval, stop_event, on_update, on_error):
-    headers = {
+def get_latest_prices():
+    return _latest_prices(_headers())
+
+
+def _headers():
+    return {
         "accept": "application/json",
         "APCA-API-KEY-ID": os.environ["APCA_API_KEY_ID"],
         "APCA-API-SECRET-KEY": os.environ["APCA_API_SECRET_KEY"]
     }
+
+
+def _poll(interval, stop_event, on_update, on_error):
+    headers = _headers()
 
     # wait() returns True once stop_event is set, otherwise sleeps `interval` seconds
     while True:

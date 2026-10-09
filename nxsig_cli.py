@@ -7,6 +7,7 @@
 #   transactions, tr del <stock> <index>   (disabled, use 'tr del-last')
 #   ls <stock>                       (alias for 'tr get <stock>')
 #   ls                               (totals of all stocks)
+#   status                           (positions with current price and gain/loss)
 #   xtop [sec]                       (live prices, updated every 5 or <sec> seconds)
 #   rules [add <rule>/delete <id>]   (personal rules)
 #   strategy [run/stop/list/get]     (not implemented yet)
@@ -31,7 +32,7 @@ from nx_sig_db import (
     rules_delete,
     rules_get_all,
 )
-from trade_engine import config, start_polling
+from trade_engine import config, get_latest_prices, start_polling
 
 LOGO = r"""
          __  __             _
@@ -87,6 +88,8 @@ commands:
       show totals of all stocks held
   tr del-last <stock>
       delete the last transaction
+  status
+      positions with current price and gain/loss
   xtop [sec]
       live prices, updated every 5 or <sec>
       seconds
@@ -316,6 +319,66 @@ class NxSigShell(cmd.Cmd):
 
     def complete_ls(self, text, line, begidx, endidx):
         return _complete(text, line, [[s.name for s in Stock]])
+
+    # ---------------- status ----------------
+
+    def do_status(self, arg):
+        """
+        status
+            show all held positions with count,
+            average buy price, current price and
+            state: gain/loss in money,
+            count * (price - avg price)
+        """
+        if arg.strip():
+            _print_wrapped("usage: status")
+            return
+
+        positions = [(stock, *transactions_total_get(stock)) for stock in Stock]
+        positions = [p for p in positions if p[1] != 0]
+        if not positions:
+            _print_wrapped("no stocks held")
+            return
+
+        try:
+            prices = get_latest_prices()
+        except KeyError as e:
+            _print_error(f"error: missing {e.args[0]} in .env, can't get current prices")
+            prices = {}
+        except Exception as e:  # network or API errors
+            _print_error(f"error: can't get current prices: {e}")
+            prices = {}
+
+        color = _supports_color()
+        column_sep = _column_sep(color)
+        header_cols = [f"{'Name':<5}", f"{'Count':>5}", f"{'Avg Price':>9}", f"{'Price':>8}", f"{'State':>9}"]
+        if color:
+            header_cols = [f"{DIM}{col}{RESET}" for col in header_cols]
+        separator = "-" * WIDTH
+        print()
+        print(column_sep.join(header_cols))
+        print(f"{DIM}{separator}{RESET}" if color else separator)
+        for stock, total_count, avg_price in positions:
+            name = f"{stock.name:<5}"
+            count = f"{total_count:>5}"
+            avg = f"{avg_price:>9.2f}"
+            price = f"{'-':>8}"
+            state = f"{'-':>9}"
+            state_color = DIM
+            if stock.name in prices:
+                current = prices[stock.name]
+                gain = total_count * current - total_count * avg_price
+                price = f"{current:>8.2f}"
+                state = f"{gain:>+9.2f}"
+                state_color = BUY_COLOR if gain > 0 else SELL_COLOR if gain < 0 else DIM
+            if color:
+                name = f"{BOLD}{TOTAL_STOCK_COLOR}{name}{RESET}"
+                count = f"{COUNT_COLOR}{count}{RESET}"
+                avg = f"{PRICE_COLOR}{avg}{RESET}"
+                price = f"{PRICE_COLOR}{price}{RESET}"
+                state = f"{state_color}{state}{RESET}"
+            print(column_sep.join([name, count, avg, price, state]))
+        print()
 
     # ---------------- xtop ----------------
 
