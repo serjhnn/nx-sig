@@ -59,6 +59,7 @@ SELL_COLOR = "\033[38;5;124m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
 PROMPT_COLOR = LOGO_COLORS[2]  # teal from the logo gradient
+RULE_COLOR = LOGO_COLORS[1]  # light teal from the logo gradient
 
 
 def _supports_color():
@@ -432,6 +433,7 @@ class NxSigShell(cmd.Cmd):
                 rule_id = f"{rule['Id']:>4}" if i == 0 else " " * 4
                 if color:
                     rule_id = f"{DIM}{rule_id}{RESET}"
+                    line = f"{RULE_COLOR}{line}{RESET}"
                 print(column_sep.join([rule_id, line]))
         print()
 
