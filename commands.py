@@ -1,4 +1,4 @@
-# interactive shell for nX-sig
+# interactive shell for nX-sig, started with ./nxshell
 #
 # commands:
 #   transactions, tr add <stock> <buy|sell> <count> <price>

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# start the nX-sig interactive shell (commands.py)
+#
+#   ./nxshell
+#
+# the Python used is $NXSHELL_PYTHON, or python3, or python.
+# it runs from the repo folder, so config.json, .env and data/ are found
+# wherever it is started from.
+
+cd "$(dirname "$0")" || exit 1
+
+python=${NXSHELL_PYTHON:-$(command -v python3 || command -v python)}
+if [ -z "$python" ]; then
+    echo "error: python not found, install it or set NXSHELL_PYTHON=/path/to/python" >&2
+    exit 1
+fi
+
+exec "$python" commands.py "$@"
