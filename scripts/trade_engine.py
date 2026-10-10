@@ -17,10 +17,11 @@ import threading
 import requests
 from dotenv import load_dotenv
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# config.json and .env live in the repo root, one level above scripts/
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-load_dotenv(os.path.join(BASE_DIR, ".env"))
-with open(os.path.join(BASE_DIR, "config.json")) as f:
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
+with open(os.path.join(ROOT_DIR, "config.json")) as f:
     config = json.load(f)
 
 

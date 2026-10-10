@@ -2,7 +2,8 @@ import requests
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# .env lives in the repo root, one level above scripts/
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 def notify(text):
     resp = requests.post(

@@ -2,7 +2,8 @@ import urllib.request
 import os
 from dotenv import load_dotenv
  
-load_dotenv()
+# .env lives in the repo root, one level above scripts/
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
  
 def notify(msg, title="nX-siG"):
     req = urllib.request.Request(

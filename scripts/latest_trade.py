@@ -5,8 +5,11 @@ from dotenv import load_dotenv
 from rich import print
 
 
-load_dotenv()
-with open("config.json") as f:
+# config.json and .env live in the repo root, one level above scripts/
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
+with open(os.path.join(ROOT_DIR, "config.json")) as f:
     config = json.load(f)
 
 

@@ -1,7 +1,7 @@
 # order watcher: records broker order emails as transactions
 #
 # runs as its own process, next to the CLI:
-#   python order_watcher.py        (needs Python 3.14+, see mail_reader.py)
+#   python scripts/order_watcher.py   (needs Python 3.14+, see mail_reader.py)
 #
 # waits for emails from IMAP_SENDER (.env), parses them with order_parser.py
 # and records FILLED orders of the config "indices" with

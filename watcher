@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run order_watcher.py in the background
+# run scripts/order_watcher.py in the background
 #
 #   ./watcher start     start it (does nothing if it is already running)
 #   ./watcher stop      stop it cleanly (SIGTERM), force it after 20s
@@ -12,6 +12,7 @@
 
 set -u
 cd "$(dirname "$0")" || exit 1
+WATCHER_SCRIPT=scripts/order_watcher.py
 
 find_python() {
     for candidate in ${WATCHER_PYTHON:-} python3.14 python3 python; do
@@ -26,6 +27,7 @@ find_python() {
 
 # any python can read the config, only the watcher itself needs 3.14
 CONFIG_PYTHON=$(command -v python3 || command -v python)
+# storage_dir is relative to the repo root, like in scripts/storage.py
 DATA_DIR=$("$CONFIG_PYTHON" -c 'import json; print(json.load(open("config.json"))["storage_dir"])') || exit 1
 DATA_DIR=${DATA_DIR%/}
 LOG_DIR="$DATA_DIR/logs"
@@ -63,7 +65,7 @@ start() {
     mkdir -p "$LOG_DIR"
     command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock
 
-    LOG_CONSOLE=0 nohup "$python" order_watcher.py > "$OUT_FILE" 2>&1 < /dev/null &
+    LOG_CONSOLE=0 nohup "$python" "$WATCHER_SCRIPT" > "$OUT_FILE" 2>&1 < /dev/null &
     pid=$!
     echo "$pid" > "$PID_FILE"
 
@@ -115,7 +117,7 @@ status() {
     else
         echo "watcher is not running"
     fi
-    # the heartbeat that order_watcher.py writes, also shown by 'status' in nxshell
+    # the heartbeat that order_watcher.py writes, also shown by 'status' in ./nxshell
     "$CONFIG_PYTHON" - "$DATA_DIR/watcher_status.json" <<'PY'
 import json, sys
 try:

@@ -45,11 +45,14 @@ except ImportError:  # Windows
     fcntl = None
     import msvcrt
 
-with open("config.json") as f:
+# config.json, .env and data/ live in the repo root, one level above scripts/
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+with open(os.path.join(ROOT_DIR, "config.json")) as f:
     config = json.load(f)
 
-# DB_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_DIR = config["storage_dir"]
+# storage_dir is relative to the repo root (or absolute)
+DB_DIR = os.path.normpath(os.path.join(ROOT_DIR, config["storage_dir"]))
 FIELDNAMES = ["Index", "Date", "Time", "Type", "Count", "Price"]
 TOTAL_FIELDNAMES = ["Type", "Count", "Price"]
 

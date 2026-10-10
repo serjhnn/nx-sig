@@ -29,7 +29,8 @@ from email.utils import getaddresses
 from dotenv import load_dotenv
 
 
-load_dotenv()
+# .env lives in the repo root, one level above scripts/
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 log = logging.getLogger("mail_reader")
 
