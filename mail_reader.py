@@ -259,7 +259,7 @@ def watch_sender_emails(on_message, sender=None, load_position=None, save_positi
                 time.sleep(delay)
                 delay = min(delay * 2, RECONNECT_DELAY_MAX)
     except KeyboardInterrupt:
-        log.info("stopped watching for email (Ctrl+C)")
+        log.info("stopped watching for email")
 
 
 def _uid_validity(connection):

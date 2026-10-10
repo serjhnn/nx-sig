@@ -11,6 +11,8 @@
 # restart it picks up the emails it missed and never records an order twice.
 # a heartbeat is kept in {storage_dir}/watcher_status.json for the CLI 'status'.
 #
+# start it in the background with:  ./watcher start | stop | status
+#
 # logs: {storage_dir}/logs/order_watcher.log (and the console), rotated at 1 MB,
 # the last 5 files are kept. LOG_LEVEL=DEBUG in .env adds every IDLE round,
 # ignored emails and the parsed fields of each order.
@@ -21,6 +23,7 @@ import logging.handlers
 import os
 import platform
 import re
+import signal
 import sys
 from datetime import datetime
 
@@ -143,16 +146,27 @@ def setup_logging():
 
     file_handler = logging.handlers.RotatingFileHandler(
         path, maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT, encoding="utf-8")
-    console_handler = logging.StreamHandler()
+    handlers = [file_handler]
+    # the ./watcher script runs in the background and sets LOG_CONSOLE=0
+    if os.getenv("LOG_CONSOLE", "1") != "0":
+        handlers.append(logging.StreamHandler())
     root = logging.getLogger()
     root.setLevel(level)
-    for handler in (file_handler, console_handler):
+    for handler in handlers:
         handler.setFormatter(formatter)
         root.addHandler(handler)
 
 
+def _stop_on_signal(signum, frame):
+    # handled like Ctrl+C: the IMAP loop logs out and the heartbeat says 'stopped'
+    raise KeyboardInterrupt
+
+
 def main():
     global _last_order, _last_error
+    # a background process ignores SIGINT, so ./watcher stop (and plain kill) send SIGTERM
+    signal.signal(signal.SIGTERM, _stop_on_signal)
+    signal.signal(signal.SIGINT, signal.default_int_handler)
     setup_logging()
     log.info("order watcher starting, pid %s, Python %s on %s, log %s",
              os.getpid(), platform.python_version(), platform.platform(), _log_path())
