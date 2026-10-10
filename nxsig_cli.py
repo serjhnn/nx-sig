@@ -31,6 +31,7 @@ from nx_sig_db import (
     rules_add,
     rules_delete,
     rules_get_all,
+    watcher_status_get,
 )
 from trade_engine import config, get_latest_prices, start_polling
 
@@ -328,7 +329,8 @@ class NxSigShell(cmd.Cmd):
             show all held positions with count,
             average buy price, current price and
             state: gain/loss in money,
-            count * (price - avg price)
+            count * (price - avg price),
+            and whether order_watcher.py is running
         """
         if arg.strip():
             _print_wrapped("usage: status")
@@ -338,6 +340,7 @@ class NxSigShell(cmd.Cmd):
         positions = [p for p in positions if p[1] != 0]
         if not positions:
             _print_wrapped("no stocks held")
+            _print_watcher_status()
             return
 
         try:
@@ -378,6 +381,8 @@ class NxSigShell(cmd.Cmd):
                 price = f"{PRICE_COLOR}{price}{RESET}"
                 state = f"{state_color}{state}{RESET}"
             print(column_sep.join([name, count, avg, price, state]))
+        print(f"{DIM}{separator}{RESET}" if color else separator)
+        _print_watcher_status()
         print()
 
     # ---------------- xtop ----------------
@@ -667,6 +672,37 @@ def _draw_xtop(lines, drawn, color):
     print("\n".join(lines))
     sys.stdout.flush()
     return len(lines)
+
+
+# order_watcher.py writes a heartbeat at least every 9 minutes (IMAP IDLE renewal)
+WATCHER_STALE_SECONDS = 15 * 60
+
+
+def _print_watcher_status():
+    """print one line about order_watcher.py from its heartbeat file"""
+    status = watcher_status_get()
+    if not status or not status.get("updated"):
+        _print_wrapped("mail watcher: not started")
+        return
+    try:
+        updated = datetime.fromisoformat(status["updated"])
+    except ValueError:
+        _print_wrapped("mail watcher: unknown state")
+        return
+
+    state = status.get("state", "")
+    age = (datetime.now() - updated).total_seconds()
+    if state == "stopped":
+        line = f"mail watcher: stopped {updated:%d.%m %H:%M}"
+    elif age > WATCHER_STALE_SECONDS:
+        line = f"mail watcher: not responding, last seen {updated:%d.%m %H:%M}"
+    elif state in ("starting", "connected", "waiting"):
+        line = f"mail watcher: running, checked {updated:%H:%M}"
+    else:
+        line = f"mail watcher: {state}, {updated:%H:%M}"
+    if status.get("last_order"):
+        line += f", last order {status['last_order']}"
+    _print_wrapped(line)
 
 
 def _print_dim(text):

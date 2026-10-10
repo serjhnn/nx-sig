@@ -18,16 +18,32 @@
 #       add a personal rule to personal_rules.json
 #   rules_delete(rule_id)
 #       delete a personal rule by its Id, the remaining rules are renumbered
+#   mail_position_get(), mail_position_set(uid_validity, last_uid)
+#       the last email handled by order_watcher.py, kept in mail_state.json
+#   watcher_status_get(), watcher_status_set(status)
+#       heartbeat of order_watcher.py (dict), kept in watcher_status.json
+#
+# all writes take an exclusive lock on {storage_dir}/.lock, so the CLI and
+# order_watcher.py running at the same time don't overwrite each other's changes
 
 # usage example
 # transactions_add_one(Stock.NVDA, TransactionType.BUY, 1, 100)
 
 import csv
+import functools
 import os
 import tempfile
+import threading
+from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum
 import json
+
+try:
+    import fcntl
+except ImportError:  # Windows
+    fcntl = None
+    import msvcrt
 
 with open("config.json") as f:
     config = json.load(f)
@@ -44,6 +60,54 @@ class TransactionType(Enum):
     BUY = 1
     SELL = 2
 
+_lock_state = threading.local()
+
+@contextmanager
+def _db_lock():
+    """
+        exclusive lock on {DB_DIR}/.lock shared by all processes using the database,
+        so a read-modify-write (e.g. of transactions_total.csv) is not interleaved
+        with another process doing the same; re-entrant within one thread
+    """
+    if getattr(_lock_state, "depth", 0):
+        _lock_state.depth += 1
+        try:
+            yield
+        finally:
+            _lock_state.depth -= 1
+        return
+
+    os.makedirs(DB_DIR, exist_ok=True)
+    with open(os.path.join(DB_DIR, ".lock"), "a+") as f:
+        if fcntl:
+            fcntl.flock(f, fcntl.LOCK_EX)
+        else:
+            f.seek(0)
+            while True:
+                try:
+                    msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+                    break
+                except OSError:  # LK_LOCK gives up after ~10s, keep waiting
+                    pass
+        _lock_state.depth = 1
+        try:
+            yield
+        finally:
+            _lock_state.depth = 0
+            if fcntl:
+                fcntl.flock(f, fcntl.LOCK_UN)
+            else:
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+
+def _locked(function):
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        with _db_lock():
+            return function(*args, **kwargs)
+    return wrapper
+
+@_locked
 def transactions_add_one(stock, transaction_type, count, price):
     """ 
     Add transaction to {stock_name}_transactions.csv file 
@@ -103,6 +167,7 @@ def transactions_get_all(stock):
             for index, row in enumerate(csv.DictReader(f), 1)
         ]
 
+@_locked
 def transactions_delete(stock, index):
     """
         delete the transaction with the given Index from {stock_name}_transactions.csv
@@ -245,6 +310,7 @@ def rules_get_all():
         rules = json.load(f)
     return [{"Id": i, "Rule": rule["Rule"]} for i, rule in enumerate(rules, 1)]
 
+@_locked
 def rules_add(rule):
     """
         add a personal rule to the end of personal_rules.json, return its Id
@@ -254,6 +320,7 @@ def rules_add(rule):
     _rules_save(rules)
     return len(rules)
 
+@_locked
 def rules_delete(rule_id):
     """
         delete the personal rule with the given Id from personal_rules.json,
@@ -274,6 +341,49 @@ def _rules_save(rules):
 
 def _rules_path():
     return os.path.join(DB_DIR, "personal_rules.json")
+
+def mail_position_get():
+    """
+        return (uid_validity, last_uid) of the last email handled by order_watcher.py,
+        or None if there is none yet
+    """
+    state = _json_get(_mail_state_path())
+    if not state or state.get("last_uid") is None:
+        return None
+    return state.get("uid_validity"), int(state["last_uid"])
+
+@_locked
+def mail_position_set(uid_validity, last_uid):
+    _json_set(_mail_state_path(), {"uid_validity": uid_validity, "last_uid": last_uid})
+
+def watcher_status_get():
+    """
+        return the last heartbeat dict written by order_watcher.py, or None
+    """
+    return _json_get(_watcher_status_path())
+
+@_locked
+def watcher_status_set(status):
+    _json_set(_watcher_status_path(), status)
+
+def _json_get(path):
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+def _json_set(path, data):
+    os.makedirs(DB_DIR, exist_ok=True)
+    _write_atomic(path, lambda f: json.dump(data, f, indent=4, ensure_ascii=False))
+
+def _mail_state_path():
+    return os.path.join(DB_DIR, "mail_state.json")
+
+def _watcher_status_path():
+    return os.path.join(DB_DIR, "watcher_status.json")
 
 def _transactions_total_path():
     return os.path.join(DB_DIR, "transactions_total.csv")
@@ -420,7 +530,7 @@ if __name__ == "__main__":
 
             with open(path, newline="") as f:
                 self.assertEqual(f.read(), before)
-            self.assertEqual(sorted(os.listdir(DB_DIR)),
+            self.assertEqual(sorted(f for f in os.listdir(DB_DIR) if f != ".lock"),
                              ["mrvl_transactions.csv", "transactions_total.csv"])
 
         def test_rules_without_file_returns_empty(self):
@@ -449,6 +559,42 @@ if __name__ == "__main__":
             ])
             self.assertIsNone(rules_delete(5))
             self.assertEqual(len(rules_get_all()), 2)
+
+        def test_mail_position(self):
+            self.assertIsNone(mail_position_get())
+            mail_position_set("777", 42)
+            self.assertEqual(mail_position_get(), ("777", 42))
+
+        def test_watcher_status(self):
+            self.assertIsNone(watcher_status_get())
+            watcher_status_set({"state": "waiting", "updated": "2026-10-10T12:00:00"})
+            self.assertEqual(watcher_status_get()["state"], "waiting")
+
+        def test_lock_is_reentrant(self):
+            with _db_lock():
+                with _db_lock():
+                    transactions_add_one(Stock.MRVL, TransactionType.BUY, 1, 100)
+            self.assertEqual(transactions_total_get(Stock.MRVL), (1, 100.0))
+
+        @unittest.skipUnless(fcntl and hasattr(os, "fork"), "needs fork and fcntl")
+        def test_parallel_processes_do_not_lose_transactions(self):
+            import multiprocessing
+
+            def add_many():
+                for _ in range(25):
+                    transactions_add_one(Stock.MRVL, TransactionType.BUY, 1, 100)
+
+            # the forked processes inherit the temp DB_DIR
+            processes = [multiprocessing.get_context("fork").Process(target=add_many) for _ in range(4)]
+            for p in processes:
+                p.start()
+            for p in processes:
+                p.join()
+
+            transactions = transactions_get_all(Stock.MRVL)
+            self.assertEqual(len(transactions), 100)
+            self.assertEqual(sorted(t["Index"] for t in transactions), list(range(1, 101)))
+            self.assertEqual(transactions_total_get(Stock.MRVL), (100, 100.0))
 
         def test_add_upgrades_file_without_index_column(self):
             os.makedirs(DB_DIR, exist_ok=True)
