@@ -676,6 +676,8 @@ def _draw_xtop(lines, drawn, color):
 
 # order_watcher.py writes a heartbeat at least every 9 minutes (IMAP IDLE renewal)
 WATCHER_STALE_SECONDS = 15 * 60
+# an order the watcher could not record stays visible in 'status' this long
+WATCHER_ERROR_DAYS = 7
 
 
 def _print_watcher_status():
@@ -703,6 +705,17 @@ def _print_watcher_status():
     if status.get("last_order"):
         line += f", last order {status['last_order']}"
     _print_wrapped(line)
+
+    error = status.get("last_error") or {}
+    try:
+        error_time = datetime.fromisoformat(error["time"]) if error.get("time") else None
+    except ValueError:
+        error_time = None
+    recent_error = error_time and (datetime.now() - error_time).days < WATCHER_ERROR_DAYS
+    if recent_error:
+        _print_error(f"mail watcher error {error_time:%d.%m %H:%M}: {error.get('text', '')}")
+    if status.get("log") and (recent_error or state.startswith("crashed") or age > WATCHER_STALE_SECONDS):
+        _print_wrapped(f"log: {os.path.relpath(status['log'])}")
 
 
 def _print_dim(text):

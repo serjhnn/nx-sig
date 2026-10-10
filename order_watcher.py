@@ -10,11 +10,21 @@
 # the last handled email is kept in {storage_dir}/mail_state.json, so after a
 # restart it picks up the emails it missed and never records an order twice.
 # a heartbeat is kept in {storage_dir}/watcher_status.json for the CLI 'status'.
+#
+# logs: {storage_dir}/logs/order_watcher.log (and the console), rotated at 1 MB,
+# the last 5 files are kept. LOG_LEVEL=DEBUG in .env adds every IDLE round,
+# ignored emails and the parsed fields of each order.
 
 import html
+import logging
+import logging.handlers
 import os
+import platform
 import re
+import sys
 from datetime import datetime
+
+import nx_sig_db
 
 from mail_reader import message_text, watch_sender_emails
 from nx_sig_db import (
@@ -29,24 +39,52 @@ from nx_sig_db import (
 from order_parser import parse_order
 
 STARTED = datetime.now().isoformat(timespec="seconds")
+LOG_MAX_BYTES = 1_000_000
+LOG_BACKUP_COUNT = 5
+# how much of an email body is logged when it can't be parsed
+BODY_EXCERPT = 1500
+
+log = logging.getLogger("order_watcher")
 _last_order = None
+# {"time": iso time, "text": ...} of the last order that could not be recorded
+_last_error = None
 
 
 def handle_email(message):
     """record the order in the email if it is a FILLED order of a known stock"""
     global _last_order
     subject = message.get("Subject", "")
-    order = parse_order(_to_text(message_text(message)))
+    text = _to_text(message_text(message))
+    order = parse_order(text)
+    log.debug("parsed %r: %s", subject, order)
+
+    if order["status"] is None or order["symbol"] is None:
+        # not an order email, or the broker changed the format: keep the text to diagnose
+        log.warning("could not parse an order from email %r: %s\n--- email text ---\n%s\n---",
+                    subject, order, text[:BODY_EXCERPT])
+        return
     reason = _skip_reason(order)
     if reason:
-        _log(f"skipped email '{subject}': {reason} {order}")
+        log.info("skipped %r: %s %s", subject, reason, order)
         return
 
     stock = Stock[order["symbol"]]
     transaction_type = TransactionType[order["order type"].upper()]
-    transactions_add_one(stock, transaction_type, order["quantity"], order["executed price"])
-    _last_order = f"{transaction_type.name} {order['quantity']} {stock.name} @ {order['executed price']}"
-    _log(f"recorded {_last_order}")
+    description = f"{transaction_type.name} {order['quantity']} {stock.name} @ {order['executed price']}"
+    try:
+        transactions_add_one(stock, transaction_type, order["quantity"], order["executed price"])
+    except Exception:
+        # the email is not handled again, so say exactly what is missing and how to add it
+        global _last_error
+        command = f"tr add {stock.name} {transaction_type.name.lower()} {order['quantity']} {order['executed price']}"
+        log.exception("ORDER NOT RECORDED: %s from email %r, add it manually in the CLI: %s",
+                      description, subject, command)
+        _last_error = {"time": datetime.now().isoformat(timespec="seconds"),
+                       "text": f"{description} not recorded, add with '{command}'"}
+        _status("waiting")
+        return
+    _last_order = description
+    log.info("recorded %s (email %r, Message-ID %s)", _last_order, subject, message.get("Message-ID", "-"))
     _status("waiting")
 
 
@@ -78,23 +116,50 @@ def _to_text(body):
 
 def _status(state):
     """write the heartbeat that the CLI 'status' command shows"""
-    watcher_status_set({
-        "pid": os.getpid(),
-        "started": STARTED,
-        "updated": datetime.now().isoformat(timespec="seconds"),
-        "state": state,
-        "last_order": _last_order,
-    })
+    try:
+        watcher_status_set({
+            "pid": os.getpid(),
+            "started": STARTED,
+            "updated": datetime.now().isoformat(timespec="seconds"),
+            "state": state,
+            "last_order": _last_order,
+            "last_error": _last_error,
+            "log": _log_path(),
+        })
+    except Exception:
+        log.exception("could not write the watcher status file")
 
 
-def _log(text):
-    print(f"{datetime.now():%Y-%m-%d %H:%M:%S} {text}", flush=True)
+def _log_path():
+    return os.path.abspath(os.path.join(nx_sig_db.DB_DIR, "logs", "order_watcher.log"))
+
+
+def setup_logging():
+    """log to a rotating file in {storage_dir}/logs and to the console"""
+    level = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
+    path = _log_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    formatter = logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s")
+
+    file_handler = logging.handlers.RotatingFileHandler(
+        path, maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT, encoding="utf-8")
+    console_handler = logging.StreamHandler()
+    root = logging.getLogger()
+    root.setLevel(level)
+    for handler in (file_handler, console_handler):
+        handler.setFormatter(formatter)
+        root.addHandler(handler)
 
 
 def main():
-    global _last_order
+    global _last_order, _last_error
+    setup_logging()
+    log.info("order watcher starting, pid %s, Python %s on %s, log %s",
+             os.getpid(), platform.python_version(), platform.platform(), _log_path())
     # keep showing the last recorded order after a restart
-    _last_order = (watcher_status_get() or {}).get("last_order")
+    previous = watcher_status_get() or {}
+    _last_order = previous.get("last_order")
+    _last_error = previous.get("last_error")
     _status("starting")
     try:
         watch_sender_emails(
@@ -103,8 +168,13 @@ def main():
             save_position=mail_position_set,
             on_status=_status,
         )
-    finally:
-        _status("stopped")
+    except Exception:
+        # e.g. wrong password, missing .env settings, old Python
+        log.critical("order watcher crashed", exc_info=True)
+        _status("crashed, see log")
+        sys.exit(1)
+    _status("stopped")
+    log.info("order watcher stopped")
 
 
 if __name__ == "__main__":

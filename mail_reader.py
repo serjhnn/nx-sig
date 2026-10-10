@@ -19,9 +19,9 @@ public functions:
 """
 
 import imaplib
+import logging
 import os
 import time
-import traceback
 from email import policy
 from email.parser import BytesParser
 from email.utils import getaddresses
@@ -30,6 +30,8 @@ from dotenv import load_dotenv
 
 
 load_dotenv()
+
+log = logging.getLogger("mail_reader")
 
 
 def message_text(message):
@@ -172,36 +174,61 @@ def watch_sender_emails(on_message, sender=None, load_position=None, save_positi
         try:
             on_message(message)
         except Exception:
-            print(f"\nError while handling email {uid}, skipped:")
-            traceback.print_exc()
+            log.exception("error while handling email uid %s (subject %r), skipped",
+                          uid, message.get("Subject", ""))
+
+    def save(uid_validity, last_uid):
+        if not save_position:
+            return
+        try:
+            save_position(uid_validity, last_uid)
+        except Exception:
+            # not a connection problem, so don't let it look like one
+            log.exception("could not save mail position uid %s, a restart may handle it again", last_uid)
+
+    def status(text):
+        try:
+            on_status(text)
+        except Exception:
+            log.exception("on_status(%r) failed", text)
 
     delay = RECONNECT_DELAY
-    print(f"Waiting for new email from {sender} in {mailbox}. Press Ctrl+C to stop.")
+    log.info("watching %s at %s for email from %s, Ctrl+C to stop", mailbox, host, sender)
+    if saved:
+        log.info("saved position: after email uid %s (UIDVALIDITY %s)", saved[1], saved[0])
+    else:
+        log.info("no saved position, only email arriving from now on is handled")
     try:
         while True:
             connection = None
             lost = None
             try:
+                log.info("connecting to %s as %s", host, username)
                 connection = imaplib.IMAP4_SSL(host)
                 connection.login(username, app_password)
-                status, _ = connection.select(mailbox, readonly=True)
-                if status != "OK":
+                status_code, _ = connection.select(mailbox, readonly=True)
+                if status_code != "OK":
                     raise RuntimeError(f"Could not open IMAP mailbox: {mailbox}")
 
                 current_validity = _uid_validity(connection)
                 if position["last_uid"] is None or current_validity != position["uid_validity"]:
+                    if position["last_uid"] is not None:
+                        log.warning("mailbox UIDVALIDITY changed %s -> %s, email in between can't be matched",
+                                    position["uid_validity"], current_validity)
                     # first start, or the mailbox was rebuilt: begin after the newest email
                     position["uid_validity"] = current_validity
                     position["last_uid"] = max(_all_uids(connection), default=0)
-                    if save_position:
-                        save_position(position["uid_validity"], position["last_uid"])
+                    log.info("connected, starting after newest email uid %s", position["last_uid"])
+                    save(position["uid_validity"], position["last_uid"])
                 else:
                     # catch up on emails that arrived while stopped or disconnected
-                    _handle_new_from_sender(connection, sender, position, handle, save_position)
+                    log.info("connected, catching up after email uid %s", position["last_uid"])
+                    _handle_new_from_sender(connection, sender, position, handle, save)
                 delay = RECONNECT_DELAY
-                on_status("connected")
+                status("connected")
 
                 while True:
+                    reason = "timeout"
                     with connection.idle(duration=IDLE_SECONDS) as idler:
                         for response_type, _ in idler:
                             response_name = (
@@ -210,9 +237,11 @@ def watch_sender_emails(on_message, sender=None, load_position=None, save_positi
                                 else response_type.upper()
                             )
                             if response_name in ("EXISTS", "RECENT"):
+                                reason = response_name
                                 break
-                    _handle_new_from_sender(connection, sender, position, handle, save_position)
-                    on_status("waiting")
+                    log.debug("IDLE ended (%s), checking for new email", reason)
+                    _handle_new_from_sender(connection, sender, position, handle, save)
+                    status("waiting")
             except (imaplib.IMAP4.abort, OSError) as e:
                 # dropped connection (socket error: EOF, reset, timeout, network change)
                 lost = e
@@ -224,12 +253,13 @@ def watch_sender_emails(on_message, sender=None, load_position=None, save_positi
                         pass
 
             if lost is not None:
-                print(f"\nConnection lost ({lost}), reconnecting in {delay}s...")
-                on_status(f"reconnecting: {lost}")
+                log.warning("connection lost (%s: %s), reconnecting in %ss",
+                            type(lost).__name__, lost, delay)
+                status(f"reconnecting: {lost}")
                 time.sleep(delay)
                 delay = min(delay * 2, RECONNECT_DELAY_MAX)
     except KeyboardInterrupt:
-        print("\nStopped watching for email.")
+        log.info("stopped watching for email (Ctrl+C)")
 
 
 def _uid_validity(connection):
@@ -247,16 +277,18 @@ def _all_uids(connection):
     return {int(uid) for uid in data[0].split()}
 
 
-def _handle_new_from_sender(connection, sender, position, handle, save_position):
+def _handle_new_from_sender(connection, sender, position, handle, save):
     """Call handle(uid, message) for emails from sender newer than position["last_uid"]."""
     new_uids = sorted(uid for uid in _all_uids(connection) if uid > position["last_uid"])
+    if new_uids:
+        log.debug("new email uid(s): %s", new_uids)
     for uid in new_uids:
         status, fetch_data = connection.uid("fetch", str(uid), "(RFC822)")
         raw_message = next(
             (item[1] for item in fetch_data if isinstance(item, tuple)), None
         ) if status == "OK" else None
         if raw_message is None:
-            print(f"\nCould not fetch email {uid}, skipped")
+            log.warning("could not fetch email uid %s (%s), skipped", uid, status)
         else:
             message = BytesParser(policy=policy.default).parsebytes(raw_message)
             from_addresses = {
@@ -264,11 +296,15 @@ def _handle_new_from_sender(connection, sender, position, handle, save_position)
                 for _, address in getaddresses(message.get_all("From", []))
             }
             if sender.lower() in from_addresses:
+                log.info("email uid %s from %s: %r (Message-ID %s)", uid, message.get("From", ""),
+                         message.get("Subject", ""), message.get("Message-ID", "-"))
                 handle(uid, message)
+            else:
+                log.debug("email uid %s from %s ignored, not from %s", uid, message.get("From", ""), sender)
         position["last_uid"] = uid
-        if save_position:
-            save_position(position["uid_validity"], uid)
+        save(position["uid_validity"], uid)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s")
     wait_for_sender_email()
