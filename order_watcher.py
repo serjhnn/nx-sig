@@ -5,7 +5,7 @@
 #
 # waits for emails from IMAP_SENDER (.env), parses them with order_parser.py
 # and records FILLED orders of the config "indices" with
-# nx_sig_db.transactions_add_one(). other emails are logged and skipped.
+# storage.transactions_add_one(). other emails are logged and skipped.
 #
 # the last handled email is kept in {storage_dir}/mail_state.json, so after a
 # restart it picks up the emails it missed and never records an order twice.
@@ -24,10 +24,10 @@ import re
 import sys
 from datetime import datetime
 
-import nx_sig_db
+import storage
 
 from mail_reader import message_text, watch_sender_emails
-from nx_sig_db import (
+from storage import (
     Stock,
     TransactionType,
     mail_position_get,
@@ -131,7 +131,7 @@ def _status(state):
 
 
 def _log_path():
-    return os.path.abspath(os.path.join(nx_sig_db.DB_DIR, "logs", "order_watcher.log"))
+    return os.path.abspath(os.path.join(storage.DB_DIR, "logs", "order_watcher.log"))
 
 
 def setup_logging():

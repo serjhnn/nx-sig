@@ -21,7 +21,7 @@ import sys
 import textwrap
 from datetime import datetime
 
-from nx_sig_db import (
+from storage import (
     Stock,
     TransactionType,
     transactions_add_one,

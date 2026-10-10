@@ -1,5 +1,5 @@
-# handle read and write requests to database
-# use csv file as a first approach
+# storage: reads and writes all nX-sig data in config "storage_dir"
+# (csv files for transactions and totals, json files for rules and the watcher)
 #
 # public functions:
 #   transactions_add_one(stock, transaction_type, count, price)
