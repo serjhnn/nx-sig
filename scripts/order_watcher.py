@@ -75,44 +75,60 @@ def handle_email(message):
         log.warning(
             "could not parse an order from email %r: %s"
             "\n--- email text ---\n%s\n---",
-            subject, order, text[:BODY_EXCERPT])
+            subject,
+            order,
+            text[:BODY_EXCERPT],
+        )
         return
     reason = _skip_reason(order)
     if reason:
-        log.info("skipped %r: %s %s",
-                 subject, reason, order)
+        log.info(
+            "skipped %r: %s %s", subject, reason, order
+        )
         return
 
     stock = Stock[order["symbol"]]
     side = TransactionType[order["order type"].upper()]
     quantity = order["quantity"]
     price = order["executed price"]
-    description = (f"{side.name} {quantity} "
-                   f"{stock.name} @ {price}")
+    description = (
+        f"{side.name} {quantity} " f"{stock.name} @ {price}"
+    )
     try:
         transactions_add_one(stock, side, quantity, price)
     except Exception:
         # the email is not handled again, so say exactly
         # what is missing and how to add it
-        command = (f"tr add {stock.name} "
-                   f"{side.name.lower()} "
-                   f"{quantity} {price}")
+        command = (
+            f"tr add {stock.name} "
+            f"{side.name.lower()} "
+            f"{quantity} {price}"
+        )
         log.exception(
             "ORDER NOT RECORDED: %s from email %r, "
             "add it manually in the CLI: %s",
-            description, subject, command)
+            description,
+            subject,
+            command,
+        )
         _last_error = {
             "time": datetime.now().isoformat(
-                timespec="seconds"),
-            "text": (f"{description} not recorded, "
-                     f"add with '{command}'"),
+                timespec="seconds"
+            ),
+            "text": (
+                f"{description} not recorded, "
+                f"add with '{command}'"
+            ),
         }
         _status("waiting")
         return
     _last_order = description
-    log.info("recorded %s (email %r, Message-ID %s)",
-             _last_order, subject,
-             message.get("Message-ID", "-"))
+    log.info(
+        "recorded %s (email %r, Message-ID %s)",
+        _last_order,
+        subject,
+        message.get("Message-ID", "-"),
+    )
     _status("waiting")
 
 
@@ -120,8 +136,10 @@ def _skip_reason(order):
     if order["status"] != "FILLED":
         return f"status is {order['status']}, not FILLED"
     if order["symbol"] not in Stock.__members__:
-        return (f"symbol {order['symbol']} "
-                "is not in config indices")
+        return (
+            f"symbol {order['symbol']} "
+            "is not in config indices"
+        )
     if order["order type"] not in ("buy", "sell"):
         return "order type is not buy/sell"
     if not order["quantity"] or order["quantity"] <= 0:
@@ -134,7 +152,8 @@ def _skip_reason(order):
 
 # tags that mark an email body as html
 _HTML_TAG = re.compile(
-    r"<\s*(html|body|table|div|p|br|td)\b", re.IGNORECASE)
+    r"<\s*(html|body|table|div|p|br|td)\b", re.IGNORECASE
+)
 
 
 def _to_text(body):
@@ -145,8 +164,9 @@ def _to_text(body):
     body = re.sub(r"(?is)<(script|style).*?</\1>", "", body)
     # a table row 'Symbol (...) | TSMX' becomes one line
     # 'Symbol (...) TSMX'
-    body = re.sub(r"(?i)<br\s*/?>|</(p|div|tr|li|h\d)>",
-                  "\n", body)
+    body = re.sub(
+        r"(?i)<br\s*/?>|</(p|div|tr|li|h\d)>", "\n", body
+    )
     body = re.sub(r"(?i)</t[dh]>", " ", body)
     body = re.sub(r"<[^>]+>", "", body)
     return html.unescape(body)
@@ -155,23 +175,29 @@ def _to_text(body):
 def _status(state):
     """write the heartbeat that the CLI 'status' shows"""
     try:
-        watcher_status_set({
-            "pid": os.getpid(),
-            "started": STARTED,
-            "updated": datetime.now().isoformat(
-                timespec="seconds"),
-            "state": state,
-            "last_order": _last_order,
-            "last_error": _last_error,
-            "log": _log_path(),
-        })
+        watcher_status_set(
+            {
+                "pid": os.getpid(),
+                "started": STARTED,
+                "updated": datetime.now().isoformat(
+                    timespec="seconds"
+                ),
+                "state": state,
+                "last_order": _last_order,
+                "last_error": _last_error,
+                "log": _log_path(),
+            }
+        )
     except Exception:
         log.exception("could not write the watcher status")
 
 
 def _log_path():
-    return os.path.abspath(os.path.join(
-        storage.DB_DIR, "logs", "order_watcher.log"))
+    return os.path.abspath(
+        os.path.join(
+            storage.DB_DIR, "logs", "order_watcher.log"
+        )
+    )
 
 
 def setup_logging():
@@ -182,11 +208,15 @@ def setup_logging():
     path = _log_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     formatter = logging.Formatter(
-        "%(asctime)s %(levelname)-7s %(name)s: %(message)s")
+        "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
+    )
 
     file_handler = logging.handlers.RotatingFileHandler(
-        path, maxBytes=LOG_MAX_BYTES,
-        backupCount=LOG_BACKUP_COUNT, encoding="utf-8")
+        path,
+        maxBytes=LOG_MAX_BYTES,
+        backupCount=LOG_BACKUP_COUNT,
+        encoding="utf-8",
+    )
     handlers = [file_handler]
     # the ./watcher script runs in the background and
     # sets LOG_CONSOLE=0
@@ -212,10 +242,14 @@ def main():
     signal.signal(signal.SIGTERM, _stop_on_signal)
     signal.signal(signal.SIGINT, signal.default_int_handler)
     setup_logging()
-    log.info("order watcher starting, pid %s, "
-             "Python %s on %s, log %s",
-             os.getpid(), platform.python_version(),
-             platform.platform(), _log_path())
+    log.info(
+        "order watcher starting, pid %s, "
+        "Python %s on %s, log %s",
+        os.getpid(),
+        platform.python_version(),
+        platform.platform(),
+        _log_path(),
+    )
     # keep showing the last recorded order after a restart
     previous = watcher_status_get() or {}
     _last_order = previous.get("last_order")

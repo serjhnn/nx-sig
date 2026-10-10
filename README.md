@@ -151,6 +151,7 @@ nx-sig/
 ├── nxshell               start the shell
 ├── watcher               start/stop/status of the order watcher
 ├── config.json           stocks, data folder, price API
+├── CODE_STYLE.md         code style rules
 ├── assets/logo.svg
 └── scripts/
     ├── commands.py       the shell and its commands
@@ -162,7 +163,8 @@ nx-sig/
     ├── latest_trade.py   prints the latest prices once
     ├── ntfy.py           push notification through ntfy.sh
     ├── telegram_notify.py  message through a Telegram bot
-    └── watch_notify.py   notes for a planned Garmin watch app
+    ├── watch_notify.py   notes for a planned Garmin watch app
+    └── check_style.py    checks the code style rules
 ```
 
 ## Tests
@@ -170,7 +172,14 @@ nx-sig/
 ```bash
 python scripts/storage.py        # transactions, totals, rules, locking
 python scripts/order_parser.py   # order email parsing
+python scripts/check_style.py    # code style (line width)
 ```
+
+## Code style
+
+The code is written to be read on a phone: lines are at most
+60 characters and the shell's output at most 48. See
+[CODE_STYLE.md](CODE_STYLE.md) for the rules and how to check them.
 
 ## Planned
 

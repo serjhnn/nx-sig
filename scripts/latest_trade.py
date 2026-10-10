@@ -4,9 +4,11 @@ import os
 from dotenv import load_dotenv
 from rich import print
 
-
-# config.json and .env live in the repo root, one level above scripts/
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# config.json and .env live in the repo root, one level
+# above scripts/
+ROOT_DIR = os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))
+)
 
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
 with open(os.path.join(ROOT_DIR, "config.json")) as f:
@@ -16,25 +18,32 @@ with open(os.path.join(ROOT_DIR, "config.json")) as f:
 headers = {
     "accept": "application/json",
     "APCA-API-KEY-ID": os.environ["APCA_API_KEY_ID"],
-    "APCA-API-SECRET-KEY": os.environ["APCA_API_SECRET_KEY"]
+    "APCA-API-SECRET-KEY": os.environ[
+        "APCA_API_SECRET_KEY"
+    ],
 }
 
-response = requests.get(config["url"], 
-    params = {
-        "symbols": ",".join(config["indices"]), 
-        "feed": config["feed"]
-        },
+response = requests.get(
+    config["url"],
+    params={
+        "symbols": ",".join(config["indices"]),
+        "feed": config["feed"],
+    },
     headers=headers,
-    timeout=15)
+    timeout=15,
+)
 response.raise_for_status()
 
 data = response.json()
 
 c_ = ["bold magenta", "bold green"]
 
-print("\n".join(
-    f"[{c_[0]}]{index:5s}[/{c_[0]}]: [{c_[1]}]{data['trades'][index]['p']:.2f}[/{c_[1]}]" 
-    for index in config["indices"])
+name, value = c_
+trades = data['trades']
+print(
+    "\n".join(
+        f"[{name}]{index:5s}[/{name}]: "
+        f"[{value}]{trades[index]['p']:.2f}[/{value}]"
+        for index in config["indices"]
     )
-
-
+)

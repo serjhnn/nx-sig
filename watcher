@@ -1,23 +1,30 @@
 #!/usr/bin/env bash
 # run scripts/order_watcher.py in the background
 #
-#   ./watcher start     start it (does nothing if it is already running)
-#   ./watcher stop      stop it cleanly (SIGTERM), force it after 20s
-#   ./watcher status    running or not, its heartbeat and the last log lines
-#   ./watcher restart   stop, then start
+#   ./watcher start    start it (does nothing if it is
+#                      already running)
+#   ./watcher stop     stop it cleanly (SIGTERM), force
+#                      it after 20s
+#   ./watcher status   running or not, its heartbeat and
+#                      the last log lines
+#   ./watcher restart  stop, then start
 #
-# the Python used is $WATCHER_PYTHON, or the first of python3.14, python3, python
-# that is 3.14 or newer. in Termux a wake lock is taken while it runs, so
+# the Python used is $WATCHER_PYTHON, or the first of
+# python3.14, python3, python that is 3.14 or newer.
+# in Termux a wake lock is taken while it runs, so
 # Android doesn't pause it.
 
 set -u
 cd "$(dirname "$0")" || exit 1
 WATCHER_SCRIPT=scripts/order_watcher.py
+NEEDS_314='import sys; sys.exit(sys.version_info < (3, 14))'
 
 find_python() {
-    for candidate in ${WATCHER_PYTHON:-} python3.14 python3 python; do
+    local candidates="${WATCHER_PYTHON:-} python3.14"
+    for candidate in $candidates python3 python; do
         if command -v "$candidate" >/dev/null 2>&1 &&
-           "$candidate" -c 'import sys; sys.exit(sys.version_info < (3, 14))' 2>/dev/null; then
+            "$candidate" -c "$NEEDS_314" 2>/dev/null
+        then
             echo "$candidate"
             return 0
         fi
@@ -25,30 +32,44 @@ find_python() {
     return 1
 }
 
-# any python can read the config, only the watcher itself needs 3.14
+# any python can read the config, only the watcher
+# itself needs 3.14
 CONFIG_PYTHON=$(command -v python3 || command -v python)
-# storage_dir is relative to the repo root, like in scripts/storage.py
-DATA_DIR=$("$CONFIG_PYTHON" -c 'import json; print(json.load(open("config.json"))["storage_dir"])') || exit 1
+# storage_dir is relative to the repo root, like in
+# scripts/storage.py
+READ_DIR='import json
+print(json.load(open("config.json"))["storage_dir"])'
+DATA_DIR=$("$CONFIG_PYTHON" -c "$READ_DIR") || exit 1
 DATA_DIR=${DATA_DIR%/}
 LOG_DIR="$DATA_DIR/logs"
 PID_FILE="$DATA_DIR/order_watcher.pid"
 LOG_FILE="$LOG_DIR/order_watcher.log"
-# python errors that happen before logging is set up (e.g. a missing package)
+# python errors that happen before logging is set up
+# (e.g. a missing package)
 OUT_FILE="$LOG_DIR/order_watcher.out"
 
 running_pid() {
-    # print the pid if order_watcher.py from the pid file is alive
+    # print the pid if order_watcher.py from the pid
+    # file is alive
     [ -f "$PID_FILE" ] || return 1
     local pid
     pid=$(cat "$PID_FILE" 2>/dev/null)
-    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || return 1
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null ||
+        return 1
     # make sure the pid was not reused by another program
+    local args
     if [ -r "/proc/$pid/cmdline" ]; then
-        tr '\0' ' ' < "/proc/$pid/cmdline" | grep -q order_watcher.py || return 1
+        args=$(tr '\0' ' ' < "/proc/$pid/cmdline")
     else
-        ps -p "$pid" -o args= 2>/dev/null | grep -q order_watcher.py || return 1
+        args=$(ps -p "$pid" -o args= 2>/dev/null)
     fi
+    echo "$args" | grep -q order_watcher.py || return 1
     echo "$pid"
+}
+
+wake_lock() {
+    # $1: termux-wake-lock or termux-wake-unlock
+    command -v "$1" >/dev/null 2>&1 && "$1"
 }
 
 start() {
@@ -59,33 +80,43 @@ start() {
     fi
     local python
     if ! python=$(find_python); then
-        echo "error: order_watcher.py needs Python 3.14 or newer, set WATCHER_PYTHON=/path/to/python3.14" >&2
+        echo "error: order_watcher.py needs Python" \
+            "3.14 or newer, set" \
+            "WATCHER_PYTHON=/path/to/python3.14" >&2
         return 1
     fi
     mkdir -p "$LOG_DIR"
-    command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock
+    wake_lock termux-wake-lock
 
-    LOG_CONSOLE=0 nohup "$python" "$WATCHER_SCRIPT" > "$OUT_FILE" 2>&1 < /dev/null &
+    LOG_CONSOLE=0 nohup "$python" "$WATCHER_SCRIPT" \
+        > "$OUT_FILE" 2>&1 < /dev/null &
     pid=$!
     echo "$pid" > "$PID_FILE"
 
-    # catch an immediate crash, e.g. a wrong password or missing .env settings
+    # catch an immediate crash, e.g. a wrong password or
+    # missing .env settings
     sleep 3
     if running_pid >/dev/null; then
-        echo "watcher started (pid $pid, $("$python" --version 2>&1)), log: $LOG_FILE"
-    else
-        rm -f "$PID_FILE"
-        echo "error: watcher stopped right after starting:" >&2
-        if [ -s "$OUT_FILE" ]; then
-            tail -n 15 "$OUT_FILE" >&2
-        elif [ -f "$LOG_FILE" ]; then
-            # the CRITICAL line and the exception at the end of its traceback
-            grep -E " (CRITICAL|ERROR) " "$LOG_FILE" | tail -n 1 >&2
-            tail -n 1 "$LOG_FILE" >&2
-            echo "full traceback in $LOG_FILE" >&2
-        fi
-        return 1
+        local version
+        version=$("$python" --version 2>&1)
+        echo "watcher started (pid $pid, $version)," \
+            "log: $LOG_FILE"
+        return 0
     fi
+    rm -f "$PID_FILE"
+    echo "error: watcher stopped right after" \
+        "starting:" >&2
+    if [ -s "$OUT_FILE" ]; then
+        tail -n 15 "$OUT_FILE" >&2
+    elif [ -f "$LOG_FILE" ]; then
+        # the CRITICAL line and the exception at the end
+        # of its traceback
+        grep -E " (CRITICAL|ERROR) " "$LOG_FILE" |
+            tail -n 1 >&2
+        tail -n 1 "$LOG_FILE" >&2
+        echo "full traceback in $LOG_FILE" >&2
+    fi
+    return 1
 }
 
 stop() {
@@ -95,7 +126,8 @@ stop() {
         rm -f "$PID_FILE"
         return 0
     fi
-    # SIGTERM is handled like Ctrl+C: clean logout, 'stopped' heartbeat
+    # SIGTERM is handled like Ctrl+C: clean logout,
+    # 'stopped' heartbeat
     kill -TERM "$pid"
     for _ in $(seq 20); do
         running_pid >/dev/null || break
@@ -106,7 +138,7 @@ stop() {
         kill -KILL "$pid" 2>/dev/null
     fi
     rm -f "$PID_FILE"
-    command -v termux-wake-unlock >/dev/null 2>&1 && termux-wake-unlock
+    wake_lock termux-wake-unlock
     echo "watcher stopped"
 }
 
@@ -117,24 +149,29 @@ status() {
     else
         echo "watcher is not running"
     fi
-    # the heartbeat that order_watcher.py writes, also shown by 'status' in ./nxshell
-    "$CONFIG_PYTHON" - "$DATA_DIR/watcher_status.json" <<'PY'
+    # the heartbeat that order_watcher.py writes, also
+    # shown by 'status' in ./nxshell
+    "$CONFIG_PYTHON" - "$DATA_DIR/watcher_status.json" \
+        <<'PY'
 import json, sys
 try:
     status = json.load(open(sys.argv[1]))
 except (OSError, ValueError):
     sys.exit()
-print(f"  state:      {status.get('state')}, updated {status.get('updated')}")
+print(f"  state:      {status.get('state')}, "
+      f"updated {status.get('updated')}")
 print(f"  started:    {status.get('started')}")
 if status.get("last_order"):
     print(f"  last order: {status['last_order']}")
 error = status.get("last_error")
 if error:
-    print(f"  last error: {error.get('time')} {error.get('text')}")
+    print(f"  last error: {error.get('time')} "
+          f"{error.get('text')}")
 PY
     if [ -f "$LOG_FILE" ]; then
         echo "last log lines ($LOG_FILE):"
-        tail -n 5 "$LOG_FILE" | cut -c1-200 | sed 's/^/  /'
+        tail -n 5 "$LOG_FILE" | cut -c1-200 |
+            sed 's/^/  /'
     fi
     [ -n "$pid" ]
 }
@@ -145,7 +182,8 @@ case "${1:-}" in
     status) status ;;
     restart) stop && start ;;
     *)
-        echo "usage: ./watcher start|stop|status|restart" >&2
+        echo "usage:" \
+            "./watcher start|stop|status|restart" >&2
         exit 2
         ;;
 esac
