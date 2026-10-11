@@ -49,30 +49,6 @@ LOG_FILE="$LOG_DIR/mtsig.log"
 # (e.g. a missing package)
 OUT_FILE="$LOG_DIR/mtsig.out"
 
-# files of the old ./watcher script, renamed to mtsig.*
-OLD_NAME=order_watcher
-
-# the pid file can move at once, the process doesn't
-# use it; so a watcher started by the old script can
-# still be stopped with ./mtsig stop
-if [ -f "$DATA_DIR/$OLD_NAME.pid" ] &&
-    [ ! -f "$PID_FILE" ]; then
-    mv "$DATA_DIR/$OLD_NAME.pid" "$PID_FILE"
-fi
-
-rename_old_logs() {
-    # only while it is not running, so no log line is
-    # written to a file that has just been renamed
-    [ -f "$LOG_DIR/$OLD_NAME.log" ] || return 0
-    [ -f "$LOG_FILE" ] && return 0
-    local old
-    for old in "$LOG_DIR/$OLD_NAME".log* \
-        "$LOG_DIR/$OLD_NAME.out"; do
-        [ -f "$old" ] || continue
-        mv "$old" "$LOG_DIR/mtsig${old#*/$OLD_NAME}"
-    done
-}
-
 running_pid() {
     # print the pid if order_watcher.py from the pid
     # file is alive
@@ -111,7 +87,6 @@ start() {
         return 1
     fi
     mkdir -p "$LOG_DIR"
-    rename_old_logs
     wake_lock termux-wake-lock
 
     LOG_CONSOLE=0 nohup "$python" "$WATCHER_SCRIPT" \
@@ -177,17 +152,12 @@ status() {
     fi
     # the heartbeat that order_watcher.py writes, also
     # shown by 'status' in ./nxshell
-    # (watcher_status.json until storage.py renames it)
     "$CONFIG_PYTHON" - "$DATA_DIR/mtsig_status.json" \
-        "$DATA_DIR/watcher_status.json" <<'PY'
+        <<'PY'
 import json, sys
-for path in sys.argv[1:]:
-    try:
-        status = json.load(open(path))
-        break
-    except (OSError, ValueError):
-        pass
-else:
+try:
+    status = json.load(open(sys.argv[1]))
+except (OSError, ValueError):
     sys.exit()
 print(f"  state:      {status.get('state')}, "
       f"updated {status.get('updated')}")
