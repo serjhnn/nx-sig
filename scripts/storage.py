@@ -154,9 +154,9 @@ def transactions_add_one(
     Add transaction to {stock_name}_transactions.csv file
 
         mrvl_transactions.csv
-    _____________________________________________
-    |       Date |  Time | Type | Count | Price |
-    | 05.10.2026 | 14:30 | MRVL |    10 |   250 |
+    ______________________________________________
+    | Index |       Date |  Time | Type | Count |...
+    |     1 | 05.10.2026 | 14:30 |  BUY |    10 |...
 
     """
     os.makedirs(DB_DIR, exist_ok=True)
@@ -164,13 +164,7 @@ def transactions_add_one(
     rows = []
     if os.path.exists(path) and os.path.getsize(path) > 0:
         with open(path, newline="") as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
-        # Upgrade existing files that predate the Index
-        # column, preserving row order.
-        if "Index" not in (reader.fieldnames or []):
-            for index, row in enumerate(rows, 1):
-                row["Index"] = index
+            rows = list(csv.DictReader(f))
     # Indexes stay stable after deletions, so continue from
     # the highest one.
     next_index = (
@@ -208,16 +202,14 @@ def transactions_get_all(stock):
     with open(path, newline="") as f:
         return [
             {
-                "Index": int(row.get("Index") or index),
+                "Index": int(row["Index"]),
                 "Date": row["Date"],
                 "Time": row["Time"],
                 "Type": TransactionType[row["Type"]],
                 "Count": int(row["Count"]),
                 "Price": float(row["Price"]),
             }
-            for index, row in enumerate(
-                csv.DictReader(f), 1
-            )
+            for row in csv.DictReader(f)
         ]
 
 
@@ -939,34 +931,6 @@ if __name__ == "__main__":
             self.assertEqual(
                 transactions_total_get(Stock.MRVL),
                 (100, 100.0),
-            )
-
-        def test_add_upgrades_file_without_index_column(
-            self,
-        ):
-            os.makedirs(DB_DIR, exist_ok=True)
-            with open(
-                _transactions_path(Stock.MRVL),
-                "w",
-                newline="",
-            ) as f:
-                f.write(
-                    "Date,Time,Type,Count,Price\r\n"
-                    "05.10.2026,14:30,BUY,10,250\r\n"
-                )
-
-            transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 1, 100
-            )
-
-            self.assertEqual(
-                [
-                    t["Index"]
-                    for t in transactions_get_all(
-                        Stock.MRVL
-                    )
-                ],
-                [1, 2],
             )
 
     unittest.main()
