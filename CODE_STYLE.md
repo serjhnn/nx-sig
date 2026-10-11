@@ -3,7 +3,7 @@
 nX-sig is written and read on a phone (Termux), so the
 code has to fit a phone screen. These rules apply to the
 Python scripts in `scripts/` and the shell scripts
-`nxshell` and `watcher`.
+`nxshell` and `mtsig`.
 
 Check them with:
 

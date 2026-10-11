@@ -4,7 +4,7 @@
 #   python scripts/order_watcher.py
 #   (needs Python 3.14+, see mail_reader.py)
 # or in the background:
-#   ./watcher start | stop | status
+#   ./mtsig start | stop | status
 #
 # waits for emails from IMAP_SENDER (.env), parses them
 # with order_parser.py and records FILLED orders of the
@@ -218,7 +218,7 @@ def setup_logging():
         encoding="utf-8",
     )
     handlers = [file_handler]
-    # the ./watcher script runs in the background and
+    # the ./mtsig script runs in the background and
     # sets LOG_CONSOLE=0
     if os.getenv("LOG_CONSOLE", "1") != "0":
         handlers.append(logging.StreamHandler())
@@ -238,7 +238,7 @@ def _stop_on_signal(signum, frame):
 def main():
     global _last_order, _last_error
     # a background process ignores SIGINT, so
-    # ./watcher stop (and plain kill) send SIGTERM
+    # ./mtsig stop (and plain kill) send SIGTERM
     signal.signal(signal.SIGTERM, _stop_on_signal)
     signal.signal(signal.SIGINT, signal.default_int_handler)
     setup_logging()

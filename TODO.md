@@ -10,8 +10,7 @@ that run in the background, and show it in the names:
   - the notifiers (`ntfy.py`, `telegram_notify.py`,
     the planned Garmin watch notifications)
 - **`mtsig`: mail transactions service**
-  - rename `watcher` to `mtsig` (start / stop /
-    status / restart)
+  - ~~rename `watcher` to `mtsig`~~ (done)
   - the service code: `order_watcher.py`,
     `mail_reader.py`, `order_parser.py`
 

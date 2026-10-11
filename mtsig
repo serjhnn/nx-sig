@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# run scripts/order_watcher.py in the background
+# mtsig: mail transactions service, runs
+# scripts/order_watcher.py in the background
 #
-#   ./watcher start    start it (does nothing if it is
-#                      already running)
-#   ./watcher stop     stop it cleanly (SIGTERM), force
-#                      it after 20s
-#   ./watcher status   running or not, its heartbeat and
-#                      the last log lines
-#   ./watcher restart  stop, then start
+#   ./mtsig start    start it (does nothing if it is
+#                    already running)
+#   ./mtsig stop     stop it cleanly (SIGTERM), force
+#                    it after 20s
+#   ./mtsig status   running or not, its heartbeat and
+#                    the last log lines
+#   ./mtsig restart  stop, then start
 #
 # the Python used is $WATCHER_PYTHON, or the first of
 # python3.14, python3, python that is 3.14 or newer.
@@ -183,7 +184,7 @@ case "${1:-}" in
     restart) stop && start ;;
     *)
         echo "usage:" \
-            "./watcher start|stop|status|restart" >&2
+            "./mtsig start|stop|status|restart" >&2
         exit 2
         ;;
 esac

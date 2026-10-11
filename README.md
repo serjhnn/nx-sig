@@ -13,7 +13,7 @@ automatically from the confirmation emails. It is made to run on a phone in
 - **Interactive shell** (`./nxshell`) to add, list and delete transactions,
   see positions with live prices and gain/loss, and keep personal trading rules
 - **Live prices** from the [Alpaca](https://alpaca.markets) market data API
-- **Order watcher** (`./watcher`) that waits for broker emails over IMAP and
+- **Mail transactions service** (`./mtsig`) that waits for broker emails over IMAP and
   records FILLED orders as transactions, running in the background
 - **Plain files** for storage: CSV for transactions, JSON for rules and state,
   written atomically and locked, so the shell and the watcher can run together
@@ -99,13 +99,13 @@ The average price is a weighted average of your buys:
 `avg = (avg × count + price × bought) / (count + bought)`. Sells lower the count
 and keep the average. Gain/loss in `status` is `count × price − count × avg`.
 
-### The order watcher
+### The mail transactions service (mtsig)
 
 ```bash
-./watcher start      # run it in the background
-./watcher status     # running or not, last order, last log lines
-./watcher stop       # stop it cleanly
-./watcher restart
+./mtsig start      # run it in the background
+./mtsig status     # running or not, last order, last log lines
+./mtsig stop       # stop it cleanly
+./mtsig restart
 ```
 
 It waits for new emails from `IMAP_SENDER`, reads the order with
@@ -124,7 +124,7 @@ Status (կարգավիճակ) *FILLED*
   emails it missed and never records an order twice. On the very first start it
   begins after the newest email, so old emails are not imported.
 - A dropped connection is reconnected automatically.
-- `./watcher` finds a Python 3.14+ by itself, or uses `WATCHER_PYTHON`.
+- `./mtsig` finds a Python 3.14+ by itself, or uses `WATCHER_PYTHON`.
   In Termux it takes a wake lock while it runs, so Android does not pause it.
 - Logs are in `data/logs/order_watcher.log` (rotated at 1 MB, 5 files kept).
   `LOG_LEVEL=DEBUG` in `.env` logs more detail.
@@ -149,7 +149,8 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 ```
 nx-sig/
 ├── nxshell               start the shell
-├── watcher               start/stop/status of the order watcher
+├── mtsig                 start/stop/status of the order watcher
+│                         (mail transactions service)
 ├── config.json           stocks, data folder, price API
 ├── CODE_STYLE.md         code style rules
 ├── assets/logo.svg
