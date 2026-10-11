@@ -183,6 +183,4 @@ The code is written to be read on a phone: lines are at most
 
 ## Planned
 
-- Growth % in `ls` (currently 0)
-- `strategy` commands
-- Notifications to a Garmin watch (see `scripts/watch_notify.py`)
+See [TODO.md](TODO.md).
