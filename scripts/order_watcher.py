@@ -17,7 +17,7 @@
 # order twice. a heartbeat for the CLI 'status' is kept
 # in {storage_dir}/watcher_status.json.
 #
-# logs: {storage_dir}/logs/order_watcher.log (and the
+# logs: {storage_dir}/logs/mtsig.log (and the
 # console), rotated at 1 MB, the last 5 files are kept.
 # LOG_LEVEL=DEBUG in .env adds every IDLE round, ignored
 # emails and the parsed fields of each order.
@@ -195,7 +195,7 @@ def _status(state):
 def _log_path():
     return os.path.abspath(
         os.path.join(
-            storage.DB_DIR, "logs", "order_watcher.log"
+            storage.DB_DIR, "logs", "mtsig.log"
         )
     )
 

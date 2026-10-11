@@ -126,7 +126,7 @@ Status (կարգավիճակ) *FILLED*
 - A dropped connection is reconnected automatically.
 - `./mtsig` finds a Python 3.14+ by itself, or uses `WATCHER_PYTHON`.
   In Termux it takes a wake lock while it runs, so Android does not pause it.
-- Logs are in `data/logs/order_watcher.log` (rotated at 1 MB, 5 files kept).
+- Logs are in `data/logs/mtsig.log` (rotated at 1 MB, 5 files kept).
   `LOG_LEVEL=DEBUG` in `.env` logs more detail.
 - If an order is found but can't be saved, the log and `status` in the shell
   show `ORDER NOT RECORDED` with the `tr add` command to add it by hand.
@@ -142,7 +142,8 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `personal_rules.json` | your rules |
 | `mail_state.json` | the last email the watcher handled |
 | `watcher_status.json` | the watcher's heartbeat, shown by `status` |
-| `logs/` | the watcher's logs |
+| `mtsig.pid` | the process id of the running `./mtsig` |
+| `logs/` | the watcher's logs (`mtsig.log`) |
 
 ## Project layout
 

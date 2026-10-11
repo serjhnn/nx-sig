@@ -43,11 +43,35 @@ print(json.load(open("config.json"))["storage_dir"])'
 DATA_DIR=$("$CONFIG_PYTHON" -c "$READ_DIR") || exit 1
 DATA_DIR=${DATA_DIR%/}
 LOG_DIR="$DATA_DIR/logs"
-PID_FILE="$DATA_DIR/order_watcher.pid"
-LOG_FILE="$LOG_DIR/order_watcher.log"
+PID_FILE="$DATA_DIR/mtsig.pid"
+LOG_FILE="$LOG_DIR/mtsig.log"
 # python errors that happen before logging is set up
 # (e.g. a missing package)
-OUT_FILE="$LOG_DIR/order_watcher.out"
+OUT_FILE="$LOG_DIR/mtsig.out"
+
+# files of the old ./watcher script, renamed to mtsig.*
+OLD_NAME=order_watcher
+
+# the pid file can move at once, the process doesn't
+# use it; so a watcher started by the old script can
+# still be stopped with ./mtsig stop
+if [ -f "$DATA_DIR/$OLD_NAME.pid" ] &&
+    [ ! -f "$PID_FILE" ]; then
+    mv "$DATA_DIR/$OLD_NAME.pid" "$PID_FILE"
+fi
+
+rename_old_logs() {
+    # only while it is not running, so no log line is
+    # written to a file that has just been renamed
+    [ -f "$LOG_DIR/$OLD_NAME.log" ] || return 0
+    [ -f "$LOG_FILE" ] && return 0
+    local old
+    for old in "$LOG_DIR/$OLD_NAME".log* \
+        "$LOG_DIR/$OLD_NAME.out"; do
+        [ -f "$old" ] || continue
+        mv "$old" "$LOG_DIR/mtsig${old#*/$OLD_NAME}"
+    done
+}
 
 running_pid() {
     # print the pid if order_watcher.py from the pid
@@ -87,6 +111,7 @@ start() {
         return 1
     fi
     mkdir -p "$LOG_DIR"
+    rename_old_logs
     wake_lock termux-wake-lock
 
     LOG_CONSOLE=0 nohup "$python" "$WATCHER_SCRIPT" \
