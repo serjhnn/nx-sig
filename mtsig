@@ -177,12 +177,17 @@ status() {
     fi
     # the heartbeat that order_watcher.py writes, also
     # shown by 'status' in ./nxshell
-    "$CONFIG_PYTHON" - "$DATA_DIR/watcher_status.json" \
-        <<'PY'
+    # (watcher_status.json until storage.py renames it)
+    "$CONFIG_PYTHON" - "$DATA_DIR/mtsig_status.json" \
+        "$DATA_DIR/watcher_status.json" <<'PY'
 import json, sys
-try:
-    status = json.load(open(sys.argv[1]))
-except (OSError, ValueError):
+for path in sys.argv[1:]:
+    try:
+        status = json.load(open(path))
+        break
+    except (OSError, ValueError):
+        pass
+else:
     sys.exit()
 print(f"  state:      {status.get('state')}, "
       f"updated {status.get('updated')}")

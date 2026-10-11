@@ -15,8 +15,8 @@ that run in the background, and show it in the names:
     `mail_reader.py`, `order_parser.py`
 
 When doing it, also update the names that still point
-to the watcher: `watcher_status.json`, the
-`mail watcher:` line of `status`, and the docs.
+to the watcher: the `mail watcher:` line of `status`
+and the docs.
 
 ## Other
 

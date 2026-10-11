@@ -15,7 +15,7 @@
 # {storage_dir}/mail_state.json, so after a restart it
 # picks up the emails it missed and never records an
 # order twice. a heartbeat for the CLI 'status' is kept
-# in {storage_dir}/watcher_status.json.
+# in {storage_dir}/mtsig_status.json.
 #
 # logs: {storage_dir}/logs/mtsig.log (and the
 # console), rotated at 1 MB, the last 5 files are kept.

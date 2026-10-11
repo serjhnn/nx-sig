@@ -30,7 +30,7 @@
 #       mail_state.json
 #   watcher_status_get(), watcher_status_set(status)
 #       heartbeat of order_watcher.py (dict), kept in
-#       watcher_status.json
+#       mtsig_status.json
 #
 # all writes take an exclusive lock on {storage_dir}/.lock,
 # so the CLI and order_watcher.py running at the same time
@@ -535,7 +535,16 @@ def _mail_state_path():
 
 
 def _watcher_status_path():
-    return os.path.join(DB_DIR, "watcher_status.json")
+    path = os.path.join(DB_DIR, "mtsig_status.json")
+    # the file was called watcher_status.json before, move
+    # it to the new name the first time it is used
+    old = os.path.join(DB_DIR, "watcher_status.json")
+    if not os.path.exists(path) and os.path.exists(old):
+        try:
+            os.replace(old, path)
+        except FileNotFoundError:
+            pass  # another process moved it just now
+    return path
 
 
 def _transactions_total_path():
@@ -886,6 +895,26 @@ if __name__ == "__main__":
             )
             self.assertEqual(
                 watcher_status_get()["state"], "waiting"
+            )
+
+        def test_watcher_status_old_name_is_moved(self):
+            os.makedirs(DB_DIR, exist_ok=True)
+            old = os.path.join(
+                DB_DIR, "watcher_status.json"
+            )
+            with open(old, "w") as f:
+                json.dump({"state": "waiting"}, f)
+
+            self.assertEqual(
+                watcher_status_get()["state"], "waiting"
+            )
+            self.assertFalse(os.path.exists(old))
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(
+                        DB_DIR, "mtsig_status.json"
+                    )
+                )
             )
 
         def test_lock_is_reentrant(self):

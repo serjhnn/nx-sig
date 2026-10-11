@@ -141,7 +141,7 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `transactions_total.csv` | count and average price of every stock |
 | `personal_rules.json` | your rules |
 | `mail_state.json` | the last email the watcher handled |
-| `watcher_status.json` | the watcher's heartbeat, shown by `status` |
+| `mtsig_status.json` | the watcher's heartbeat, shown by `status` |
 | `mtsig.pid` | the process id of the running `./mtsig` |
 | `logs/` | the watcher's logs (`mtsig.log`) |
 
