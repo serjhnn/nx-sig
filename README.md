@@ -186,3 +186,14 @@ The code is written to be read on a phone: lines are at most
 ## Planned
 
 See [TODO.md](TODO.md).
+
+## Python virtual environment 
+
+pip freeze > requirements.txt
+
+git clone <repo-url>
+cd <repo>
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
