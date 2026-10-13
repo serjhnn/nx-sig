@@ -85,7 +85,7 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 |---|---|
 | `tr add <stock> <buy\|sell> <count> <price>` | record a transaction, e.g. `tr add NVDA buy 10 120.5` |
 | `tr get <stock>`, `ls <stock>` | the stock's transactions and its total |
-| `ls` | count, average price and total of every stock you hold |
+| `ls` | count, average price, total and growth % (current price vs. average price) of every stock you hold |
 | `tr del-last <stock>` | show the last transaction and delete it after confirmation |
 | `status` | positions with the current price and gain/loss, and the order watcher's state |
 | `xtop [sec]` | live gain/loss of the stocks you hold (quantity, average price, current price, gain, gain %, total), updated every 5 (or `sec`) seconds, Ctrl+C to leave |

@@ -20,7 +20,6 @@ and the docs.
 
 ## Other
 
-- Growth % in `ls` (currently always 0)
 - `strategy` commands
 - Notifications to a Garmin watch
   (see `scripts/watch_notify.py`)

@@ -6,7 +6,7 @@
 #   tr del-last <stock>
 #   tr del <stock> <index>  (disabled, use 'tr del-last')
 #   ls <stock>      alias for 'tr get <stock>'
-#   ls              totals of all stocks
+#   ls              totals and growth % of held stocks
 #   status          positions with current price and
 #                   gain/loss
 #   xtop [sec]      live gain/loss of held stocks,
@@ -114,7 +114,7 @@ commands:
   tr get <stock>, ls <stock>
       show transactions and total
   ls
-      show totals of all stocks held
+      totals of all stocks held, with growth %
   tr del-last <stock>
       delete the last transaction
   status
@@ -370,8 +370,9 @@ class NxSigShell(cmd.Cmd):
             alias for 'transactions get <stock>'
         ls
             show count, average buy price and
-            total price of all stocks held,
-            and growth % (not implemented yet, 0)
+            total price of all stocks held, and
+            growth %: how much the current price
+            is above (or below) the average price
         """
         args = arg.split()
         if not args:
@@ -384,6 +385,7 @@ class NxSigShell(cmd.Cmd):
         if not totals:
             _print_wrapped("no stocks held")
             return
+        prices = _fetch_prices()
 
         color = _supports_color()
         column_sep = _column_sep(color)
@@ -411,8 +413,15 @@ class NxSigShell(cmd.Cmd):
             count = f"{total_count:>5}"
             avg = f"{avg_price:>9.2f}"
             total = f"{total_count * avg_price:>8.2f}"
-            # TODO: implement growth % calculation
-            growth = f"{0.0:>8.2f}"
+            growth = f"{'-':>8}"
+            growth_color = DIM
+            current = prices.get(stock.name)
+            if current is not None and avg_price > 0:
+                pct = (
+                    (current - avg_price) / avg_price * 100
+                )
+                growth = f"{pct:>+7.2f}%"
+                growth_color = _gain_color(pct)
             if color:
                 name = (
                     f"{BOLD}{TOTAL_STOCK_COLOR}"
@@ -421,7 +430,7 @@ class NxSigShell(cmd.Cmd):
                 count = f"{COUNT_COLOR}{count}{RESET}"
                 avg = f"{PRICE_COLOR}{avg}{RESET}"
                 total = f"{PRICE_COLOR}{total}{RESET}"
-                growth = f"{DIM}{growth}{RESET}"
+                growth = f"{growth_color}{growth}{RESET}"
             print(
                 column_sep.join(
                     [name, count, avg, total, growth]
@@ -455,19 +464,7 @@ class NxSigShell(cmd.Cmd):
             _print_watcher_status()
             return
 
-        try:
-            prices = get_latest_prices()
-        except KeyError as e:
-            _print_error(
-                f"error: missing {e.args[0]} in .env, "
-                "can't get current prices"
-            )
-            prices = {}
-        except Exception as e:  # network or API errors
-            _print_error(
-                f"error: can't get current prices: {e}"
-            )
-            prices = {}
+        prices = _fetch_prices()
 
         color = _supports_color()
         column_sep = _column_sep(color)
@@ -880,6 +877,23 @@ def _print_total(stock, color):
             f"{avg_price:.2f}, sum {total_sum:.2f}"
         )
     print(total_line)
+
+
+def _fetch_prices():
+    """{stock: current price} from the API, or {} after
+    printing why the prices could not be fetched"""
+    try:
+        return get_latest_prices()
+    except KeyError as e:
+        _print_error(
+            f"error: missing {e.args[0]} in .env, "
+            "can't get current prices"
+        )
+    except Exception as e:  # network or API errors
+        _print_error(
+            f"error: can't get current prices: {e}"
+        )
+    return {}
 
 
 def _held_positions():
