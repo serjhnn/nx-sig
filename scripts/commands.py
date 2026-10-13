@@ -9,8 +9,8 @@
 #   ls              totals of all stocks
 #   status          positions with current price and
 #                   gain/loss
-#   xtop [sec]      live prices, updated every 5 or <sec>
-#                   seconds
+#   xtop [sec]      live gain/loss of held stocks,
+#                   updated every 5 or <sec> seconds
 #   rules [add <rule>/delete <id>]
 #                   personal rules
 #   strategy [run/stop/list/get]
@@ -120,8 +120,8 @@ commands:
   status
       positions with current price and gain/loss
   xtop [sec]
-      live prices, updated every 5 or <sec>
-      seconds
+      live gain/loss of held stocks, updated
+      every 5 or <sec> seconds
   rules
       show personal rules
   rules add <rule>, rules delete <id>
@@ -380,12 +380,7 @@ class NxSigShell(cmd.Cmd):
         self._transaction_get(args)
 
     def _totals_all(self):
-        # only stocks that are currently held
-        totals = [
-            (stock, *transactions_total_get(stock))
-            for stock in Stock
-        ]
-        totals = [t for t in totals if t[1] != 0]
+        totals = _held_positions()
         if not totals:
             _print_wrapped("no stocks held")
             return
@@ -454,11 +449,7 @@ class NxSigShell(cmd.Cmd):
             _print_wrapped("usage: status")
             return
 
-        positions = [
-            (stock, *transactions_total_get(stock))
-            for stock in Stock
-        ]
-        positions = [p for p in positions if p[1] != 0]
+        positions = _held_positions()
         if not positions:
             _print_wrapped("no stocks held")
             _print_watcher_status()
@@ -546,8 +537,9 @@ class NxSigShell(cmd.Cmd):
     def do_xtop(self, arg):
         """
         xtop [sec]
-            show latest prices of the config indices
-            in a table updated every 5 seconds, or
+            live gain/loss of the stocks you hold:
+            average buy price, current price, gain
+            and gain %, updated every 5 seconds or
             every <sec> seconds, e.g. 'xtop 10'.
             Ctrl+C returns to the shell
         """
@@ -568,6 +560,10 @@ class NxSigShell(cmd.Cmd):
                 )
                 return
 
+        if not _held_positions():
+            _print_wrapped("no stocks held")
+            return
+
         # the polling thread only queues results, all
         # drawing happens here in the main thread
         updates = queue.Queue()
@@ -580,12 +576,7 @@ class NxSigShell(cmd.Cmd):
         )
 
         color = _supports_color()
-        prices, previous, error, updated = (
-            {},
-            {},
-            None,
-            None,
-        )
+        prices, error, updated = {}, None, None
         drawn = 0
         if color:
             print(
@@ -596,7 +587,6 @@ class NxSigShell(cmd.Cmd):
             drawn = _draw_xtop(
                 _xtop_lines(
                     prices,
-                    previous,
                     error,
                     updated,
                     interval,
@@ -615,12 +605,11 @@ class NxSigShell(cmd.Cmd):
                 except queue.Empty:
                     continue
                 if new_prices is not None:
-                    previous, prices = prices, new_prices
+                    prices = new_prices
                     updated = datetime.now()
                 drawn = _draw_xtop(
                     _xtop_lines(
                         prices,
-                        previous,
                         error,
                         updated,
                         interval,
@@ -892,17 +881,34 @@ def _print_total(stock, color):
     print(total_line)
 
 
-def _xtop_lines(
-    prices, previous, error, updated, interval, color
-):
-    """build the lines of the 'xtop' table; change is
-    relative to the previous update"""
+def _held_positions():
+    """(stock, count, average buy price) of every stock
+    whose count is not 0"""
+    positions = [
+        (stock, *transactions_total_get(stock))
+        for stock in Stock
+    ]
+    return [p for p in positions if p[1] != 0]
+
+
+def _gain_color(gain):
+    if gain > 0:
+        return BUY_COLOR
+    if gain < 0:
+        return SELL_COLOR
+    return DIM
+
+
+def _xtop_lines(prices, error, updated, interval, color):
+    """build the lines of the 'xtop' table: gain/loss of
+    each held stock at its current price"""
     column_sep = _column_sep(color)
     header_cols = [
         f"{'Name':<5}",
-        f"{'Price':>9}",
-        f"{'Change':>8}",
-        f"{'Chg %':>7}",
+        f"{'Avg':>8}",
+        f"{'Price':>8}",
+        f"{'Gain':>8}",
+        f"{'Gain %':>7}",
     ]
     if color:
         header_cols = [
@@ -914,38 +920,47 @@ def _xtop_lines(
     )
     lines = [column_sep.join(header_cols), separator]
 
-    for index in config["indices"]:
-        name = f"{index:<5}"
-        price = f"{'-':>9}"
-        change = f"{'-':>8}"
-        change_pct = f"{'-':>7}"
-        change_color = DIM
-        if index in prices:
-            price = f"{prices[index]:>9.2f}"
-            if previous.get(index):
-                diff = prices[index] - previous[index]
-                change = f"{diff:>+8.2f}"
-                pct = diff / previous[index] * 100
-                change_pct = f"{pct:>+6.2f}%"
-                change_color = (
-                    BUY_COLOR
-                    if diff > 0
-                    else SELL_COLOR if diff < 0 else DIM
-                )
+    # re-read every time: the order watcher may record
+    # a transaction while xtop runs
+    total_gain = total_cost = 0.0
+    for stock, count, avg_price in _held_positions():
+        name = f"{stock.name:<5}"
+        avg = f"{avg_price:>8.2f}"
+        price = f"{'-':>8}"
+        gain = f"{'-':>8}"
+        gain_pct = f"{'-':>7}"
+        gain_color = DIM
+        if stock.name in prices:
+            current = prices[stock.name]
+            value = count * (current - avg_price)
+            cost = abs(count) * avg_price
+            price = f"{current:>8.2f}"
+            gain = f"{value:>+8.2f}"
+            if cost:
+                pct = value / cost * 100
+                gain_pct = f"{pct:>+6.2f}%"
+            gain_color = _gain_color(value)
+            total_gain += value
+            total_cost += cost
         if color:
-            name = f"{BOLD}{TOTAL_STOCK_COLOR}{name}{RESET}"
-            price = f"{PRICE_COLOR}{price}{RESET}"
-            change = f"{change_color}{change}{RESET}"
-            change_pct = (
-                f"{change_color}{change_pct}{RESET}"
+            name = (
+                f"{BOLD}{TOTAL_STOCK_COLOR}"
+                f"{name}{RESET}"
             )
+            avg = f"{PRICE_COLOR}{avg}{RESET}"
+            price = f"{PRICE_COLOR}{price}{RESET}"
+            gain = f"{gain_color}{gain}{RESET}"
+            gain_pct = f"{gain_color}{gain_pct}{RESET}"
         lines.append(
             column_sep.join(
-                [name, price, change, change_pct]
+                [name, avg, price, gain, gain_pct]
             )
         )
 
     lines.append(separator)
+    lines.append(
+        _xtop_total_line(total_gain, total_cost, color)
+    )
     if updated is None:
         status = "waiting for prices..."
     else:
@@ -961,6 +976,28 @@ def _xtop_lines(
         # count stays stable
         lines.append(f"error: {error}"[:WIDTH])
     return lines
+
+
+def _xtop_total_line(total_gain, total_cost, color):
+    """'total' row under the table: the gain of all held
+    stocks that have a price, and its % of their cost"""
+    label = f"{'total':<5}"
+    # the empty Avg and Price columns
+    blank = " " * (3 + 8 + 3 + 8 + 3)
+    if not total_cost:
+        line = label + blank + f"{'-':>8}"
+        return f"{DIM}{line}{RESET}" if color else line
+    gain = f"{total_gain:>+8.2f}"
+    pct = total_gain / total_cost * 100
+    gain_pct = f"{pct:>+6.2f}%"
+    sep = " | "
+    if color:
+        gain_color = _gain_color(total_gain)
+        label = f"{DIM}{label}{RESET}"
+        gain = f"{BOLD}{gain_color}{gain}{RESET}"
+        gain_pct = f"{BOLD}{gain_color}{gain_pct}{RESET}"
+        sep = f"{DIM}{sep}{RESET}"
+    return label + blank + gain + sep + gain_pct
 
 
 def _draw_xtop(lines, drawn, color):

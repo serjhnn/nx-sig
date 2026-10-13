@@ -88,7 +88,7 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 | `ls` | count, average price and total of every stock you hold |
 | `tr del-last <stock>` | show the last transaction and delete it after confirmation |
 | `status` | positions with the current price and gain/loss, and the order watcher's state |
-| `xtop [sec]` | live price table, updated every 5 (or `sec`) seconds, Ctrl+C to leave |
+| `xtop [sec]` | live gain/loss of the stocks you hold (average price, current price, gain, gain %, total), updated every 5 (or `sec`) seconds, Ctrl+C to leave |
 | `rules`, `rules add <rule>`, `rules delete <id>` | your personal trading rules |
 | `help [command]` | all commands, or details of one |
 | `exit`, `quit`, `q` | leave the shell |
