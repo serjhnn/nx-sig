@@ -110,14 +110,15 @@ and keep the average. Gain/loss in `status` is `count × price − count × avg`
 
 It waits for new emails from `IMAP_SENDER`, reads the order with
 `scripts/order_parser.py` and records it when its status is `FILLED` and the
-symbol is in `indices`. Emails like this one are understood:
+symbol is in `indices`. Emails like this one are understood (a
+translation in brackets after each label is allowed too):
 
 ```
-Symbol (Ծածկագիր) TSMX
-Quantity (քանակ) 10
-Executed Price (կատարման գին) 87.54
-Order Type (պատվերի տեսակ) Buy  LMT  DAY
-Status (կարգավիճակ) *FILLED*
+Symbol TSMX
+Quantity 10
+Executed Price 87.54
+Order Type Buy  LMT  DAY
+Status *FILLED*
 ```
 
 - It remembers the last email it handled, so after a restart it picks up the
