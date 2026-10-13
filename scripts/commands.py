@@ -538,9 +538,10 @@ class NxSigShell(cmd.Cmd):
         """
         xtop [sec]
             live gain/loss of the stocks you hold:
-            average buy price, current price, gain
-            and gain %, updated every 5 seconds or
-            every <sec> seconds, e.g. 'xtop 10'.
+            quantity, average buy price, current
+            price, gain and gain %, updated every
+            5 seconds or every <sec> seconds,
+            e.g. 'xtop 10'.
             Ctrl+C returns to the shell
         """
         args = arg.split()
@@ -899,16 +900,22 @@ def _gain_color(gain):
     return DIM
 
 
+XTOP_SEP = " "
+
+
 def _xtop_lines(prices, error, updated, interval, color):
     """build the lines of the 'xtop' table: gain/loss of
     each held stock at its current price"""
-    column_sep = _column_sep(color)
+    # six columns don't fit 48 characters with ' | '
+    # between them, so they are separated by a space
+    column_sep = XTOP_SEP
     header_cols = [
         f"{'Name':<5}",
+        f"{'Qty':>4}",
         f"{'Avg':>8}",
         f"{'Price':>8}",
-        f"{'Gain':>8}",
-        f"{'Gain %':>7}",
+        f"{'Gain':>9}",
+        f"{'Gain %':>8}",
     ]
     if color:
         header_cols = [
@@ -925,20 +932,21 @@ def _xtop_lines(prices, error, updated, interval, color):
     total_gain = total_cost = 0.0
     for stock, count, avg_price in _held_positions():
         name = f"{stock.name:<5}"
+        qty = f"{count:>4}"
         avg = f"{avg_price:>8.2f}"
         price = f"{'-':>8}"
-        gain = f"{'-':>8}"
-        gain_pct = f"{'-':>7}"
+        gain = f"{'-':>9}"
+        gain_pct = f"{'-':>8}"
         gain_color = DIM
         if stock.name in prices:
             current = prices[stock.name]
             value = count * (current - avg_price)
             cost = abs(count) * avg_price
             price = f"{current:>8.2f}"
-            gain = f"{value:>+8.2f}"
+            gain = f"{value:>+9.2f}"
             if cost:
                 pct = value / cost * 100
-                gain_pct = f"{pct:>+6.2f}%"
+                gain_pct = f"{pct:>+7.2f}%"
             gain_color = _gain_color(value)
             total_gain += value
             total_cost += cost
@@ -947,13 +955,14 @@ def _xtop_lines(prices, error, updated, interval, color):
                 f"{BOLD}{TOTAL_STOCK_COLOR}"
                 f"{name}{RESET}"
             )
+            qty = f"{COUNT_COLOR}{qty}{RESET}"
             avg = f"{PRICE_COLOR}{avg}{RESET}"
             price = f"{PRICE_COLOR}{price}{RESET}"
             gain = f"{gain_color}{gain}{RESET}"
             gain_pct = f"{gain_color}{gain_pct}{RESET}"
         lines.append(
             column_sep.join(
-                [name, avg, price, gain, gain_pct]
+                [name, qty, avg, price, gain, gain_pct]
             )
         )
 
@@ -982,22 +991,20 @@ def _xtop_total_line(total_gain, total_cost, color):
     """'total' row under the table: the gain of all held
     stocks that have a price, and its % of their cost"""
     label = f"{'total':<5}"
-    # the empty Avg and Price columns
-    blank = " " * (3 + 8 + 3 + 8 + 3)
+    # the empty Qty, Avg and Price columns
+    blank = " " * (1 + 4 + 1 + 8 + 1 + 8 + 1)
     if not total_cost:
-        line = label + blank + f"{'-':>8}"
+        line = label + blank + f"{'-':>9}"
         return f"{DIM}{line}{RESET}" if color else line
-    gain = f"{total_gain:>+8.2f}"
+    gain = f"{total_gain:>+9.2f}"
     pct = total_gain / total_cost * 100
-    gain_pct = f"{pct:>+6.2f}%"
-    sep = " | "
+    gain_pct = f"{pct:>+7.2f}%"
     if color:
         gain_color = _gain_color(total_gain)
         label = f"{DIM}{label}{RESET}"
         gain = f"{BOLD}{gain_color}{gain}{RESET}"
         gain_pct = f"{BOLD}{gain_color}{gain_pct}{RESET}"
-        sep = f"{DIM}{sep}{RESET}"
-    return label + blank + gain + sep + gain_pct
+    return label + blank + gain + XTOP_SEP + gain_pct
 
 
 def _draw_xtop(lines, drawn, color):
