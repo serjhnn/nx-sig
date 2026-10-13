@@ -13,6 +13,11 @@ load_dotenv(
 )
 
 
+def is_configured():
+    """True if TOKEN and CHAT_ID are set in .env"""
+    return bool(os.getenv("TOKEN") and os.getenv("CHAT_ID"))
+
+
 def notify(text):
     resp = requests.post(
         "https://api.telegram.org/bot"

@@ -23,6 +23,7 @@ import os
 import queue
 import sys
 import textwrap
+import threading
 from datetime import datetime
 
 from storage import (
@@ -41,6 +42,10 @@ from trade_engine import (
     config,
     get_latest_prices,
     start_polling,
+)
+from telegram_notify import (
+    is_configured as telegram_configured,
+    notify as telegram_send,
 )
 
 LOGO = r"""
@@ -568,9 +573,13 @@ class NxSigShell(cmd.Cmd):
         stop = start_polling(
             interval,
             on_update=lambda prices: updates.put(
-                (prices, None)
+                ("prices", prices)
             ),
-            on_error=lambda e: updates.put((None, e)),
+            on_error=lambda e: updates.put(("error", e)),
+        )
+        alerts = _GainAlerts(
+            GAIN_ALERT,
+            report=lambda text: updates.put(("note", text)),
         )
 
         color = _supports_color()
@@ -589,6 +598,7 @@ class NxSigShell(cmd.Cmd):
                     updated,
                     interval,
                     color,
+                    alerts.lines(),
                 ),
                 drawn,
                 color,
@@ -597,14 +607,17 @@ class NxSigShell(cmd.Cmd):
                 try:
                     # short timeout so Ctrl+C is handled
                     # promptly, also on Windows
-                    new_prices, error = updates.get(
-                        timeout=0.2
-                    )
+                    kind, value = updates.get(timeout=0.2)
                 except queue.Empty:
                     continue
-                if new_prices is not None:
-                    prices = new_prices
+                if kind == "prices":
+                    prices, error = value, None
                     updated = datetime.now()
+                    alerts.check(_xtop_rows(prices))
+                elif kind == "error":
+                    error = value
+                else:
+                    alerts.note = value
                 drawn = _draw_xtop(
                     _xtop_lines(
                         prices,
@@ -612,6 +625,7 @@ class NxSigShell(cmd.Cmd):
                         updated,
                         interval,
                         color,
+                        alerts.lines(),
                     ),
                     drawn,
                     color,
@@ -915,9 +929,101 @@ def _gain_color(gain):
 
 
 XTOP_SEP = " "
+# a Telegram alert is sent when a held stock's gain
+# reaches this (config "gain_alert", default +100)
+GAIN_ALERT = config.get("gain_alert", 100)
 
 
-def _xtop_lines(prices, error, updated, interval, color):
+def _xtop_rows(prices):
+    """one dict per held stock: stock, count, avg, price,
+    gain (count * (price - avg)) and pct; price, gain and
+    pct are None without a price"""
+    rows = []
+    # re-read every time: the order watcher may record
+    # a transaction while xtop runs
+    for stock, count, avg_price in _held_positions():
+        row = {
+            "stock": stock,
+            "count": count,
+            "avg": avg_price,
+            "price": None,
+            "gain": None,
+            "pct": None,
+            "cost": abs(count) * avg_price,
+        }
+        if stock.name in prices:
+            row["price"] = prices[stock.name]
+            row["gain"] = count * (row["price"] - avg_price)
+            if row["cost"]:
+                row["pct"] = row["gain"] / row["cost"] * 100
+        rows.append(row)
+    return rows
+
+
+class _GainAlerts:
+    """send a Telegram message when a stock's gain reaches
+    the threshold; again only after it has gone below it"""
+
+    def __init__(self, threshold, report):
+        self.threshold = threshold
+        self.enabled = telegram_configured()
+        # report(text) shows a result line in xtop
+        self.report = report
+        self.note = None
+        self._above = set()
+
+    def check(self, rows):
+        for row in rows:
+            name = row["stock"].name
+            if row["gain"] is None:
+                continue
+            if row["gain"] < self.threshold:
+                self._above.discard(name)
+            elif name not in self._above:
+                self._above.add(name)
+                if self.enabled:
+                    self._send(row)
+
+    def _send(self, row):
+        gain = f"{row['gain']:+.2f}"
+        pct = (
+            ""
+            if row["pct"] is None
+            else (f" ({row['pct']:+.2f}%)")
+        )
+        text = (
+            f"nX-sig: {row['stock'].name} gain {gain}{pct}"
+        )
+        short = f"{row['stock'].name} {gain}{pct}"
+
+        def send():
+            # in a thread, so a slow Telegram doesn't stop
+            # the table from updating
+            try:
+                telegram_send(text)
+                now = datetime.now()
+                self.report(
+                    f"alert {now:%H:%M} sent: {short}"
+                )
+            except Exception as e:
+                self.report(f"alert not sent: {e}")
+
+        threading.Thread(target=send, daemon=True).start()
+
+    def lines(self):
+        """footer lines for the xtop table"""
+        if not self.enabled:
+            return ["alerts off: TOKEN/CHAT_ID not in .env"]
+        threshold = f"{self.threshold:+g}"
+        lines = [f"alerts: gain >= {threshold} -> Telegram"]
+        if self.note:
+            lines.append(self.note)
+        return lines
+
+
+def _xtop_lines(
+    prices, error, updated, interval, color, notes=()
+):
     """build the lines of the 'xtop' table: gain/loss of
     each held stock at its current price"""
     # six columns don't fit 48 characters with ' | '
@@ -941,29 +1047,23 @@ def _xtop_lines(prices, error, updated, interval, color):
     )
     lines = [column_sep.join(header_cols), separator]
 
-    # re-read every time: the order watcher may record
-    # a transaction while xtop runs
     total_gain = total_cost = 0.0
-    for stock, count, avg_price in _held_positions():
-        name = f"{stock.name:<5}"
-        qty = f"{count:>4}"
-        avg = f"{avg_price:>8.2f}"
+    for row in _xtop_rows(prices):
+        name = f"{row['stock'].name:<5}"
+        qty = f"{row['count']:>4}"
+        avg = f"{row['avg']:>8.2f}"
         price = f"{'-':>8}"
         gain = f"{'-':>9}"
         gain_pct = f"{'-':>8}"
         gain_color = DIM
-        if stock.name in prices:
-            current = prices[stock.name]
-            value = count * (current - avg_price)
-            cost = abs(count) * avg_price
-            price = f"{current:>8.2f}"
-            gain = f"{value:>+9.2f}"
-            if cost:
-                pct = value / cost * 100
-                gain_pct = f"{pct:>+7.2f}%"
-            gain_color = _gain_color(value)
-            total_gain += value
-            total_cost += cost
+        if row["gain"] is not None:
+            price = f"{row['price']:>8.2f}"
+            gain = f"{row['gain']:>+9.2f}"
+            if row["pct"] is not None:
+                gain_pct = f"{row['pct']:>+7.2f}%"
+            gain_color = _gain_color(row["gain"])
+            total_gain += row["gain"]
+            total_cost += row["cost"]
         if color:
             name = (
                 f"{BOLD}{TOTAL_STOCK_COLOR}"
@@ -994,6 +1094,11 @@ def _xtop_lines(prices, error, updated, interval, color):
     lines.append(
         f"{DIM}{status}{RESET}" if color else status
     )
+    for note in notes:
+        note = note[:WIDTH]
+        lines.append(
+            f"{DIM}{note}{RESET}" if color else note
+        )
     if error is not None:
         # keep the error on one line so the redraw line
         # count stays stable

@@ -68,6 +68,7 @@ For Gmail, turn on 2-Step Verification and create an app password at
 |---|---|
 | `indices` | the stocks you track; only these can be used in commands and are recorded by the watcher |
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
+| `gain_alert` | `xtop` sends a Telegram message when a stock's gain reaches this amount (default `100`) |
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
 
 ## Running
@@ -88,7 +89,7 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 | `ls` | count, average price, total and growth % (current price vs. average price) of every stock you hold |
 | `tr del-last <stock>` | show the last transaction and delete it after confirmation |
 | `status` | positions with the current price and gain/loss, and the order watcher's state |
-| `xtop [sec]` | live gain/loss of the stocks you hold (quantity, average price, current price, gain, gain %, total), updated every 5 (or `sec`) seconds, Ctrl+C to leave |
+| `xtop [sec]` | live gain/loss of the stocks you hold (quantity, average price, current price, gain, gain %, total), updated every 5 (or `sec`) seconds, Ctrl+C to leave; sends a Telegram alert when a stock's gain reaches `gain_alert` |
 | `rules`, `rules add <rule>`, `rules delete <id>` | your personal trading rules |
 | `help [command]` | all commands, or details of one |
 | `exit`, `quit`, `q` | leave the shell |
