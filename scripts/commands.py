@@ -991,9 +991,7 @@ class _GainAlerts:
             if row["pct"] is None
             else (f" ({row['pct']:+.2f}%)")
         )
-        text = (
-            f"nX-sig: {row['stock'].name} gain {gain}{pct}"
-        )
+        text = f"{row['stock'].name} gain {gain}{pct}"
         short = f"{row['stock'].name} {gain}{pct}"
 
         def send():
