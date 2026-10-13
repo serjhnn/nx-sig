@@ -3,5 +3,6 @@
     "feed": "delayed_sip",
     "storage_dir": "./data/",
     "gain_alert": 100,
+    "gain_alert_pct": 10,
     "indices": [ "ASMG", "AVGG", "NVDL", "TSMX", "MUU", "MRVU", "SOXL", "NVDA", "MRVL"]
 }

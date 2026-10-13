@@ -579,6 +579,7 @@ class NxSigShell(cmd.Cmd):
         )
         alerts = _GainAlerts(
             GAIN_ALERT,
+            GAIN_ALERT_PCT,
             report=lambda text: updates.put(("note", text)),
         )
 
@@ -930,8 +931,10 @@ def _gain_color(gain):
 
 XTOP_SEP = " "
 # a Telegram alert is sent when a held stock's gain
-# reaches this (config "gain_alert", default +100)
+# reaches this amount (config "gain_alert", default +100)
+# or this % (config "gain_alert_pct", default +10)
 GAIN_ALERT = config.get("gain_alert", 100)
+GAIN_ALERT_PCT = config.get("gain_alert_pct", 10)
 
 
 def _xtop_rows(prices):
@@ -962,27 +965,37 @@ def _xtop_rows(prices):
 
 class _GainAlerts:
     """send a Telegram message when a stock's gain reaches
-    the threshold; again only after it has gone below it"""
+    the amount or the % threshold; each threshold fires
+    again only after the gain has gone below it"""
 
-    def __init__(self, threshold, report):
-        self.threshold = threshold
+    def __init__(self, threshold, threshold_pct, report):
+        # (row key, threshold) of each alert
+        self.thresholds = [
+            ("gain", threshold),
+            ("pct", threshold_pct),
+        ]
         self.enabled = telegram_configured()
         # report(text) shows a result line in xtop
         self.report = report
         self.note = None
+        # (stock name, row key) above their threshold
         self._above = set()
 
     def check(self, rows):
         for row in rows:
             name = row["stock"].name
-            if row["gain"] is None:
-                continue
-            if row["gain"] < self.threshold:
-                self._above.discard(name)
-            elif name not in self._above:
-                self._above.add(name)
-                if self.enabled:
-                    self._send(row)
+            reached = False
+            for key, threshold in self.thresholds:
+                if row[key] is None:
+                    continue
+                if row[key] < threshold:
+                    self._above.discard((name, key))
+                elif (name, key) not in self._above:
+                    self._above.add((name, key))
+                    reached = True
+            # one message, also when both are reached
+            if reached and self.enabled:
+                self._send(row)
 
     def _send(self, row):
         gain = f"{row['gain']:+.2f}"
@@ -1012,8 +1025,11 @@ class _GainAlerts:
         """footer lines for the xtop table"""
         if not self.enabled:
             return ["alerts off: TOKEN/CHAT_ID not in .env"]
-        threshold = f"{self.threshold:+g}"
-        lines = [f"alerts: gain >= {threshold} -> Telegram"]
+        amount = f"{self.thresholds[0][1]:+g}"
+        pct = f"{self.thresholds[1][1]:+g}%"
+        lines = [
+            f"alerts: gain >= {amount} or {pct} -> Telegram"
+        ]
         if self.note:
             lines.append(self.note)
         return lines
