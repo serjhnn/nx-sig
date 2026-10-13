@@ -172,14 +172,14 @@ class NxSigShell(cmd.Cmd):
         """
         tr add <stock> <buy|sell> <count> <price>
             record a transaction,
-            e.g. 'tr add NVDA buy 10 120.5'
+            e.g. 'tr add SOXL buy 10 20.5'
         tr get <stock>
             show all transactions and the current
             total for a stock
         tr del-last <stock>
             show the last transaction of a stock
             and delete it after confirmation,
-            e.g. 'tr del-last NVDA'
+            e.g. 'tr del-last SOXL'
         tr is short for transactions
         """
         args = arg.split()

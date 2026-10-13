@@ -85,7 +85,7 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 
 | Command | What it does |
 |---|---|
-| `tr add <stock> <buy\|sell> <count> <price>` | record a transaction, e.g. `tr add NVDA buy 10 120.5` |
+| `tr add <stock> <buy\|sell> <count> <price>` | record a transaction, e.g. `tr add SOXL buy 10 20.5` |
 | `tr get <stock>`, `ls <stock>` | the stock's transactions and its total |
 | `ls` | count, average price, total and growth % (current price vs. average price) of every stock you hold |
 | `tr del-last <stock>` | show the last transaction and delete it after confirmation |

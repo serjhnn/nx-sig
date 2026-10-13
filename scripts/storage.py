@@ -37,7 +37,7 @@
 # don't overwrite each other's changes
 
 # usage example
-# transactions_add_one(Stock.NVDA, TransactionType.BUY,
+# transactions_add_one(Stock.SOXL, TransactionType.BUY,
 #                      1, 100)
 
 import csv
@@ -153,7 +153,7 @@ def transactions_add_one(
     """
     Add transaction to {stock_name}_transactions.csv file
 
-        mrvl_transactions.csv
+        tsmx_transactions.csv
     ______________________________________________
     | Index |       Date |  Time | Type | Count |...
     |     1 | 05.10.2026 | 14:30 |  BUY |    10 |...
@@ -307,7 +307,7 @@ def _transactions_total_save(
             transactions_total.csv
      ______________________
     | Type | Count | Price |
-    | MRVL |    10 |   250 |
+    | TSMX |    10 |   250 |
 
     where
         Count and price are repeatedly updated after
@@ -554,16 +554,16 @@ if __name__ == "__main__":
 
         def test_get_without_file_returns_empty(self):
             self.assertEqual(
-                transactions_get_all(Stock.NVDA), []
+                transactions_get_all(Stock.SOXL), []
             )
 
         def test_add_creates_file_with_header(self):
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 250
+                Stock.TSMX, TransactionType.BUY, 10, 250
             )
 
             with open(
-                _transactions_path(Stock.MRVL), newline=""
+                _transactions_path(Stock.TSMX), newline=""
             ) as f:
                 rows = list(csv.reader(f))
             self.assertEqual(rows[0], FIELDNAMES)
@@ -575,13 +575,13 @@ if __name__ == "__main__":
 
         def test_add_and_get_roundtrip(self):
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 250
+                Stock.TSMX, TransactionType.BUY, 10, 250
             )
             transactions_add_one(
-                Stock.MRVL, TransactionType.SELL, 5, 260.5
+                Stock.TSMX, TransactionType.SELL, 5, 260.5
             )
 
-            transactions = transactions_get_all(Stock.MRVL)
+            transactions = transactions_get_all(Stock.TSMX)
             self.assertEqual(len(transactions), 2)
             self.assertEqual(
                 [t["Index"] for t in transactions], [1, 2]
@@ -604,10 +604,10 @@ if __name__ == "__main__":
 
         def test_date_and_time_format(self):
             transactions_add_one(
-                Stock.NVDA, TransactionType.BUY, 1, 100
+                Stock.SOXL, TransactionType.BUY, 1, 100
             )
 
-            transaction = transactions_get_all(Stock.NVDA)[
+            transaction = transactions_get_all(Stock.SOXL)[
                 0
             ]
             datetime.strptime(
@@ -617,20 +617,20 @@ if __name__ == "__main__":
 
         def test_stocks_are_stored_separately(self):
             transactions_add_one(
-                Stock.NVDA, TransactionType.BUY, 1, 100
+                Stock.SOXL, TransactionType.BUY, 1, 100
             )
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 2, 200
+                Stock.TSMX, TransactionType.BUY, 2, 200
             )
 
             self.assertEqual(
-                len(transactions_get_all(Stock.NVDA)), 1
+                len(transactions_get_all(Stock.SOXL)), 1
             )
             self.assertEqual(
-                len(transactions_get_all(Stock.MRVL)), 1
+                len(transactions_get_all(Stock.TSMX)), 1
             )
             self.assertEqual(
-                transactions_get_all(Stock.MRVL)[0][
+                transactions_get_all(Stock.TSMX)[0][
                     "Count"
                 ],
                 2,
@@ -638,36 +638,36 @@ if __name__ == "__main__":
 
         def test_total_buy_averages_price(self):
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 250
+                Stock.TSMX, TransactionType.BUY, 10, 250
             )
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 270
+                Stock.TSMX, TransactionType.BUY, 10, 270
             )
 
             self.assertEqual(
-                transactions_total_get(Stock.MRVL),
+                transactions_total_get(Stock.TSMX),
                 (20, 260.0),
             )
 
         def test_total_sell_keeps_price(self):
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 250
+                Stock.TSMX, TransactionType.BUY, 10, 250
             )
             transactions_add_one(
-                Stock.MRVL, TransactionType.SELL, 4, 300
+                Stock.TSMX, TransactionType.SELL, 4, 300
             )
 
             self.assertEqual(
-                transactions_total_get(Stock.MRVL),
+                transactions_total_get(Stock.TSMX),
                 (6, 250.0),
             )
 
         def test_total_stocks_in_one_file(self):
             transactions_add_one(
-                Stock.NVDA, TransactionType.BUY, 1, 100
+                Stock.SOXL, TransactionType.BUY, 1, 100
             )
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 2, 200
+                Stock.TSMX, TransactionType.BUY, 2, 200
             )
 
             with open(
@@ -677,30 +677,30 @@ if __name__ == "__main__":
             self.assertEqual(rows[0], TOTAL_FIELDNAMES)
             self.assertEqual(len(rows), 3)
             self.assertEqual(
-                transactions_total_get(Stock.NVDA),
+                transactions_total_get(Stock.SOXL),
                 (1, 100.0),
             )
             self.assertEqual(
-                transactions_total_get(Stock.MRVL),
+                transactions_total_get(Stock.TSMX),
                 (2, 200.0),
             )
 
         def test_delete_removes_row_and_keeps_indexes(self):
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 250
+                Stock.TSMX, TransactionType.BUY, 10, 250
             )
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 270
+                Stock.TSMX, TransactionType.BUY, 10, 270
             )
             transactions_add_one(
-                Stock.MRVL, TransactionType.SELL, 5, 300
+                Stock.TSMX, TransactionType.SELL, 5, 300
             )
 
             self.assertTrue(
-                transactions_delete(Stock.MRVL, 2)
+                transactions_delete(Stock.TSMX, 2)
             )
 
-            transactions = transactions_get_all(Stock.MRVL)
+            transactions = transactions_get_all(Stock.TSMX)
             self.assertEqual(
                 [t["Index"] for t in transactions], [1, 3]
             )
@@ -711,79 +711,79 @@ if __name__ == "__main__":
 
         def test_delete_recalculates_total(self):
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 250
+                Stock.TSMX, TransactionType.BUY, 10, 250
             )
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 270
+                Stock.TSMX, TransactionType.BUY, 10, 270
             )
             transactions_add_one(
-                Stock.MRVL, TransactionType.SELL, 5, 300
+                Stock.TSMX, TransactionType.SELL, 5, 300
             )
             transactions_add_one(
-                Stock.NVDA, TransactionType.BUY, 1, 100
+                Stock.SOXL, TransactionType.BUY, 1, 100
             )
 
-            transactions_delete(Stock.MRVL, 2)
+            transactions_delete(Stock.TSMX, 2)
 
             self.assertEqual(
-                transactions_total_get(Stock.MRVL),
+                transactions_total_get(Stock.TSMX),
                 (5, 250.0),
             )
             self.assertEqual(
-                transactions_total_get(Stock.NVDA),
+                transactions_total_get(Stock.SOXL),
                 (1, 100.0),
             )
 
         def test_delete_last_transaction_resets_total(self):
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 250
+                Stock.TSMX, TransactionType.BUY, 10, 250
             )
 
             self.assertTrue(
-                transactions_delete(Stock.MRVL, 1)
+                transactions_delete(Stock.TSMX, 1)
             )
 
             self.assertEqual(
-                transactions_get_all(Stock.MRVL), []
+                transactions_get_all(Stock.TSMX), []
             )
             self.assertEqual(
-                transactions_total_get(Stock.MRVL), (0, 0.0)
+                transactions_total_get(Stock.TSMX), (0, 0.0)
             )
 
         def test_delete_unknown_index_returns_false(self):
             self.assertFalse(
-                transactions_delete(Stock.MRVL, 1)
+                transactions_delete(Stock.TSMX, 1)
             )
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 250
+                Stock.TSMX, TransactionType.BUY, 10, 250
             )
 
             self.assertFalse(
-                transactions_delete(Stock.MRVL, 5)
+                transactions_delete(Stock.TSMX, 5)
             )
             self.assertEqual(
-                len(transactions_get_all(Stock.MRVL)), 1
+                len(transactions_get_all(Stock.TSMX)), 1
             )
 
         def test_add_after_delete_does_not_reuse_index(
             self,
         ):
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 250
+                Stock.TSMX, TransactionType.BUY, 10, 250
             )
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 270
+                Stock.TSMX, TransactionType.BUY, 10, 270
             )
-            transactions_delete(Stock.MRVL, 1)
+            transactions_delete(Stock.TSMX, 1)
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 1, 100
+                Stock.TSMX, TransactionType.BUY, 1, 100
             )
 
             self.assertEqual(
                 [
                     t["Index"]
                     for t in transactions_get_all(
-                        Stock.MRVL
+                        Stock.TSMX
                     )
                 ],
                 [2, 3],
@@ -792,9 +792,9 @@ if __name__ == "__main__":
         def test_failed_write_keeps_old_file(self):
             # and leaves no temp files
             transactions_add_one(
-                Stock.MRVL, TransactionType.BUY, 10, 250
+                Stock.TSMX, TransactionType.BUY, 10, 250
             )
-            path = _transactions_path(Stock.MRVL)
+            path = _transactions_path(Stock.TSMX)
             with open(path, newline="") as f:
                 before = f.read()
 
@@ -816,8 +816,8 @@ if __name__ == "__main__":
                     if f != ".lock"
                 ),
                 [
-                    "mrvl_transactions.csv",
                     "transactions_total.csv",
+                    "tsmx_transactions.csv",
                 ],
             )
 
@@ -884,13 +884,13 @@ if __name__ == "__main__":
             with _db_lock():
                 with _db_lock():
                     transactions_add_one(
-                        Stock.MRVL,
+                        Stock.TSMX,
                         TransactionType.BUY,
                         1,
                         100,
                     )
             self.assertEqual(
-                transactions_total_get(Stock.MRVL),
+                transactions_total_get(Stock.TSMX),
                 (1, 100.0),
             )
 
@@ -904,7 +904,7 @@ if __name__ == "__main__":
             def add_many():
                 for _ in range(25):
                     transactions_add_one(
-                        Stock.MRVL,
+                        Stock.TSMX,
                         TransactionType.BUY,
                         1,
                         100,
@@ -922,19 +922,19 @@ if __name__ == "__main__":
             for p in processes:
                 p.join()
 
-            transactions = transactions_get_all(Stock.MRVL)
+            transactions = transactions_get_all(Stock.TSMX)
             self.assertEqual(len(transactions), 100)
             self.assertEqual(
                 sorted(t["Index"] for t in transactions),
                 list(range(1, 101)),
             )
             self.assertEqual(
-                transactions_total_get(Stock.MRVL),
+                transactions_total_get(Stock.TSMX),
                 (100, 100.0),
             )
 
     unittest.main()
 
-    # transactions_add_one(Stock.NVDA, TransactionType.BUY,
-    # 1, 100) transactions_add_one(Stock.MRVL,
+    # transactions_add_one(Stock.SOXL, TransactionType.BUY,
+    # 1, 100) transactions_add_one(Stock.TSMX,
     # TransactionType.BUY, 2, 200)
