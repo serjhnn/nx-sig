@@ -204,6 +204,7 @@ nx-sig/
     ├── mail_reader.py    IMAP IDLE watcher with reconnects
     ├── order_parser.py   reads an order from a broker email
     ├── ladder.py         price-step alerts, one process each
+    ├── metrics.py        metrics engine: statistics of your actions (planned)
     ├── latest_trade.py   prints the latest prices once
     ├── ntfy.py           push notification through ntfy.sh
     ├── telegram_notify.py  message through a Telegram bot

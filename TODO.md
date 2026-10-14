@@ -25,6 +25,8 @@ and the docs.
   `scripts/ladder.py`). Still open:
   - maybe start the ladders that were running before
     when the phone restarts
+- Metrics (`scripts/metrics.py`): statistics of your
+  actions, once enough data is collected
 - `strategy` commands
 - Notifications to a Garmin watch
   (see `scripts/watch_notify.py`)
