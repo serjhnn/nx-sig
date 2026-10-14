@@ -791,9 +791,13 @@ class NxSigShell(cmd.Cmd):
             f"{price + sign * step * i:.2f}"
             for i in range(1, 4)
         )
-        # TODO: run it: a thread polling the price
-        # (trade_engine.start_polling) that notifies when
-        # the next level is passed
+        # TODO: run it, see TODO.md: save it numbered to
+        # data/tactics.csv (so it survives a restart), run
+        # a thread polling the price that notifies when
+        # the next level is passed; 'ls tactics' lists
+        # saved and running tactics by number, 'run
+        # tactics <n>' starts a saved one, 'stop tactics
+        # <n>' stops one
         _print_wrapped(
             f"tactics {stock.name} {direction} every "
             f"{step:g} from {price:g} ({levels}, ...): "
