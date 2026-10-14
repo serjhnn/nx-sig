@@ -13,6 +13,9 @@
 #                   updated every 5 or <sec> seconds
 #   rules [add <rule>/delete <id>]
 #                   personal rules
+#   run tactics <stock> <down|up> <step> <from price>
+#                   price-step alerts (not implemented
+#                   yet)
 #   strategy [run/stop/list/get]
 #                   not implemented yet
 #   help, exit, quit, q
@@ -131,6 +134,8 @@ commands:
       show personal rules
   rules add <rule>, rules delete <id>
       add or delete a personal rule
+  run tactics <stock> <down|up> <step> <price>
+      price-step alerts, not implemented yet
   strategy [run/stop/list/get]
       not implemented yet
   help [command]
@@ -732,6 +737,80 @@ class NxSigShell(cmd.Cmd):
     def complete_rules(self, text, line, begidx, endidx):
         return _complete(text, line, [["add", "delete"]])
 
+    # ---------------- tactics ----------------
+
+    def do_run(self, arg):
+        """
+        run tactics <stock> <down|up> <step> <price>
+            (not implemented yet)
+            watch the stock's price in a background
+            thread and send a notification each time
+            it moves another <step> down (or up) from
+            <price>, e.g. 'run tactics SOXL down 10
+            100' notifies at 90, 80, 70, ...
+        """
+        args = arg.split()
+        usage = (
+            "usage: run tactics <stock> <down|up> "
+            "<step> <from price>"
+        )
+        if not args:
+            _print_wrapped(usage)
+            return
+        if args[0].lower() != "tactics":
+            _print_error(
+                f"unknown subcommand '{args[0]}', "
+                "expected tactics"
+            )
+            return
+        if len(args) != 5:
+            _print_wrapped(usage)
+            return
+        try:
+            stock = _parse_stock(args[1])
+            direction = _parse_direction(args[2])
+        except ValueError as e:
+            _print_error(f"error: {e}")
+            return
+        try:
+            step = float(args[3])
+            price = float(args[4])
+        except ValueError:
+            _print_error(
+                "error: step and price must be numbers"
+            )
+            return
+        if step <= 0 or price <= 0:
+            _print_error(
+                "error: step and price must be positive"
+            )
+            return
+
+        sign = -1 if direction == "down" else 1
+        levels = ", ".join(
+            f"{price + sign * step * i:.2f}"
+            for i in range(1, 4)
+        )
+        # TODO: run it: a thread polling the price
+        # (trade_engine.start_polling) that notifies when
+        # the next level is passed
+        _print_wrapped(
+            f"tactics {stock.name} {direction} every "
+            f"{step:g} from {price:g} ({levels}, ...): "
+            "not implemented yet"
+        )
+
+    def complete_run(self, text, line, begidx, endidx):
+        return _complete(
+            text,
+            line,
+            [
+                ["tactics"],
+                [s.name for s in Stock],
+                ["down", "up"],
+            ],
+        )
+
     # ---------------- strategy ----------------
 
     def do_strategy(self, arg):
@@ -1270,6 +1349,14 @@ def _short_date(value):
         if len(value) == 10
         else value
     )
+
+
+def _parse_direction(name):
+    if name.lower() not in ("down", "up"):
+        raise ValueError(
+            f"unknown direction '{name}', expected down/up"
+        )
+    return name.lower()
 
 
 def _parse_transaction_type(name):
