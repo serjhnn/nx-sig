@@ -39,6 +39,8 @@
 #       save a new ladder, return its Id
 #   ladder_set_last(ladder_id, level)
 #       save the last level a ladder notified
+#   ladder_delete(ladder_id)
+#       delete a saved ladder and its heartbeat
 #   ladder_status_get(ladder_id),
 #   ladder_status_set(ladder_id, status)
 #       heartbeat of a ladder process (dict), kept in
@@ -570,8 +572,8 @@ def ladder_get(ladder_id):
 @_locked
 def ladder_add(stock_name, direction, step, from_price):
     """
-    save a new ladder to ladders.csv and return its Id;
-    Ids are never reused
+    save a new ladder to ladders.csv and return its Id,
+    the one after the highest saved Id
     """
     rows = ladders_get_all()
     ladder_id = max((r["Id"] for r in rows), default=0) + 1
@@ -606,6 +608,24 @@ def ladder_set_last(ladder_id, level):
         return False
     row["Last"] = level
     _ladders_save(rows)
+    return True
+
+
+@_locked
+def ladder_delete(ladder_id):
+    """
+    delete ladder <ladder_id> from ladders.csv and its
+    heartbeat from ladders_status.json, return False if
+    there is no such ladder
+    """
+    rows = ladders_get_all()
+    kept = [r for r in rows if r["Id"] != ladder_id]
+    if len(kept) == len(rows):
+        return False
+    _ladders_save(kept)
+    statuses = _json_get(_ladders_status_path()) or {}
+    if statuses.pop(str(ladder_id), None) is not None:
+        _json_set(_ladders_status_path(), statuses)
     return True
 
 
@@ -1038,6 +1058,22 @@ if __name__ == "__main__":
             self.assertFalse(ladder_set_last(5, 90))
             self.assertEqual(ladder_get(1)["Last"], 90.0)
             self.assertEqual(ladder_get(2)["Last"], 80.5)
+
+        def test_ladder_delete(self):
+            ladder_add("SOXL", "down", 10, 100)
+            ladder_add("TSMX", "up", 1, 50)
+            ladder_status_set(1, {"state": "stopped"})
+            ladder_status_set(2, {"state": "waiting"})
+
+            self.assertTrue(ladder_delete(1))
+            self.assertFalse(ladder_delete(1))
+            self.assertEqual(
+                [l["Id"] for l in ladders_get_all()], [2]
+            )
+            self.assertIsNone(ladder_status_get(1))
+            self.assertEqual(
+                ladder_status_get(2)["state"], "waiting"
+            )
 
         def test_ladder_status(self):
             self.assertIsNone(ladder_status_get(1))

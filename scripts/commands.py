@@ -19,6 +19,7 @@
 #                     (price-step alerts, ladder.py)
 #   run ladder <id>   start a saved ladder again
 #   stop ladder <id>  stop it
+#   rm ladder <id>    delete a saved ladder
 #   ls ladder         saved ladders
 #   run mail-broker   start the mail watcher (./mtsig)
 #   stop mail-broker  stop it
@@ -159,6 +160,8 @@ commands:
       saved ladders with their ids
   stop ladder <id>, stop mail-broker
       stop a background task
+  rm ladder <id>
+      delete a saved ladder
   strategy [run/stop/list/get]
       not implemented yet
   help [command]
@@ -964,6 +967,68 @@ class NxSigShell(cmd.Cmd):
                 ]
             )
         return _complete(text, line, options)
+
+    def do_rm(self, arg):
+        """
+        rm ladder <id>
+            delete saved ladder <id> after
+            confirmation; a running ladder is
+            stopped first
+        """
+        args = arg.split()
+        ladder_id = (
+            _parse_id(args[1])
+            if len(args) == 2
+            and args[0].lower() == "ladder"
+            else None
+        )
+        if ladder_id is None:
+            _print_wrapped("usage: rm ladder <id>")
+            return
+        saved = ladder_get(ladder_id)
+        if saved is None:
+            _print_error(
+                f"error: no ladder {ladder_id}, "
+                "see 'ls ladder'"
+            )
+            return
+        _print_ladders([saved])
+        running = ladder.running_pid(ladder_id)
+        question = (
+            f"stop and delete ladder {ladder_id}? [y/N] "
+            if running
+            else f"delete ladder {ladder_id}? [y/N] "
+        )
+        try:
+            answer = input(question)
+        except (EOFError, KeyboardInterrupt):
+            # Ctrl+D / Ctrl+C at the prompt cancels instead
+            # of leaving the shell
+            answer = ""
+            print()
+        if answer.strip().lower() not in ("y", "yes"):
+            _print_wrapped("cancelled")
+            return
+        try:
+            was_running = ladder.remove(ladder_id)
+        except (ladder.LadderError, OSError) as e:
+            _print_error(f"error: {e}")
+            return
+        _print_wrapped(
+            f"ladder {ladder_id} "
+            + ("stopped and " if was_running else "")
+            + "deleted"
+        )
+
+    def complete_rm(self, text, line, begidx, endidx):
+        return _complete(
+            text,
+            line,
+            [
+                ["ladder"],
+                [str(l["Id"]) for l in ladders_get_all()],
+            ],
+        )
 
     def _ladders_list(self):
         ladders = ladders_get_all()

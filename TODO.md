@@ -23,7 +23,6 @@ and the docs.
 - **Background tasks**: ~~`run`, `stop`, `ps`,
   `ls ladder` for ladders and the mail broker~~ (done,
   `scripts/ladder.py`). Still open:
-  - a command to delete a saved ladder
   - maybe start the ladders that were running before
     when the phone restarts
 - `strategy` commands

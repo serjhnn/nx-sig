@@ -101,6 +101,7 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 | `ps` | the background tasks that are running (ladders and the mail watcher), with their pid, start time and state |
 | `ls ladder` | the saved ladders with their ids, the next level they alert at and whether they run |
 | `stop ladder <id>` | stop a running ladder, it stays saved |
+| `rm ladder <id>` | delete a saved ladder after confirmation (a running one is stopped first), with its logs |
 | `stop mail-broker` | stop the mail watcher (calls `./mtsig stop`) |
 | `help [command]` | all commands, or details of one |
 | `exit`, `quit`, `q` | leave the shell |

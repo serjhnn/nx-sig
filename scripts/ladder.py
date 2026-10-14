@@ -25,6 +25,8 @@
 #       start the ladder's process, return its pid
 #   stop(ladder_id)
 #       stop it, True if it was running
+#   remove(ladder_id)
+#       stop it if it runs, delete it and its logs
 #   running_pid(ladder_id)
 #       pid of its process, or None
 #   next_level(ladder), passed_level(ladder, price)
@@ -34,6 +36,7 @@
 #   run(ladder_id)
 #       the process: check the price and notify
 
+import glob
 import logging
 import logging.handlers
 import math
@@ -51,6 +54,7 @@ import storage
 from storage import (
     ROOT_DIR,
     ladder_add,
+    ladder_delete,
     ladder_get,
     ladder_set_last,
     ladder_status_get,
@@ -206,6 +210,26 @@ def stop(ladder_id):
         _status(ladder_id, pid, None, "stopped")
     _release_wake_lock()
     return True
+
+
+def remove(ladder_id):
+    """
+    stop ladder <ladder_id> if it runs, delete it from
+    ladders.csv and delete its log files; True if it was
+    running
+    """
+    was_running = stop(ladder_id)
+    ladder_delete(ladder_id)
+    logs = os.path.join(
+        storage.DB_DIR, "logs", f"ladder_{ladder_id}."
+    )
+    # ladder_<id>.out, .log and the rotated .log.1, ...
+    for path in glob.glob(glob.escape(logs) + "*"):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    return was_running
 
 
 def _reap(pid):
