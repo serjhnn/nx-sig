@@ -32,8 +32,9 @@ The action words are mixed as well: `tr get` / `ls`,
    starts clean, there is nothing to stay compatible
    with.
 6. **Readable keywords are required**, not optional, so
-   there is one way to write a command (`from` in
-   `ladder run`). Tab completion fills them in.
+   there is one way to write a command: `from` in
+   `ladder run`, `count` and `price` in `tr add`. Tab
+   completion fills them in.
 7. Output stays within 48 characters, code within 60
    (see CODE_STYLE.md).
 
@@ -43,10 +44,14 @@ The action words are mixed as well: `tr get` / `ls`,
 
 | Now | New |
 |---|---|
-| `tr add <stock> <buy\|sell> <count> <price>` | `tr add <stock> <buy\|sell> <count> <price>` |
+| `tr add <stock> <buy\|sell> <count> <price>` | `tr add <stock> <buy\|sell> count <count> price <price>` |
 | `ls` | `tr ls` (totals of held stocks, growth %) |
 | `tr get <stock>`, `ls <stock>` | `tr ls <stock>` |
 | `tr del-last <stock>` | `tr rm-last <stock>` |
+
+e.g. `tr add SOXL buy count 10 price 20.5`. The
+`count` and `price` keywords say which number is which,
+so the two can't be swapped by mistake.
 
 ### Rules (`rules`)
 
@@ -81,11 +86,15 @@ The action words are mixed as well: `tr get` / `ls`,
 - `ps`: running background tasks of all features
 - `help`, `help <feature>`, `exit` / `quit` / `q`
 
+### Left as it is
+
+- `strategy`: stays unchanged for now, it is not part
+  of this reorganisation.
+
 ### Later features
 
 They follow the same rules when they are built:
 
-- `strategy ls|run|stop ...`
 - `metrics ...` (see `scripts/metrics.py`)
 
 ## Code structure
@@ -110,6 +119,8 @@ scripts/
 The `_cmd` suffix keeps the shell files apart from the
 engines with the same name (`ladder_cmd.py` vs
 `ladder.py`).
+
+`strategy` stays in `commands.py` as it is.
 
 - **One class per feature**, mixed into `NxSigShell`
   (`class NxSigShell(TrCmd, RulesCmd, LadderCmd, ...,
@@ -159,12 +170,8 @@ Add `scripts/shell_test.py`: runs every command through
 and a fake price feed, and checks the output. It is
 written in step 1, so steps 2-4 are checked by it.
 
-## Open questions
+## Open questions, for later
 
-- `tr add SOXL buy 10 at 20.5`: a required `at` like
-  `from` in ladders?
-- Keep the `strategy` stub until it is designed, or
-  remove it?
 - A `mail-broker status` with the last log lines, like
   `./mtsig status`?
 - `status`: keep the `mail watcher:` line, or show all
