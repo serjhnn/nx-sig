@@ -120,6 +120,7 @@ so fix what `check_style.py` still reports by hand.
   ```bash
   python scripts/storage.py
   python scripts/order_parser.py
+  python scripts/ladder.py
   ```
 
 ## Pre-commit check

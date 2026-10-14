@@ -17,7 +17,9 @@ automatically from the confirmation emails. It is made to run on a phone in
   records FILLED orders as transactions, running in the background
 - **Plain files** for storage: CSV for transactions, JSON for rules and state,
   written atomically and locked, so the shell and the watcher can run together
-- **Notifications** through [ntfy](https://ntfy.sh) and Telegram (helper scripts)
+- **Ladders**: background price-step alerts on Telegram, e.g. at 90, 80, 70, ...
+  when a stock falls from 100
+- **Notifications** through [ntfy](https://ntfy.sh) and Telegram
 
 ## Requirements
 
@@ -70,6 +72,7 @@ For Gmail, turn on 2-Step Verification and create an app password at
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
 | `gain_alert` | `xtop` sends a Telegram message when a stock's gain reaches this amount (default `100`) |
 | `gain_alert_pct` | ... or when its gain reaches this % (default `10`) |
+| `ladder_interval` | how often a ladder checks the price, in seconds (default `30`) |
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
 
 ## Running
@@ -92,12 +95,12 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 | `status` | positions with the current price and gain/loss, and the order watcher's state |
 | `xtop [sec]` | live gain/loss of the stocks you hold (quantity, average price, current price, gain, gain %, total), updated every 5 (or `sec`) seconds, Ctrl+C to leave; sends a Telegram alert when a stock's gain reaches `gain_alert` or `gain_alert_pct` |
 | `rules`, `rules add <rule>`, `rules delete <id>` | your personal trading rules |
-| `run ladder <stock> <down\|up> <step> <price>` | *not implemented yet*: a background process that notifies each time the price moves another `step` down (or up) from `price`, e.g. `run ladder SOXL down 10 100` at 90, 80, 70, ... |
-| `run ladder <id>` | *not implemented yet*: start a saved ladder |
+| `run ladder <stock> <down\|up> <step> <price>` | save a new ladder and start it in the background: it sends a Telegram message each time the price moves another `step` down (or up) from `price`, e.g. `run ladder SOXL down 10 100` at 90, 80, 70, ... |
+| `run ladder <id>` | start a saved ladder again, e.g. after a restart |
 | `run mail-broker` | start the mail watcher in the background (calls `./mtsig start`) |
-| `ps` | the background tasks that are running (for now the mail watcher), with their pid, start time and state |
-| `ls ladder` | *not implemented yet*: the saved ladders with their ids |
-| `stop ladder <id>` | *not implemented yet*: stop a running ladder |
+| `ps` | the background tasks that are running (ladders and the mail watcher), with their pid, start time and state |
+| `ls ladder` | the saved ladders with their ids, the next level they alert at and whether they run |
+| `stop ladder <id>` | stop a running ladder, it stays saved |
 | `stop mail-broker` | stop the mail watcher (calls `./mtsig stop`) |
 | `help [command]` | all commands, or details of one |
 | `exit`, `quit`, `q` | leave the shell |
@@ -141,6 +144,31 @@ Status *FILLED*
 - If an order is found but can't be saved, the log and `status` in the shell
   show `ORDER NOT RECORDED` with the `tr add` command to add it by hand.
 
+### Ladders
+
+```
+nX-sig> run ladder SOXL down 10 100
+ladder 1 saved: SOXL down every 10 from 100
+starting ladder 1...
+ladder 1 started (pid 366), next alert at 90
+```
+
+Each ladder is its own process (`scripts/ladder.py`), so it keeps running when
+the shell is closed. It checks the price every `ladder_interval` seconds and
+sends a Telegram message when the price passes the next level, like
+`SOXL down to 89.50, passed 90 (ladder 1, next 80)`. When the price jumps over
+several levels between two checks, one message names the farthest one.
+
+- The last level sent is saved, so after `stop ladder` and `run ladder <id>`,
+  or a phone restart, no level is sent twice.
+- A down ladder ends when its next level would be 0 or less (`done` in
+  `ls ladder`).
+- If a message can't be sent, the level is not saved and is sent at the next
+  check.
+- Telegram (`TOKEN`, `CHAT_ID` in `.env`) must be set up to start a ladder.
+- In Termux a wake lock is held while a ladder or the mail watcher runs.
+- Logs are in `data/logs/ladder_<id>.log`.
+
 ## Data
 
 Everything is kept in `storage_dir` (`data/`, not in git):
@@ -153,7 +181,9 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `mail_state.json` | the last email the watcher handled |
 | `mtsig_status.json` | the watcher's heartbeat, shown by `status` |
 | `mtsig.pid` | the process id of the running `./mtsig` |
-| `logs/` | the watcher's logs (`mtsig.log`) |
+| `ladders.csv` | the saved ladders: Id, Stock, Direction, Step, From, Last (the last level sent), Created |
+| `ladders_status.json` | the ladder processes' heartbeats, shown by `ps` |
+| `logs/` | the watcher's and the ladders' logs (`mtsig.log`, `ladder_<id>.log`) |
 
 ## Project layout
 
@@ -172,6 +202,7 @@ nx-sig/
     ├── order_watcher.py  email -> parsed order -> transaction
     ├── mail_reader.py    IMAP IDLE watcher with reconnects
     ├── order_parser.py   reads an order from a broker email
+    ├── ladder.py         price-step alerts, one process each
     ├── latest_trade.py   prints the latest prices once
     ├── ntfy.py           push notification through ntfy.sh
     ├── telegram_notify.py  message through a Telegram bot
@@ -184,6 +215,7 @@ nx-sig/
 ```bash
 python scripts/storage.py        # transactions, totals, rules, locking
 python scripts/order_parser.py   # order email parsing
+python scripts/ladder.py         # ladder levels
 python scripts/check_style.py    # code style (line width)
 ```
 

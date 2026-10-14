@@ -68,6 +68,13 @@ running_pid() {
     echo "$pid"
 }
 
+ladder_running() {
+    # a ladder (scripts/ladder.py, started from the
+    # shell) still needs the wake lock; [.] keeps grep
+    # from matching its own command line
+    grep -qsa "scripts/ladder[.]py" /proc/[0-9]*/cmdline
+}
+
 wake_lock() {
     # $1: termux-wake-lock or termux-wake-unlock
     command -v "$1" >/dev/null 2>&1 && "$1"
@@ -139,7 +146,7 @@ stop() {
         kill -KILL "$pid" 2>/dev/null
     fi
     rm -f "$PID_FILE"
-    wake_lock termux-wake-unlock
+    ladder_running || wake_lock termux-wake-unlock
     echo "watcher stopped"
 }
 

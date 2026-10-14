@@ -14,14 +14,15 @@
 #   rules [add <rule>/delete <id>]
 #                   personal rules
 #   background tasks, each its own process:
+#   run ladder <stock> <down|up> <step> <price>
+#                     save and start a new ladder
+#                     (price-step alerts, ladder.py)
+#   run ladder <id>   start a saved ladder again
+#   stop ladder <id>  stop it
+#   ls ladder         saved ladders
 #   run mail-broker   start the mail watcher (./mtsig)
 #   stop mail-broker  stop it
 #   ps                running background tasks
-#   (not implemented yet:)
-#   run ladder <stock> <down|up> <step> <price>
-#   run ladder <id>
-#   ls ladder         saved ladders
-#   stop ladder <id>
 #   strategy [run/stop/list/get]
 #                   not implemented yet
 #   help, exit, quit, q
@@ -36,6 +37,8 @@ import textwrap
 import threading
 from datetime import datetime
 
+import ladder
+
 from storage import (
     ROOT_DIR,
     Stock,
@@ -47,6 +50,9 @@ from storage import (
     rules_add,
     rules_delete,
     rules_get_all,
+    ladder_get,
+    ladder_status_get,
+    ladders_get_all,
     mtsig_pid_get,
     watcher_status_get,
 )
@@ -153,7 +159,6 @@ commands:
       saved ladders with their ids
   stop ladder <id>, stop mail-broker
       stop a background task
-      (ladders: not implemented yet)
   strategy [run/stop/list/get]
       not implemented yet
   help [command]
@@ -402,9 +407,9 @@ class NxSigShell(cmd.Cmd):
             growth %: how much the current price
             is above (or below) the average price
         ls ladder
-            (not implemented yet)
-            the saved ladders with their ids, see
-            'help run'
+            the saved ladders with their ids, the
+            next level they alert at and whether
+            they run, see 'help run'
         """
         args = arg.split()
         if not args:
@@ -769,23 +774,21 @@ class NxSigShell(cmd.Cmd):
 
     # ---------------- background tasks ----------------
     # every task runs as its own process, so it keeps
-    # running when the shell is closed (ladders are
-    # not implemented yet, see TODO.md)
+    # running when the shell is closed; ladders are in
+    # ladder.py
 
     def do_run(self, arg):
         """
         run ladder <stock> <down|up> <step> <price>
-            (not implemented yet)
             save a new ladder and start it as a
-            background process: it notifies each time
-            the stock's price moves another <step>
-            down (or up) from <price>, e.g.
-            'run ladder SOXL down 10 100' notifies at
-            90, 80, 70, ...
+            background process: it sends a Telegram
+            message each time the stock's price
+            moves another <step> down (or up) from
+            <price>, e.g. 'run ladder SOXL down 10
+            100' at 90, 80, 70, ...
         run ladder <id>
-            (not implemented yet)
-            start saved ladder <id> again, see
-            'ls ladder'
+            start saved ladder <id> again, e.g.
+            after a restart, see 'ls ladder'
         run mail-broker
             start the mail watcher (./mtsig start)
             that records broker order emails, it
@@ -823,12 +826,7 @@ class NxSigShell(cmd.Cmd):
             if ladder_id is None:
                 _print_wrapped(usage)
                 return
-            # TODO: read ladder <id> from data/ladders.csv
-            # and start its process
-            _print_wrapped(
-                f"run ladder {ladder_id}: "
-                "not implemented yet"
-            )
+            self._start_ladder(ladder_id)
             return
         if len(args) != 4:
             _print_wrapped(usage)
@@ -847,25 +845,36 @@ class NxSigShell(cmd.Cmd):
                 "error: step and price must be numbers"
             )
             return
-        if step <= 0 or price <= 0:
+        if not telegram_configured():
             _print_error(
-                "error: step and price must be positive"
+                "error: Telegram isn't set up, add TOKEN "
+                "and CHAT_ID to .env"
             )
             return
-
-        sign = -1 if direction == "down" else 1
-        levels = ", ".join(
-            f"{price + sign * step * i:.2f}"
-            for i in range(1, 4)
-        )
-        # TODO: save it with a new id to data/ladders.csv
-        # (stock, direction, step, from price, last level
-        # notified) and start a process that polls the
-        # price and notifies when the next level is passed
+        try:
+            ladder_id = ladder.create(
+                stock.name, direction, step, price
+            )
+        except ladder.LadderError as e:
+            _print_error(f"error: {e}")
+            return
         _print_wrapped(
-            f"ladder {stock.name} {direction} every "
-            f"{step:g} from {price:g} ({levels}, ...): "
-            "not implemented yet"
+            f"ladder {ladder_id} saved: {stock.name} "
+            f"{direction} every {step:g} from {price:g}"
+        )
+        self._start_ladder(ladder_id)
+
+    def _start_ladder(self, ladder_id):
+        _print_wrapped(f"starting ladder {ladder_id}...")
+        try:
+            pid = ladder.start(ladder_id)
+        except ladder.LadderError as e:
+            _print_error(f"error: {e}")
+            return
+        saved = ladder_get(ladder_id)
+        _print_wrapped(
+            f"ladder {ladder_id} started (pid {pid}), "
+            f"next alert at {ladder.next_level(saved):g}"
         )
 
     def complete_run(self, text, line, begidx, endidx):
@@ -885,13 +894,13 @@ class NxSigShell(cmd.Cmd):
             list the background tasks that are
             running as their own process, with
             their pid, start time and state
-            (ladders: not implemented yet)
         """
         if arg.strip():
             _print_wrapped("usage: ps")
             return
-        # TODO: add a row per running ladder, with its id
-        tasks = [_mail_broker_task()]
+        tasks = [_mail_broker_task()] + [
+            _ladder_task(l) for l in ladders_get_all()
+        ]
         tasks = [t for t in tasks if t]
         if not tasks:
             _print_wrapped("no background tasks running")
@@ -901,7 +910,6 @@ class NxSigShell(cmd.Cmd):
     def do_stop(self, arg):
         """
         stop ladder <id>
-            (not implemented yet)
             stop the process of running ladder <id>,
             it stays saved, see 'ls ladder'
         stop mail-broker
@@ -922,10 +930,15 @@ class NxSigShell(cmd.Cmd):
             if ladder_id is None:
                 _print_wrapped("usage: stop ladder <id>")
                 return
-            # TODO: stop the process of ladder <id>
+            try:
+                stopped = ladder.stop(ladder_id)
+            except ladder.LadderError as e:
+                _print_error(f"error: {e}")
+                return
             _print_wrapped(
-                f"stop ladder {ladder_id}: "
-                "not implemented yet"
+                f"ladder {ladder_id} stopped"
+                if stopped
+                else f"ladder {ladder_id} is not running"
             )
         elif task == "mail-broker":
             if rest:
@@ -939,15 +952,27 @@ class NxSigShell(cmd.Cmd):
             )
 
     def complete_stop(self, text, line, begidx, endidx):
-        return _complete(
-            text, line, [["ladder", "mail-broker"]]
-        )
+        options = [["ladder", "mail-broker"]]
+        args = line.split()
+        if len(args) > 1 and args[1].lower() == "ladder":
+            # the ids of the running ladders
+            options.append(
+                [
+                    str(l["Id"])
+                    for l in ladders_get_all()
+                    if ladder.running_pid(l["Id"])
+                ]
+            )
+        return _complete(text, line, options)
 
     def _ladders_list(self):
-        # TODO: table of data/ladders.csv: id, stock,
-        # direction, step, from price, last level
-        # notified, running or not
-        _print_wrapped("ls ladder: not implemented yet")
+        ladders = ladders_get_all()
+        if not ladders:
+            _print_wrapped(
+                "no ladders saved, see 'help run'"
+            )
+            return
+        _print_ladders(ladders)
 
     # ---------------- strategy ----------------
 
@@ -1448,7 +1473,9 @@ def _mail_broker_task():
     """the ps row of the mail broker, or None if it
     isn't running"""
     pid = mtsig_pid_get()
-    if pid is None or not _is_watcher_process(pid):
+    if pid is None or not ladder.process_runs(
+        pid, "order_watcher.py"
+    ):
         return None
     status = watcher_status_get() or {}
     started = updated = None
@@ -1479,24 +1506,101 @@ def _mail_broker_task():
     }
 
 
-def _is_watcher_process(pid):
-    """True if pid is alive and is order_watcher.py, so
-    a pid reused by another program isn't shown"""
+def _ladder_task(saved):
+    """the ps row of a ladder, or None if it isn't
+    running"""
+    pid = ladder.running_pid(saved["Id"])
+    if not pid:
+        return None
+    status = ladder_status_get(saved["Id"]) or {}
+    started = updated = None
     try:
-        with open(f"/proc/{pid}/cmdline", "rb") as f:
-            args = f.read()
-    except OSError:
-        if os.name == "nt":
-            return False
-        # no /proc: only check that it is alive
-        try:
-            os.kill(pid, 0)
-        except PermissionError:
-            return True
-        except OSError:
-            return False
-        return True
-    return b"order_watcher.py" in args
+        started = datetime.fromisoformat(status["started"])
+        updated = datetime.fromisoformat(status["updated"])
+    except (KeyError, TypeError, ValueError):
+        pass
+    state = status.get("state") or "-"
+    healthy = state in ("starting", "waiting")
+    if updated:
+        age = (datetime.now() - updated).total_seconds()
+        if age > ladder.STALE_SECONDS:
+            state, healthy = "no reply", False
+    return {
+        "id": saved["Id"],
+        "task": f"ladder {saved['Stock']}",
+        "pid": pid,
+        "started": started,
+        "state": state,
+        "healthy": healthy,
+    }
+
+
+def _print_ladders(ladders):
+    """the ls ladder table: Id, Stock, Ladder (direction
+    and step), From, Next (the next alert), State"""
+    color = _supports_color()
+    sep = "  "
+    header = sep.join(
+        [
+            f"{'Id':>2}",
+            f"{'Stock':<5}",
+            f"{'Ladder':<9}",
+            f"{'From':>7}",
+            f"{'Next':>7}",
+            f"{'State':<7}",
+        ]
+    )
+    separator = "-" * WIDTH
+    print()
+    if color:
+        print(f"{DIM}{header}{RESET}")
+        print(f"{DIM}{separator}{RESET}")
+    else:
+        print(header)
+        print(separator)
+    for saved in ladders:
+        running = ladder.running_pid(saved["Id"])
+        if running:
+            state = "running"
+        else:
+            status = ladder_status_get(saved["Id"]) or {}
+            # done: a down ladder that has no levels left
+            state = (
+                status["state"]
+                if status.get("state")
+                in ("done", "crashed")
+                else "stopped"
+            )
+        steps = f"{saved['Direction']} {saved['Step']:g}"
+        next_level = (
+            "-"
+            if state == "done"
+            else f"{ladder.next_level(saved):.2f}"
+        )
+        cols = [
+            f"{saved['Id']:>2}",
+            f"{saved['Stock']:<5.5}",
+            f"{steps:<9.9}",
+            f"{saved['From']:>7.2f}",
+            f"{next_level:>7}",
+            f"{state:<7}",
+        ]
+        if color:
+            state_color = {
+                "running": BUY_COLOR,
+                "crashed": SELL_COLOR,
+            }.get(state, DIM)
+            cols = [
+                f"{DIM}{cols[0]}{RESET}",
+                f"{BOLD}{TOTAL_STOCK_COLOR}"
+                f"{cols[1]}{RESET}",
+                cols[2],
+                f"{PRICE_COLOR}{cols[3]}{RESET}",
+                f"{PRICE_COLOR}{cols[4]}{RESET}",
+                f"{state_color}{cols[5]}{RESET}",
+            ]
+        print(sep.join(cols))
+    print()
 
 
 def _print_tasks(tasks):

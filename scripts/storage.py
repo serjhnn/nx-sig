@@ -33,6 +33,16 @@
 #       mtsig_status.json
 #   mtsig_pid_get()
 #       the pid in mtsig.pid, written by ./mtsig start
+#   ladders_get_all(), ladder_get(ladder_id)
+#       the saved ladders of ladders.csv (see ladder.py)
+#   ladder_add(stock_name, direction, step, from_price)
+#       save a new ladder, return its Id
+#   ladder_set_last(ladder_id, level)
+#       save the last level a ladder notified
+#   ladder_status_get(ladder_id),
+#   ladder_status_set(ladder_id, status)
+#       heartbeat of a ladder process (dict), kept in
+#       ladders_status.json
 #
 # all writes take an exclusive lock on {storage_dir}/.lock,
 # so the CLI and order_watcher.py running at the same time
@@ -80,6 +90,15 @@ FIELDNAMES = [
     "Price",
 ]
 TOTAL_FIELDNAMES = ["Type", "Count", "Price"]
+LADDER_FIELDNAMES = [
+    "Id",
+    "Stock",
+    "Direction",
+    "Step",
+    "From",
+    "Last",
+    "Created",
+]
 
 # stocks are the "indices" listed in config.json
 Stock = Enum("Stock", config["indices"])
@@ -517,6 +536,110 @@ def mtsig_pid_get():
         return None
 
 
+def ladders_get_all():
+    """
+    return the saved ladders of ladders.csv as dicts:
+    Id (int), Stock (name), Direction ("down"/"up"),
+    Step, From, Last (floats: the last level notified,
+    From until the first one), Created (text)
+    """
+    path = _ladders_path()
+    if not os.path.exists(path):
+        return []
+    with open(path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    for row in rows:
+        row["Id"] = int(row["Id"])
+        for key in ("Step", "From", "Last"):
+            row[key] = float(row[key])
+    return rows
+
+
+def ladder_get(ladder_id):
+    """return the saved ladder with this Id, or None"""
+    return next(
+        (
+            l
+            for l in ladders_get_all()
+            if l["Id"] == ladder_id
+        ),
+        None,
+    )
+
+
+@_locked
+def ladder_add(stock_name, direction, step, from_price):
+    """
+    save a new ladder to ladders.csv and return its Id;
+    Ids are never reused
+    """
+    rows = ladders_get_all()
+    ladder_id = max((r["Id"] for r in rows), default=0) + 1
+    rows.append(
+        {
+            "Id": ladder_id,
+            "Stock": stock_name,
+            "Direction": direction,
+            "Step": step,
+            "From": from_price,
+            "Last": from_price,
+            "Created": datetime.now().strftime(
+                "%d.%m.%Y %H:%M"
+            ),
+        }
+    )
+    _ladders_save(rows)
+    return ladder_id
+
+
+@_locked
+def ladder_set_last(ladder_id, level):
+    """
+    save the last level ladder <ladder_id> notified,
+    return False if there is no such ladder
+    """
+    rows = ladders_get_all()
+    row = next(
+        (r for r in rows if r["Id"] == ladder_id), None
+    )
+    if row is None:
+        return False
+    row["Last"] = level
+    _ladders_save(rows)
+    return True
+
+
+def ladder_status_get(ladder_id):
+    """
+    return the last heartbeat dict of ladder
+    <ladder_id>'s process, or None
+    """
+    statuses = _json_get(_ladders_status_path()) or {}
+    return statuses.get(str(ladder_id))
+
+
+@_locked
+def ladder_status_set(ladder_id, status):
+    statuses = _json_get(_ladders_status_path()) or {}
+    statuses[str(ladder_id)] = status
+    _json_set(_ladders_status_path(), statuses)
+
+
+def _ladders_save(rows):
+    os.makedirs(DB_DIR, exist_ok=True)
+    _write_csv_atomic(
+        _ladders_path(), LADDER_FIELDNAMES, rows
+    )
+
+
+def _ladders_path():
+    return os.path.join(DB_DIR, "ladders.csv")
+
+
+def _ladders_status_path():
+    return os.path.join(DB_DIR, "ladders_status.json")
+
+
 def _json_get(path):
     if not os.path.exists(path):
         return None
@@ -893,6 +1016,38 @@ if __name__ == "__main__":
             )
             self.assertEqual(
                 watcher_status_get()["state"], "waiting"
+            )
+
+        def test_ladders(self):
+            self.assertEqual(ladders_get_all(), [])
+            self.assertIsNone(ladder_get(1))
+            self.assertEqual(
+                ladder_add("SOXL", "down", 10, 100), 1
+            )
+            self.assertEqual(
+                ladder_add("TSMX", "up", 2.5, 80.5), 2
+            )
+
+            ladder = ladder_get(2)
+            self.assertEqual(ladder["Stock"], "TSMX")
+            self.assertEqual(ladder["Direction"], "up")
+            self.assertEqual(ladder["Step"], 2.5)
+            self.assertEqual(ladder["Last"], 80.5)
+
+            self.assertTrue(ladder_set_last(1, 90))
+            self.assertFalse(ladder_set_last(5, 90))
+            self.assertEqual(ladder_get(1)["Last"], 90.0)
+            self.assertEqual(ladder_get(2)["Last"], 80.5)
+
+        def test_ladder_status(self):
+            self.assertIsNone(ladder_status_get(1))
+            ladder_status_set(1, {"state": "waiting"})
+            ladder_status_set(2, {"state": "starting"})
+            self.assertEqual(
+                ladder_status_get(1), {"state": "waiting"}
+            )
+            self.assertEqual(
+                ladder_status_get(2)["state"], "starting"
             )
 
         def test_lock_is_reentrant(self):
