@@ -33,8 +33,8 @@ and the docs.
     level notified (so a level isn't notified twice).
   - `run ladder <id>`: start saved ladder <id> again,
     e.g. after a restart
-  - `run mail-broker`: start the mail watcher
-    (`./mtsig`)
+  - ~~`run mail-broker`: start the mail watcher
+    (`./mtsig start`)~~ (done)
   - `ps`: the running task processes with their ids
   - `ls ladder`: the saved ladders with their ids
   - `stop ladder <id>`, `stop mail-broker`: stop one

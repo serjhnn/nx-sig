@@ -13,10 +13,11 @@
 #                   updated every 5 or <sec> seconds
 #   rules [add <rule>/delete <id>]
 #                   personal rules
-#   background tasks, each its own process (not
-#   implemented yet):
+#   background tasks, each its own process:
+#   run mail-broker  start the mail watcher (./mtsig)
+#   (not implemented yet:)
 #   run ladder <stock> <down|up> <step> <price>
-#   run ladder <id>, run mail-broker
+#   run ladder <id>
 #   ps              running background tasks
 #   ls ladder       saved ladders
 #   stop ladder <id>, stop mail-broker
@@ -28,12 +29,14 @@ import cmd
 import inspect
 import os
 import queue
+import subprocess
 import sys
 import textwrap
 import threading
 from datetime import datetime
 
 from storage import (
+    ROOT_DIR,
     Stock,
     TransactionType,
     transactions_add_one,
@@ -148,8 +151,7 @@ commands:
       saved ladders with their ids
   stop ladder <id>, stop mail-broker
       stop a background task
-      (run, ps, ls ladder, stop: not implemented
-      yet)
+      (only run mail-broker works yet)
   strategy [run/stop/list/get]
       not implemented yet
   help [command]
@@ -765,8 +767,8 @@ class NxSigShell(cmd.Cmd):
 
     # ---------------- background tasks ----------------
     # every task runs as its own process, so it keeps
-    # running when the shell is closed (not implemented
-    # yet, see TODO.md)
+    # running when the shell is closed (only
+    # 'run mail-broker' works yet, see TODO.md)
 
     def do_run(self, arg):
         """
@@ -783,9 +785,9 @@ class NxSigShell(cmd.Cmd):
             start saved ladder <id> again, see
             'ls ladder'
         run mail-broker
-            (not implemented yet)
-            start the mail watcher (./mtsig) that
-            records broker order emails
+            start the mail watcher (./mtsig start)
+            that records broker order emails, it
+            keeps running when the shell is closed
         """
         args = arg.split()
         if not args:
@@ -802,11 +804,7 @@ class NxSigShell(cmd.Cmd):
             if rest:
                 _print_wrapped("usage: run mail-broker")
                 return
-            # TODO: start ./mtsig (it is its own process)
-            _print_wrapped(
-                "run mail-broker: not implemented yet, "
-                "use ./mtsig start"
-            )
+            _mtsig("start")
         else:
             _print_error(
                 f"unknown task '{args[0]}', expected "
@@ -1450,6 +1448,29 @@ def _print_dim(text):
     print(
         f"{DIM}{text}{RESET}" if _supports_color() else text
     )
+
+
+def _mtsig(action):
+    """run ./mtsig <action> and print what it says"""
+    if action == "start":
+        # it waits 3s to catch a crash at start
+        _print_wrapped("starting the mail broker...")
+    try:
+        result = subprocess.run(
+            [os.path.join(ROOT_DIR, "mtsig"), action],
+            capture_output=True,
+            text=True,
+            # its own session, so Ctrl+C or closing the
+            # shell doesn't reach the watcher
+            start_new_session=True,
+        )
+    except OSError as e:
+        _print_error(f"error: can't run ./mtsig: {e}")
+        return
+    for line in result.stdout.splitlines():
+        _print_wrapped(line)
+    for line in result.stderr.splitlines():
+        _print_error(line)
 
 
 def _print_wrapped(text):

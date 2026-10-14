@@ -93,7 +93,8 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 | `xtop [sec]` | live gain/loss of the stocks you hold (quantity, average price, current price, gain, gain %, total), updated every 5 (or `sec`) seconds, Ctrl+C to leave; sends a Telegram alert when a stock's gain reaches `gain_alert` or `gain_alert_pct` |
 | `rules`, `rules add <rule>`, `rules delete <id>` | your personal trading rules |
 | `run ladder <stock> <down\|up> <step> <price>` | *not implemented yet*: a background process that notifies each time the price moves another `step` down (or up) from `price`, e.g. `run ladder SOXL down 10 100` at 90, 80, 70, ... |
-| `run ladder <id>`, `run mail-broker` | *not implemented yet*: start a saved ladder / the mail watcher |
+| `run ladder <id>` | *not implemented yet*: start a saved ladder |
+| `run mail-broker` | start the mail watcher in the background (calls `./mtsig start`) |
 | `ps` | *not implemented yet*: the background tasks that are running |
 | `ls ladder` | *not implemented yet*: the saved ladders with their ids |
 | `stop ladder <id>`, `stop mail-broker` | *not implemented yet*: stop a background task |
