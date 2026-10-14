@@ -170,6 +170,35 @@ several levels between two checks, one message names the farthest one.
 - In Termux a wake lock is held while a ladder or the mail watcher runs.
 - Logs are in `data/logs/ladder_<id>.log`.
 
+### Syncing the phone and the PC
+
+`scripts/sync.py` keeps `data/` the same on the phone (Termux) and the PC
+(Linux) with [Syncthing](https://syncthing.net). The two devices connect
+directly over Wi-Fi, a phone hotspot or USB tethering. No internet is needed,
+and no outside server is used (global discovery and relays are off).
+
+```bash
+python scripts/sync.py setup        # install, start, print this device's ID
+python scripts/sync.py setup <ID>   # also share data/ with device <ID>
+python scripts/sync.py status       # ID, peers, folder state, web page
+python scripts/sync.py stop
+```
+
+To pair the devices, run `setup` on both of them, then run `setup <ID>` on each
+one with the other's ID. Before the first sync, only one device should have
+data in `data/`. Otherwise, the files that differ end up as
+`*.sync-conflict-*` copies.
+
+- Run the mail watcher and the ladders on one device only, or the alerts come
+  twice.
+- Don't record transactions on both devices before they have synced.
+- These stay on each device and are never synced: `.lock`, `logs/`,
+  `mtsig.pid` and the `*_status.json` heartbeats (see `data/.stignore`).
+- Replaced or deleted files are kept in `data/.stversions` (the last 10).
+- Syncthing runs with its own config in `~/.config/nx-sig-sync`, so it doesn't
+  touch another Syncthing on the same device. After a phone restart, run
+  `setup` again to start it.
+
 ## Data
 
 Everything is kept in `storage_dir` (`data/`, not in git):
@@ -204,6 +233,7 @@ nx-sig/
     ├── mail_reader.py    IMAP IDLE watcher with reconnects
     ├── order_parser.py   reads an order from a broker email
     ├── ladder.py         price-step alerts, one process each
+    ├── sync.py           syncs data/ between phone and PC (Syncthing)
     ├── metrics.py        metrics engine: statistics of your actions (planned)
     ├── latest_trade.py   prints the latest prices once
     ├── ntfy.py           push notification through ntfy.sh
@@ -218,6 +248,7 @@ nx-sig/
 python scripts/storage.py        # transactions, totals, rules, locking
 python scripts/order_parser.py   # order email parsing
 python scripts/ladder.py         # ladder levels
+python scripts/sync.py           # device IDs, .stignore
 python scripts/check_style.py    # code style (line width)
 ```
 
