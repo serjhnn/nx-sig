@@ -13,9 +13,13 @@
 #                   updated every 5 or <sec> seconds
 #   rules [add <rule>/delete <id>]
 #                   personal rules
-#   run tactics <stock> <down|up> <step> <from price>
-#                   price-step alerts (not implemented
-#                   yet)
+#   background tasks, each its own process (not
+#   implemented yet):
+#   run ladder <stock> <down|up> <step> <price>
+#   run ladder <id>, run mail-broker
+#   ps              running background tasks
+#   ls ladder       saved ladders
+#   stop ladder <id>, stop mail-broker
 #   strategy [run/stop/list/get]
 #                   not implemented yet
 #   help, exit, quit, q
@@ -134,8 +138,18 @@ commands:
       show personal rules
   rules add <rule>, rules delete <id>
       add or delete a personal rule
-  run tactics <stock> <down|up> <step> <price>
-      price-step alerts, not implemented yet
+  run ladder <stock> <down|up> <step> <price>
+      price-step alerts in the background
+  run ladder <id>, run mail-broker
+      start a saved ladder / the mail watcher
+  ps
+      background tasks that are running
+  ls ladder
+      saved ladders with their ids
+  stop ladder <id>, stop mail-broker
+      stop a background task
+      (run, ps, ls ladder, stop: not implemented
+      yet)
   strategy [run/stop/list/get]
       not implemented yet
   help [command]
@@ -383,10 +397,20 @@ class NxSigShell(cmd.Cmd):
             total price of all stocks held, and
             growth %: how much the current price
             is above (or below) the average price
+        ls ladder
+            (not implemented yet)
+            the saved ladders with their ids, see
+            'help run'
         """
         args = arg.split()
         if not args:
             self._totals_all()
+            return
+        if args[0].lower() == "ladder":
+            if len(args) != 1:
+                _print_wrapped("usage: ls ladder")
+                return
+            self._ladders_list()
             return
         self._transaction_get(args)
 
@@ -450,7 +474,9 @@ class NxSigShell(cmd.Cmd):
 
     def complete_ls(self, text, line, begidx, endidx):
         return _complete(
-            text, line, [[s.name for s in Stock]]
+            text,
+            line,
+            [["ladder"] + [s.name for s in Stock]],
         )
 
     # ---------------- status ----------------
@@ -737,44 +763,85 @@ class NxSigShell(cmd.Cmd):
     def complete_rules(self, text, line, begidx, endidx):
         return _complete(text, line, [["add", "delete"]])
 
-    # ---------------- tactics ----------------
+    # ---------------- background tasks ----------------
+    # every task runs as its own process, so it keeps
+    # running when the shell is closed (not implemented
+    # yet, see TODO.md)
 
     def do_run(self, arg):
         """
-        run tactics <stock> <down|up> <step> <price>
+        run ladder <stock> <down|up> <step> <price>
             (not implemented yet)
-            watch the stock's price in a background
-            thread and send a notification each time
-            it moves another <step> down (or up) from
-            <price>, e.g. 'run tactics SOXL down 10
-            100' notifies at 90, 80, 70, ...
+            save a new ladder and start it as a
+            background process: it notifies each time
+            the stock's price moves another <step>
+            down (or up) from <price>, e.g.
+            'run ladder SOXL down 10 100' notifies at
+            90, 80, 70, ...
+        run ladder <id>
+            (not implemented yet)
+            start saved ladder <id> again, see
+            'ls ladder'
+        run mail-broker
+            (not implemented yet)
+            start the mail watcher (./mtsig) that
+            records broker order emails
         """
         args = arg.split()
-        usage = (
-            "usage: run tactics <stock> <down|up> "
-            "<step> <from price>"
-        )
         if not args:
-            _print_wrapped(usage)
-            return
-        if args[0].lower() != "tactics":
-            _print_error(
-                f"unknown subcommand '{args[0]}', "
-                "expected tactics"
+            _print_wrapped(
+                "usage: run ladder <stock> <down|up> "
+                "<step> <price>, run ladder <id>, "
+                "run mail-broker"
             )
             return
-        if len(args) != 5:
+        task, rest = args[0].lower(), args[1:]
+        if task == "ladder":
+            self._run_ladder(rest)
+        elif task == "mail-broker":
+            if rest:
+                _print_wrapped("usage: run mail-broker")
+                return
+            # TODO: start ./mtsig (it is its own process)
+            _print_wrapped(
+                "run mail-broker: not implemented yet, "
+                "use ./mtsig start"
+            )
+        else:
+            _print_error(
+                f"unknown task '{args[0]}', expected "
+                "ladder/mail-broker"
+            )
+
+    def _run_ladder(self, args):
+        usage = (
+            "usage: run ladder <stock> <down|up> <step> "
+            "<price>, or run ladder <id>"
+        )
+        if len(args) == 1:
+            ladder_id = _parse_id(args[0])
+            if ladder_id is None:
+                _print_wrapped(usage)
+                return
+            # TODO: read ladder <id> from data/ladders.csv
+            # and start its process
+            _print_wrapped(
+                f"run ladder {ladder_id}: "
+                "not implemented yet"
+            )
+            return
+        if len(args) != 4:
             _print_wrapped(usage)
             return
         try:
-            stock = _parse_stock(args[1])
-            direction = _parse_direction(args[2])
+            stock = _parse_stock(args[0])
+            direction = _parse_direction(args[1])
         except ValueError as e:
             _print_error(f"error: {e}")
             return
         try:
-            step = float(args[3])
-            price = float(args[4])
+            step = float(args[2])
+            price = float(args[3])
         except ValueError:
             _print_error(
                 "error: step and price must be numbers"
@@ -791,29 +858,98 @@ class NxSigShell(cmd.Cmd):
             f"{price + sign * step * i:.2f}"
             for i in range(1, 4)
         )
-        # TODO: run it, see TODO.md: save it numbered to
-        # data/tactics.csv (so it survives a restart), run
-        # a thread polling the price that notifies when
-        # the next level is passed; 'ls tactics' lists
-        # saved and running tactics by number, 'run
-        # tactics <n>' starts a saved one, 'stop tactics
-        # <n>' stops one
+        # TODO: save it with a new id to data/ladders.csv
+        # (stock, direction, step, from price, last level
+        # notified) and start a process that polls the
+        # price and notifies when the next level is passed
         _print_wrapped(
-            f"tactics {stock.name} {direction} every "
+            f"ladder {stock.name} {direction} every "
             f"{step:g} from {price:g} ({levels}, ...): "
             "not implemented yet"
         )
 
     def complete_run(self, text, line, begidx, endidx):
-        return _complete(
-            text,
-            line,
-            [
-                ["tactics"],
+        options = [["ladder", "mail-broker"]]
+        # only a new ladder takes a stock and a direction
+        args = line.split()
+        if len(args) > 1 and args[1].lower() == "ladder":
+            options += [
                 [s.name for s in Stock],
                 ["down", "up"],
-            ],
+            ]
+        return _complete(text, line, options)
+
+    def do_ps(self, arg):
+        """
+        ps
+            (not implemented yet)
+            list the background tasks that are
+            running as their own process: ladders
+            and the mail broker, with their ids
+        """
+        if arg.strip():
+            _print_wrapped("usage: ps")
+            return
+        # TODO: show each running task: id, task, what it
+        # does, pid, started; the mail broker from
+        # data/mtsig.pid and mtsig_status.json
+        _print_wrapped("ps: not implemented yet")
+
+    def do_stop(self, arg):
+        """
+        stop ladder <id>
+            (not implemented yet)
+            stop the process of running ladder <id>,
+            it stays saved, see 'ls ladder'
+        stop mail-broker
+            (not implemented yet)
+            stop the mail watcher (./mtsig)
+        """
+        args = arg.split()
+        usage = "usage: stop ladder <id>, stop mail-broker"
+        if not args:
+            _print_wrapped(usage)
+            return
+        task, rest = args[0].lower(), args[1:]
+        if task == "ladder":
+            ladder_id = (
+                _parse_id(rest[0])
+                if len(rest) == 1
+                else None
+            )
+            if ladder_id is None:
+                _print_wrapped("usage: stop ladder <id>")
+                return
+            # TODO: stop the process of ladder <id>
+            _print_wrapped(
+                f"stop ladder {ladder_id}: "
+                "not implemented yet"
+            )
+        elif task == "mail-broker":
+            if rest:
+                _print_wrapped("usage: stop mail-broker")
+                return
+            # TODO: stop ./mtsig
+            _print_wrapped(
+                "stop mail-broker: not implemented yet, "
+                "use ./mtsig stop"
+            )
+        else:
+            _print_error(
+                f"unknown task '{args[0]}', expected "
+                "ladder/mail-broker"
+            )
+
+    def complete_stop(self, text, line, begidx, endidx):
+        return _complete(
+            text, line, [["ladder", "mail-broker"]]
         )
+
+    def _ladders_list(self):
+        # TODO: table of data/ladders.csv: id, stock,
+        # direction, step, from price, last level
+        # notified, running or not
+        _print_wrapped("ls ladder: not implemented yet")
 
     # ---------------- strategy ----------------
 
@@ -1353,6 +1489,13 @@ def _short_date(value):
         if len(value) == 10
         else value
     )
+
+
+def _parse_id(text):
+    """a positive whole number, or None"""
+    if text.isdigit() and int(text) > 0:
+        return int(text)
+    return None
 
 
 def _parse_direction(name):

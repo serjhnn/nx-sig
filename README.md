@@ -92,7 +92,11 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 | `status` | positions with the current price and gain/loss, and the order watcher's state |
 | `xtop [sec]` | live gain/loss of the stocks you hold (quantity, average price, current price, gain, gain %, total), updated every 5 (or `sec`) seconds, Ctrl+C to leave; sends a Telegram alert when a stock's gain reaches `gain_alert` or `gain_alert_pct` |
 | `rules`, `rules add <rule>`, `rules delete <id>` | your personal trading rules |
-| `run tactics <stock> <down\|up> <step> <price>` | *not implemented yet*: notify each time the price moves another `step` down (or up) from `price`, e.g. `run tactics SOXL down 10 100` at 90, 80, 70, ... |
+| `run ladder <stock> <down\|up> <step> <price>` | *not implemented yet*: a background process that notifies each time the price moves another `step` down (or up) from `price`, e.g. `run ladder SOXL down 10 100` at 90, 80, 70, ... |
+| `run ladder <id>`, `run mail-broker` | *not implemented yet*: start a saved ladder / the mail watcher |
+| `ps` | *not implemented yet*: the background tasks that are running |
+| `ls ladder` | *not implemented yet*: the saved ladders with their ids |
+| `stop ladder <id>`, `stop mail-broker` | *not implemented yet*: stop a background task |
 | `help [command]` | all commands, or details of one |
 | `exit`, `quit`, `q` | leave the shell |
 
