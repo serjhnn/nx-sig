@@ -20,6 +20,9 @@ and the docs.
 
 ## Other
 
+- **Reorganise the shell commands by feature**
+  (`ladder run ...`, `tr ls`, ...), see
+  [CLI_BLUEPRINT.md](CLI_BLUEPRINT.md)
 - **Background tasks**: ~~`run`, `stop`, `ps`,
   `ls ladder` for ladders and the mail broker~~ (done,
   `scripts/ladder.py`). Still open:
