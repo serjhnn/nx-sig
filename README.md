@@ -95,9 +95,10 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 | `run ladder <stock> <down\|up> <step> <price>` | *not implemented yet*: a background process that notifies each time the price moves another `step` down (or up) from `price`, e.g. `run ladder SOXL down 10 100` at 90, 80, 70, ... |
 | `run ladder <id>` | *not implemented yet*: start a saved ladder |
 | `run mail-broker` | start the mail watcher in the background (calls `./mtsig start`) |
-| `ps` | *not implemented yet*: the background tasks that are running |
+| `ps` | the background tasks that are running (for now the mail watcher), with their pid, start time and state |
 | `ls ladder` | *not implemented yet*: the saved ladders with their ids |
-| `stop ladder <id>`, `stop mail-broker` | *not implemented yet*: stop a background task |
+| `stop ladder <id>` | *not implemented yet*: stop a running ladder |
+| `stop mail-broker` | stop the mail watcher (calls `./mtsig stop`) |
 | `help [command]` | all commands, or details of one |
 | `exit`, `quit`, `q` | leave the shell |
 

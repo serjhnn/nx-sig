@@ -36,8 +36,10 @@ and the docs.
   - ~~`run mail-broker`: start the mail watcher
     (`./mtsig start`)~~ (done)
   - `ps`: the running task processes with their ids
+    (done for the mail broker, ladders to add)
   - `ls ladder`: the saved ladders with their ids
-  - `stop ladder <id>`, `stop mail-broker`: stop one
+  - `stop ladder <id>`: stop one
+    (~~`stop mail-broker`~~ done)
   - maybe start the ladders that were running before
     when the phone restarts
 - `strategy` commands

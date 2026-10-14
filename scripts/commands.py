@@ -14,13 +14,14 @@
 #   rules [add <rule>/delete <id>]
 #                   personal rules
 #   background tasks, each its own process:
-#   run mail-broker  start the mail watcher (./mtsig)
+#   run mail-broker   start the mail watcher (./mtsig)
+#   stop mail-broker  stop it
+#   ps                running background tasks
 #   (not implemented yet:)
 #   run ladder <stock> <down|up> <step> <price>
 #   run ladder <id>
-#   ps              running background tasks
-#   ls ladder       saved ladders
-#   stop ladder <id>, stop mail-broker
+#   ls ladder         saved ladders
+#   stop ladder <id>
 #   strategy [run/stop/list/get]
 #                   not implemented yet
 #   help, exit, quit, q
@@ -46,6 +47,7 @@ from storage import (
     rules_add,
     rules_delete,
     rules_get_all,
+    mtsig_pid_get,
     watcher_status_get,
 )
 from trade_engine import (
@@ -151,7 +153,7 @@ commands:
       saved ladders with their ids
   stop ladder <id>, stop mail-broker
       stop a background task
-      (only run mail-broker works yet)
+      (ladders: not implemented yet)
   strategy [run/stop/list/get]
       not implemented yet
   help [command]
@@ -767,8 +769,8 @@ class NxSigShell(cmd.Cmd):
 
     # ---------------- background tasks ----------------
     # every task runs as its own process, so it keeps
-    # running when the shell is closed (only
-    # 'run mail-broker' works yet, see TODO.md)
+    # running when the shell is closed (ladders are
+    # not implemented yet, see TODO.md)
 
     def do_run(self, arg):
         """
@@ -880,18 +882,21 @@ class NxSigShell(cmd.Cmd):
     def do_ps(self, arg):
         """
         ps
-            (not implemented yet)
             list the background tasks that are
-            running as their own process: ladders
-            and the mail broker, with their ids
+            running as their own process, with
+            their pid, start time and state
+            (ladders: not implemented yet)
         """
         if arg.strip():
             _print_wrapped("usage: ps")
             return
-        # TODO: show each running task: id, task, what it
-        # does, pid, started; the mail broker from
-        # data/mtsig.pid and mtsig_status.json
-        _print_wrapped("ps: not implemented yet")
+        # TODO: add a row per running ladder, with its id
+        tasks = [_mail_broker_task()]
+        tasks = [t for t in tasks if t]
+        if not tasks:
+            _print_wrapped("no background tasks running")
+            return
+        _print_tasks(tasks)
 
     def do_stop(self, arg):
         """
@@ -900,8 +905,7 @@ class NxSigShell(cmd.Cmd):
             stop the process of running ladder <id>,
             it stays saved, see 'ls ladder'
         stop mail-broker
-            (not implemented yet)
-            stop the mail watcher (./mtsig)
+            stop the mail watcher (./mtsig stop)
         """
         args = arg.split()
         usage = "usage: stop ladder <id>, stop mail-broker"
@@ -927,11 +931,7 @@ class NxSigShell(cmd.Cmd):
             if rest:
                 _print_wrapped("usage: stop mail-broker")
                 return
-            # TODO: stop ./mtsig
-            _print_wrapped(
-                "stop mail-broker: not implemented yet, "
-                "use ./mtsig stop"
-            )
+            _mtsig("stop")
         else:
             _print_error(
                 f"unknown task '{args[0]}', expected "
@@ -1444,6 +1444,111 @@ def _print_watcher_status():
         )
 
 
+def _mail_broker_task():
+    """the ps row of the mail broker, or None if it
+    isn't running"""
+    pid = mtsig_pid_get()
+    if pid is None or not _is_watcher_process(pid):
+        return None
+    status = watcher_status_get() or {}
+    started = updated = None
+    # the heartbeat may be left from an earlier run
+    if status.get("pid") == pid:
+        try:
+            started = datetime.fromisoformat(
+                status["started"]
+            )
+            updated = datetime.fromisoformat(
+                status["updated"]
+            )
+        except (KeyError, TypeError, ValueError):
+            pass
+    state = status.get("state", "") if updated else "-"
+    healthy = state in ("starting", "connected", "waiting")
+    if updated:
+        age = (datetime.now() - updated).total_seconds()
+        if age > WATCHER_STALE_SECONDS:
+            state, healthy = "no reply", False
+    return {
+        "id": "-",
+        "task": "mail-broker",
+        "pid": pid,
+        "started": started,
+        "state": state,
+        "healthy": healthy,
+    }
+
+
+def _is_watcher_process(pid):
+    """True if pid is alive and is order_watcher.py, so
+    a pid reused by another program isn't shown"""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            args = f.read()
+    except OSError:
+        if os.name == "nt":
+            return False
+        # no /proc: only check that it is alive
+        try:
+            os.kill(pid, 0)
+        except PermissionError:
+            return True
+        except OSError:
+            return False
+        return True
+    return b"order_watcher.py" in args
+
+
+def _print_tasks(tasks):
+    """the ps table: Id, Task, PID, Started, State"""
+    color = _supports_color()
+    sep = "  "
+    header = sep.join(
+        [
+            f"{'Id':>2}",
+            f"{'Task':<11}",
+            f"{'PID':>7}",
+            f"{'Started':<11}",
+            f"{'State':<9}",
+        ]
+    )
+    separator = "-" * WIDTH
+    print()
+    if color:
+        print(f"{DIM}{header}{RESET}")
+        print(f"{DIM}{separator}{RESET}")
+    else:
+        print(header)
+        print(separator)
+    for t in tasks:
+        started = (
+            f"{t['started']:%d.%m %H:%M}"
+            if t["started"]
+            else "-"
+        )
+        cols = [
+            f"{t['id']:>2}",
+            f"{t['task']:<11.11}",
+            f"{t['pid']:>7}",
+            f"{started:<11}",
+            f"{t['state']:<9.9}",
+        ]
+        if color:
+            state_color = (
+                BUY_COLOR if t["healthy"] else SELL_COLOR
+            )
+            cols = [
+                f"{DIM}{cols[0]}{RESET}",
+                f"{BOLD}{TOTAL_STOCK_COLOR}"
+                f"{cols[1]}{RESET}",
+                f"{COUNT_COLOR}{cols[2]}{RESET}",
+                f"{DATE_COLOR}{cols[3]}{RESET}",
+                f"{state_color}{cols[4]}{RESET}",
+            ]
+        print(sep.join(cols))
+    print()
+
+
 def _print_dim(text):
     print(
         f"{DIM}{text}{RESET}" if _supports_color() else text
@@ -1455,6 +1560,9 @@ def _mtsig(action):
     if action == "start":
         # it waits 3s to catch a crash at start
         _print_wrapped("starting the mail broker...")
+    elif action == "stop":
+        # it waits up to 20s for a clean logout
+        _print_wrapped("stopping the mail broker...")
     try:
         result = subprocess.run(
             [os.path.join(ROOT_DIR, "mtsig"), action],
