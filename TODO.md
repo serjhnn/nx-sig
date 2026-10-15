@@ -75,17 +75,35 @@ see some of it. Say so, and let alerts say less:
    config switch for 'SOXL alert, see nX-sig' without
    the amounts, and a self-hosted ntfy as an
    alternative to Telegram.
-3. **Local notifications through Termux:API**: the
-   ladders, xtop and the mail watcher post an Android
-   notification with `termux-notification` (title,
-   text, `--id` per ladder so a new alert replaces the
-   old one, sound, vibration, maybe a 'stop' button).
-   Nothing leaves the phone, so it is the most private
-   alert. Needs the Termux:API app (from the same
-   source as Termux) and `pkg install termux-api`;
-   without them, or when the task runs on the PC,
-   fall back to Telegram. A config setting chooses:
-   local, Telegram or both.
+3. **Local notifications, one notifier per device**:
+   the ladders, xtop and the mail watcher send every
+   alert through one small notifier that picks what
+   the device has, so alerts need no network by
+   default:
+   - phone: `termux-notification` of the Termux:API
+     app (title, text, `--id` per ladder so a new alert
+     replaces the old one, sound, vibration, maybe a
+     'stop' button); as options `termux-vibrate`
+     (a pattern), `termux-tts-speak` (read aloud) or
+     `termux-media-player` (a sound). Needs the
+     Termux:API app from the same source as Termux and
+     `pkg install termux-api`.
+   - PC: `notify-send` (desktop notification), as
+     options `spd-say` / `espeak` or `paplay`.
+   - without any of them: the terminal bell.
+   - Telegram (or ntfy) only as an extra, for alerts
+     that must reach you away from the device that
+     runs the task.
+
+   A config setting chooses the channels, e.g.
+   `"notify": ["local", "telegram"]`.
+4. **An alert log in the shell**: every alert is also
+   written to a local file (e.g. `alerts.json`), the
+   shell shows 'N new alerts' before the prompt, and
+   `ls alerts` lists them. It works the same on the
+   phone and the PC and keeps alerts that were missed
+   or swiped away; xtop already shows its alerts in
+   its footer.
 
 ## Later: open it up for other people
 
