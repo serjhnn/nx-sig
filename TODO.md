@@ -55,6 +55,32 @@ In this order, before metrics and strategy add more:
    - `status` still says `order_watcher.py`, see the
      mtsig split above
 
+## Later: open it up for other people
+
+Only if it should be useful to others too; build it
+for your own use first. In this order:
+
+1. **A license** (e.g. MIT or GPL, one LICENSE file):
+   without one nobody else may legally use or change
+   the code, even in a public repo.
+2. **A note in the README** that nX-sig tracks and
+   journals trades and is not financial advice, the
+   more so once strategy signals exist.
+3. **A setup wizard** (`./nxshell setup` or similar)
+   that asks for the Alpaca keys, the mail account and
+   app password, the Telegram bot and the stocks, and
+   writes `.env` and `config.json`. Today the setup is
+   the biggest hurdle for a new user.
+4. **Broker parsers as plugins**: `order_parser.py`
+   reads one broker's email format. A `parsers/` folder
+   with one file per broker, found at start like the
+   `*_cmd.py` modules of the shell, so others can add
+   their broker.
+5. **Metrics as the main feature**: statistics of how
+   you trade (trades against your rules, how long you
+   hold losing positions, sells against basetrades), a
+   private, local trading journal, see Metrics below.
+
 ## Other
 
 - ~~**Reorganise the shell commands** as
