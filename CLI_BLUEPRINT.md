@@ -64,6 +64,8 @@ Why action first:
    there is one way to write a command: `from` in
    `add ladder`, `count` and `price` in `add trade` and
    `add basetrade`. Tab completion fills them in.
+   Keywords with a value (`count 10`, `price 20.5`) may
+   come in either order, as `bb add` takes them now.
 8. Output stays within 48 characters, code within 60
    (see CODE_STYLE.md).
 
@@ -114,6 +116,10 @@ Why action first:
   remaining trades.
 - `ls trades` without a stock lists the stocks that
   have trades.
+- `ls stocks` takes no arguments: `ls stocks SOXL` is
+  an error that names the right form,
+  `use 'ls trades SOXL'`, so each thing has one way to
+  ask for it.
 
 ### Rules
 
