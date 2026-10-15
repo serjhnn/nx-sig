@@ -14,7 +14,7 @@
 #   rules [add <rule>/delete <id>]
 #                   personal rules
 #   bb add <stock> price <price> count <count>
-#   bb ls, bb rm <id>
+#   bb ls, bb rm <stock>
 #                   base buys: your last buying price
 #                   of a stock, with the current price
 #   background tasks, each its own process:
@@ -55,7 +55,7 @@ from storage import (
     rules_add,
     rules_delete,
     rules_get_all,
-    base_buy_add,
+    base_buy_set,
     base_buy_delete,
     base_buys_get_all,
     ladder_get,
@@ -161,8 +161,8 @@ commands:
       save a base buy (bb): a last buying price
   bb ls
       base buys with the current price
-  bb rm <id>
-      delete a base buy
+  bb rm <stock>
+      delete a stock's base buy
   run ladder <stock> <down|up> <step> <price>
       price-step alerts in the background
   run ladder <id>, run mail-broker
@@ -789,22 +789,23 @@ class NxSigShell(cmd.Cmd):
         return _complete(text, line, [["add", "delete"]])
 
     # ---------------- base buy ----------------
-    # base buys are the last buying prices you keep for
-    # a stock (base_buy.csv), they don't change the
+    # base buys are the last buying prices you keep, one
+    # per stock (base_buy.csv); they don't change the
     # transactions or totals
 
     def do_bb(self, arg):
         """
         bb add <stock> price <price> count <count>
-            save a base buy: the last price you
-            bought <stock> at and how many,
-            e.g. 'bb add MRVU price 100 count 10'
+            save the base buy of <stock>: the last
+            price you bought it at and how many,
+            e.g. 'bb add MRVU price 100 count 10';
+            replaces the stock's older base buy
         bb ls
-            the base buys with their ids and the
-            current price of each stock
-        bb rm <id>
-            delete the base buy with the given id,
-            after confirmation
+            the base buys in config order, with
+            the current price of each stock
+        bb rm <stock>
+            delete the base buy of <stock>, after
+            confirmation
         bb is short for base buy
         """
         args = arg.split()
@@ -863,10 +864,11 @@ class NxSigShell(cmd.Cmd):
                 "error: price and count must be positive"
             )
             return
-        base_buy_id = base_buy_add(stock.name, price, count)
+        replaced = base_buy_set(stock.name, price, count)
         _print_wrapped(
-            f"added base buy {base_buy_id}: {count} "
-            f"{stock.name} at {price:g}"
+            f"{'replaced' if replaced else 'added'} "
+            f"base buy of {stock.name}: {count} at "
+            f"{price:g}"
         )
 
     def _base_buys_show(self):
@@ -880,13 +882,13 @@ class NxSigShell(cmd.Cmd):
         prices = _fetch_prices()
 
         color = _supports_color()
-        column_sep = _column_sep(color)
+        # laid out like the xtop table
+        column_sep = XTOP_SEP
         header_cols = [
-            f"{'Id':>3}",
             f"{'Name':<5}",
-            f"{'Buy Price':>9}",
-            f"{'Count':>5}",
-            f"{'Price':>9}",
+            f"{'Qty':>4}",
+            f"{'Buy':>8}",
+            f"{'Price':>8}",
         ]
         if color:
             header_cols = [
@@ -902,61 +904,55 @@ class NxSigShell(cmd.Cmd):
         )
         for b in base_buys:
             current = prices.get(b["Stock"])
-            cols = [
-                f"{b['Id']:>3}",
-                f"{b['Stock']:<5.5}",
-                f"{b['Price']:>9.2f}",
-                f"{b['Count']:>5}",
-                (
-                    f"{current:>9.2f}"
-                    if current is not None
-                    else f"{'-':>9}"
-                ),
-            ]
+            name = f"{b['Stock']:<5.5}"
+            qty = f"{b['Count']:>4}"
+            buy = f"{b['Price']:>8.2f}"
+            price = (
+                f"{current:>8.2f}"
+                if current is not None
+                else f"{'-':>8}"
+            )
             if color:
                 # the current price is green above the
                 # buying price and red below it
-                current_color = (
+                price_color = (
                     _gain_color(current - b["Price"])
                     if current is not None
                     else DIM
                 )
-                cols = [
-                    f"{DIM}{cols[0]}{RESET}",
+                name = (
                     f"{BOLD}{TOTAL_STOCK_COLOR}"
-                    f"{cols[1]}{RESET}",
-                    f"{PRICE_COLOR}{cols[2]}{RESET}",
-                    f"{COUNT_COLOR}{cols[3]}{RESET}",
-                    f"{current_color}{cols[4]}{RESET}",
-                ]
-            print(column_sep.join(cols))
+                    f"{name}{RESET}"
+                )
+                qty = f"{COUNT_COLOR}{qty}{RESET}"
+                buy = f"{PRICE_COLOR}{buy}{RESET}"
+                price = f"{price_color}{price}{RESET}"
+            print(column_sep.join([name, qty, buy, price]))
         print()
 
     def _base_buy_rm(self, args):
-        base_buy_id = (
-            _parse_id(args[0]) if len(args) == 1 else None
-        )
-        if base_buy_id is None:
-            _print_wrapped("usage: bb rm <id>")
+        if len(args) != 1:
+            _print_wrapped("usage: bb rm <stock>")
             return
+        name = args[0].upper()
         found = next(
             (
                 b
                 for b in base_buys_get_all()
-                if b["Id"] == base_buy_id
+                if b["Stock"] == name
             ),
             None,
         )
         if found is None:
             _print_error(
-                f"error: no base buy {base_buy_id}, "
+                f"error: no base buy of {name}, "
                 "see 'bb ls'"
             )
             return
         try:
             answer = input(
-                f"delete base buy {base_buy_id}: "
-                f"{found['Count']} {found['Stock']} at "
+                f"delete base buy of {name}: "
+                f"{found['Count']} at "
                 f"{found['Price']:g}? [y/N] "
             )
         except (EOFError, KeyboardInterrupt):
@@ -967,8 +963,8 @@ class NxSigShell(cmd.Cmd):
         if answer.strip().lower() not in ("y", "yes"):
             _print_wrapped("cancelled")
             return
-        base_buy_delete(base_buy_id)
-        _print_wrapped(f"deleted base buy {base_buy_id}")
+        base_buy_delete(name)
+        _print_wrapped(f"deleted base buy of {name}")
 
     def complete_bb(self, text, line, begidx, endidx):
         options = [["add", "ls", "rm"]]
@@ -984,7 +980,7 @@ class NxSigShell(cmd.Cmd):
             ]
         elif action == "rm":
             options.append(
-                [str(b["Id"]) for b in base_buys_get_all()]
+                [b["Stock"] for b in base_buys_get_all()]
             )
         return _complete(text, line, options)
 

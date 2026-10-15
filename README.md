@@ -95,9 +95,9 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 | `status` | positions with the current price and gain/loss, and the order watcher's state |
 | `xtop [sec]` | live gain/loss of the stocks you hold (quantity, average price, current price, gain, gain %, total), updated every 5 (or `sec`) seconds, Ctrl+C to leave; sends a Telegram alert when a stock's gain reaches `gain_alert` or `gain_alert_pct` |
 | `rules`, `rules add <rule>`, `rules delete <id>` | your personal trading rules |
-| `bb add <stock> price <price> count <count>` | save a base buy: the last price you bought a stock at and how many, e.g. `bb add MRVU price 100 count 10` (`bb` is short for base buy) |
-| `bb ls` | the base buys (id, name, buying price, count) with the current price, green above the buying price and red below |
-| `bb rm <id>` | delete a base buy after confirmation |
+| `bb add <stock> price <price> count <count>` | save a stock's base buy: the last price you bought it at and how many, e.g. `bb add MRVU price 100 count 10`; one per stock, a new one replaces the old (`bb` is short for base buy) |
+| `bb ls` | the base buys in `indices` order, laid out like `xtop` (name, quantity, buying price, current price), the current price green above the buying price and red below |
+| `bb rm <stock>` | delete a stock's base buy after confirmation |
 | `run ladder <stock> <down\|up> <step> <price>` | save a new ladder and start it in the background: it sends a Telegram message each time the price moves another `step` down (or up) from `price`, e.g. `run ladder SOXL down 10 100` at 90, 80, 70, ... |
 | `run ladder <id>` | start a saved ladder again, e.g. after a restart |
 | `run mail-broker` | start the mail watcher in the background (calls `./mtsig start`) |
@@ -211,7 +211,7 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `<stock>_transactions.csv` | the stock's transactions: Index, Date, Time, Type, Count, Price |
 | `transactions_total.csv` | count and average price of every stock |
 | `personal_rules.json` | your rules |
-| `base_buy.csv` | the base buys: Id, Stock, Price, Count |
+| `base_buy.csv` | the base buys, one per stock: Stock, Price, Count |
 | `mail_state.json` | the last email the watcher handled |
 | `mtsig_status.json` | the watcher's heartbeat, shown by `status` |
 | `mtsig.pid` | the process id of the running `./mtsig` |

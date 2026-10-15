@@ -65,7 +65,7 @@ so the two can't be swapped by mistake.
 
 Already in the new form, nothing to rename:
 `bb add <stock> price <price> count <count>`,
-`bb ls`, `bb rm <id>`. A bare `bb` shows its help.
+`bb ls`, `bb rm <stock>`. A bare `bb` shows its help.
 
 ### Ladders (`ladder`)
 

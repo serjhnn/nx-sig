@@ -42,10 +42,10 @@
 #   ladder_delete(ladder_id)
 #       delete a saved ladder and its heartbeat
 #   base_buys_get_all()
-#   base_buy_add(stock_name, price, count)
-#   base_buy_delete(base_buy_id)
+#   base_buy_set(stock_name, price, count)
+#   base_buy_delete(stock_name)
 #       base buys (the last buying price you keep for a
-#       stock) in base_buy.csv
+#       stock, one per stock) in base_buy.csv
 #   ladder_status_get(ladder_id),
 #   ladder_status_set(ladder_id, status)
 #       heartbeat of a ladder process (dict), kept in
@@ -97,7 +97,7 @@ FIELDNAMES = [
     "Price",
 ]
 TOTAL_FIELDNAMES = ["Type", "Count", "Price"]
-BASE_BUY_FIELDNAMES = ["Id", "Stock", "Price", "Count"]
+BASE_BUY_FIELDNAMES = ["Stock", "Price", "Count"]
 LADDER_FIELDNAMES = [
     "Id",
     "Stock",
@@ -546,8 +546,9 @@ def mtsig_pid_get():
 
 def base_buys_get_all():
     """
-    return the base buys of base_buy.csv as dicts: Id
-    (int), Stock (name), Price (float), Count (int)
+    return the base buys of base_buy.csv as dicts: Stock
+    (name), Price (float), Count (int), in the order of
+    config "indices" (stocks no longer there come last)
     """
     path = _base_buy_path()
     if not os.path.exists(path):
@@ -555,49 +556,56 @@ def base_buys_get_all():
     with open(path, newline="") as f:
         rows = list(csv.DictReader(f))
     for row in rows:
-        row["Id"] = int(row["Id"])
         row["Price"] = float(row["Price"])
         row["Count"] = int(row["Count"])
-    return rows
+    order = config["indices"]
+    return sorted(
+        rows,
+        key=lambda r: (
+            order.index(r["Stock"])
+            if r["Stock"] in order
+            else len(order)
+        ),
+    )
 
 
 @_locked
-def base_buy_add(stock_name, price, count):
+def base_buy_set(stock_name, price, count):
     """
-    save a base buy to base_buy.csv and return its Id;
-    Ids stay stable after deletes, like transaction
-    Indexes
+    save the base buy of a stock to base_buy.csv, one
+    per stock; return True if it replaced an older one
     """
-    rows = base_buys_get_all()
-    base_buy_id = (
-        max((r["Id"] for r in rows), default=0) + 1
-    )
+    rows = [
+        r
+        for r in base_buys_get_all()
+        if r["Stock"] != stock_name
+    ]
+    replaced = len(rows) < len(base_buys_get_all())
     rows.append(
         {
-            "Id": base_buy_id,
             "Stock": stock_name,
             "Price": price,
             "Count": count,
         }
     )
     _base_buys_save(rows)
-    return base_buy_id
+    return replaced
 
 
 @_locked
-def base_buy_delete(base_buy_id):
+def base_buy_delete(stock_name):
     """
-    delete the base buy with this Id, return the deleted
-    row or None if there is no such Id
+    delete the base buy of a stock, return the deleted
+    row or None if the stock has none
     """
     rows = base_buys_get_all()
     deleted = next(
-        (r for r in rows if r["Id"] == base_buy_id), None
+        (r for r in rows if r["Stock"] == stock_name), None
     )
     if deleted is None:
         return None
     _base_buys_save(
-        [r for r in rows if r["Id"] != base_buy_id]
+        [r for r in rows if r["Stock"] != stock_name]
     )
     return deleted
 
@@ -1115,33 +1123,39 @@ if __name__ == "__main__":
 
         def test_base_buys(self):
             self.assertEqual(base_buys_get_all(), [])
-            self.assertEqual(
-                base_buy_add("MRVU", 100.0, 10), 1
+            self.assertFalse(base_buy_set("SOXL", 20.5, 3))
+            self.assertFalse(
+                base_buy_set("MRVU", 100.0, 10)
             )
+            # config order (MRVU before SOXL), not the
+            # order they were added in
             self.assertEqual(
-                base_buy_add("SOXL", 20.5, 3), 2
+                [b["Stock"] for b in base_buys_get_all()],
+                ["MRVU", "SOXL"],
             )
             self.assertEqual(
                 base_buys_get_all()[1],
                 {
-                    "Id": 2,
                     "Stock": "SOXL",
                     "Price": 20.5,
                     "Count": 3,
                 },
             )
 
+            # one per stock: a new one replaces the old
+            self.assertTrue(base_buy_set("SOXL", 19.0, 5))
+            self.assertEqual(len(base_buys_get_all()), 2)
             self.assertEqual(
-                base_buy_delete(1)["Stock"], "MRVU"
+                base_buys_get_all()[1]["Price"], 19.0
             )
-            self.assertIsNone(base_buy_delete(1))
-            # Ids stay stable: the next one is not 2
+
             self.assertEqual(
-                base_buy_add("TSMX", 50.0, 1), 3
+                base_buy_delete("MRVU")["Count"], 10
             )
+            self.assertIsNone(base_buy_delete("MRVU"))
             self.assertEqual(
-                [b["Id"] for b in base_buys_get_all()],
-                [2, 3],
+                [b["Stock"] for b in base_buys_get_all()],
+                ["SOXL"],
             )
 
         def test_ladders(self):
