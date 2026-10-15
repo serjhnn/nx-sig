@@ -18,6 +18,43 @@ When doing it, also update the names that still point
 to the watcher: the `mail watcher:` line of `status`
 and the docs.
 
+## Next: protect what is built
+
+In this order, before metrics and strategy add more:
+
+1. **CI**: a GitHub Actions workflow that runs every
+   test (`storage.py`, `order_parser.py`, `ladder.py`,
+   `shell_test.py`, `sync.py`) and `check_style.py` on
+   each push, so a change from the phone that breaks
+   something shows up right away.
+2. **Totals check**: `trades_total.csv` is a cache of
+   the trade files. Add a check that rebuilds each
+   stock's total from its trades and reports (or
+   fixes) a difference, e.g. after a Syncthing
+   conflict, a hand edit or a crash between the two
+   writes. `trade_delete` already has the rebuild.
+3. **Tests for the mail watcher**: `order_watcher.py`
+   and `mail_reader.py` need Python 3.14 and have no
+   tests yet. Run them in CI with 3.14 and test
+   `handle_email` with fake emails (recorded, skipped,
+   not a FILLED order, unknown stock, failed write).
+4. **One device runs the background tasks**: the mail
+   watcher or a ladder on both the phone and the PC
+   records orders or sends alerts twice. Refuse to
+   start them when another device already runs them
+   (e.g. a synced owner file), not only warn in the
+   README.
+5. **Start the ladders after a phone restart** that
+   were running before (Termux:Boot), see Background
+   tasks below.
+6. Small cleanups:
+   - the shared helpers in `shell/ui.py` still have a
+     leading `_` though several modules use them
+   - the stock column of `trades_total.csv` is named
+     `Type`
+   - `status` still says `order_watcher.py`, see the
+     mtsig split above
+
 ## Other
 
 - ~~**Reorganise the shell commands** as
