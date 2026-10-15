@@ -175,17 +175,20 @@ several levels between two checks, one message names the farthest one.
 
 ### Syncing the phone and the PC
 
-`scripts/sync.py` keeps `data/` the same on the phone (Termux) and the PC
+`./syncnx` keeps `data/` the same on the phone (Termux) and the PC
 (Linux) with [Syncthing](https://syncthing.net). The two devices connect
 directly over Wi-Fi, a phone hotspot or USB tethering. No internet is needed,
 and no outside server is used (global discovery and relays are off).
 
 ```bash
-python scripts/sync.py setup        # install, start, print this device's ID
-python scripts/sync.py setup <ID>   # also share data/ with device <ID>
-python scripts/sync.py status       # ID, peers, folder state, web page
-python scripts/sync.py stop
+./syncnx setup        # install, start, print this device's ID
+./syncnx setup <ID>   # also share data/ with device <ID>
+./syncnx status       # ID, peers, folder state, web page
+./syncnx stop
 ```
+
+You can also open the web UI at http://127.0.0.1:8384 to see and change the
+sync configuration (`./syncnx status` prints the address in use).
 
 To pair the devices, run `setup` on both of them, then run `setup <ID>` on each
 one with the other's ID. Before the first sync, only one device should have
@@ -226,6 +229,7 @@ nx-sig/
 ├── nxshell               start the shell
 ├── mtsig                 start/stop/status of the order watcher
 │                         (mail transactions service)
+├── syncnx                sync data/ between phone and PC
 ├── config.json           stocks, data folder, price API
 ├── CODE_STYLE.md         code style rules
 ├── assets/logo.svg
