@@ -11,7 +11,7 @@
 #
 # notifications:
 #   there can be different types of notifications (e.g.
-#   price alerts, strategy signals, transaction
+#   price alerts, strategy signals, trade
 #   confirmations). on the watch they should be short and
 #   precise, so they can be read at a glance and acted on
 #   quickly (e.g. confirm / dismiss).

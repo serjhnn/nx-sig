@@ -33,7 +33,7 @@ Prefer brackets over `\` to continue a line:
 log.info("recorded %s (email %r)",
          description, subject)
 
-transactions_add_one(
+trade_add(
     stock, side, quantity, price
 )
 ```

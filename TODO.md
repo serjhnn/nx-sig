@@ -9,7 +9,7 @@ that run in the background, and show it in the names:
   - `nxshell` (the shell, `scripts/commands.py`)
   - the notifiers (`ntfy.py`, `telegram_notify.py`,
     the planned Garmin watch notifications)
-- **`mtsig`: mail transactions service**
+- **`mtsig`: mail trades service**
   - ~~rename `watcher` to `mtsig`~~ (done)
   - the service code: `order_watcher.py`,
     `mail_reader.py`, `order_parser.py`

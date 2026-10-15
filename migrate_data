@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# migrate_data: renames the data files once, for the
+# rename of transaction to trade and of base buy to
+# basetrade (CLI_BLUEPRINT.md step 3)
+#
+#   ./migrate_data
+#
+#   <stock>_transactions.csv -> <stock>_trades.csv
+#   transactions_total.csv   -> trades_total.csv
+#   base_buy.csv             -> base_trades.csv
+#   the Index column of the trades files -> Id
+#
+# a file whose new name already exists is left alone.
+# run it once on every device (phone and PC) before
+# using the shell. it is temporary and will be deleted
+# in a later commit.
+
+cd "$(dirname "$0")" || exit 1
+
+python=$(command -v python3 || command -v python)
+# the data folder from config.json "storage_dir"
+print_dir="import storage; print(storage.DB_DIR)"
+data=$(cd scripts && "$python" -c "$print_dir") || exit 1
+if [ ! -d "$data" ]; then
+    echo "no data folder $data, nothing to do"
+    exit 0
+fi
+cd "$data" || exit 1
+
+moved=0
+move() {
+    if [ ! -e "$1" ]; then
+        return
+    fi
+    if [ -e "$2" ]; then
+        echo "skipped $1: $2 already exists"
+        return
+    fi
+    mv "$1" "$2" && echo "renamed $1 -> $2"
+    moved=$((moved + 1))
+}
+
+for f in *_transactions.csv; do
+    [ -e "$f" ] || continue
+    trades="${f%_transactions.csv}_trades.csv"
+    move "$f" "$trades"
+    # the first line is the header: Index,Date,...
+    if head -n 1 "$trades" | grep -q '^Index,'; then
+        sed -i '1s/^Index,/Id,/' "$trades" &&
+            echo "  Index column -> Id in $trades"
+    fi
+done
+move transactions_total.csv trades_total.csv
+move base_buy.csv base_trades.csv
+
+if [ "$moved" -eq 0 ]; then
+    echo "nothing to rename in $data"
+fi

@@ -1,4 +1,4 @@
-# order watcher: records broker order emails as transactions
+# order watcher: records broker order emails as trades
 #
 # runs as its own process, next to the CLI:
 #   python scripts/order_watcher.py
@@ -8,7 +8,7 @@
 #
 # waits for emails from IMAP_SENDER (.env), parses them
 # with order_parser.py and records FILLED orders of the
-# config "indices" with storage.transactions_add_one().
+# config "indices" with storage.trade_add().
 # other emails are logged and skipped.
 #
 # the last handled email is kept in
@@ -37,10 +37,10 @@ import storage
 from mail_reader import message_text, watch_sender_emails
 from storage import (
     Stock,
-    TransactionType,
+    TradeType,
     mail_position_get,
     mail_position_set,
-    transactions_add_one,
+    trade_add,
     watcher_status_get,
     watcher_status_set,
 )
@@ -88,14 +88,14 @@ def handle_email(message):
         return
 
     stock = Stock[order["symbol"]]
-    side = TransactionType[order["order type"].upper()]
+    side = TradeType[order["order type"].upper()]
     quantity = order["quantity"]
     price = order["executed price"]
     description = (
         f"{side.name} {quantity} " f"{stock.name} @ {price}"
     )
     try:
-        transactions_add_one(stock, side, quantity, price)
+        trade_add(stock, side, quantity, price)
     except Exception:
         # the email is not handled again, so say exactly
         # what is missing and how to add it

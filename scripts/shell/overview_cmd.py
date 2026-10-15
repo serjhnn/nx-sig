@@ -269,7 +269,7 @@ def _xtop_rows(prices):
     pct are None without a price"""
     rows = []
     # re-read every time: the order watcher may record
-    # a transaction while xtop runs
+    # a trade while xtop runs
     for stock, count, avg_price in _held_positions():
         row = {
             "stock": stock,

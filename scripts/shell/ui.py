@@ -12,7 +12,7 @@
 #   _print_error(text), _wrap(text)
 #   _confirm(question)  True if answered y/yes
 #   _parse_stock(name), _parse_id(text),
-#   _parse_direction(name), _parse_transaction_type(name)
+#   _parse_direction(name), _parse_trade_type(name)
 #   _short_date(value)
 #   _complete(text, line, options_per_position)
 #   _fetch_prices(), _held_positions(), _gain_color(gain)
@@ -23,8 +23,8 @@ import textwrap
 
 from storage import (
     Stock,
-    TransactionType,
-    transactions_total_get,
+    TradeType,
+    trades_total_get,
 )
 from trade_engine import get_latest_prices
 
@@ -140,9 +140,9 @@ def _parse_direction(name):
     return name.lower()
 
 
-def _parse_transaction_type(name):
+def _parse_trade_type(name):
     try:
-        return TransactionType[name.upper()]
+        return TradeType[name.upper()]
     except KeyError:
         raise ValueError(
             f"unknown transaction type '{name}', expected "
@@ -184,8 +184,7 @@ def _held_positions():
     """(stock, count, average buy price) of every stock
     whose count is not 0"""
     positions = [
-        (stock, *transactions_total_get(stock))
-        for stock in Stock
+        (stock, *trades_total_get(stock)) for stock in Stock
     ]
     return [p for p in positions if p[1] != 0]
 

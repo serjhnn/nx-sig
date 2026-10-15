@@ -211,10 +211,10 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 
 | File | Contents |
 |---|---|
-| `<stock>_transactions.csv` | the stock's transactions: Index, Date, Time, Type, Count, Price |
-| `transactions_total.csv` | count and average price of every stock |
+| `<stock>_trades.csv` | the stock's trades: Id, Date, Time, Type, Count, Price |
+| `trades_total.csv` | count and average price of every stock |
 | `personal_rules.json` | your rules |
-| `base_buy.csv` | the base buys, one per stock: Stock, Price, Count |
+| `base_trades.csv` | the basetrades (last buying prices), one per stock: Stock, Price, Count |
 | `mail_state.json` | the last email the watcher handled |
 | `mtsig_status.json` | the watcher's heartbeat, shown by `status` |
 | `mtsig.pid` | the process id of the running `./mtsig` |
@@ -222,14 +222,20 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `ladders_status.json` | the ladder processes' heartbeats, shown by `ps` |
 | `logs/` | the watcher's and the ladders' logs (`mtsig.log`, `ladder_<id>.log`) |
 
+Data from before the rename of transactions to trades (the files
+`<stock>_transactions.csv`, `transactions_total.csv` and `base_buy.csv`) is
+renamed once with `./migrate_data`; run it on every device before using the
+shell. The script is temporary and will be removed later.
+
 ## Project layout
 
 ```
 nx-sig/
 ├── nxshell               start the shell
 ├── mtsig                 start/stop/status of the order watcher
-│                         (mail transactions service)
+│                         (mail trades service)
 ├── syncnx                sync data/ between phone and PC
+├── migrate_data          renames old data files once (temporary)
 ├── config.json           stocks, data folder, price API
 ├── CODE_STYLE.md         code style rules
 ├── assets/logo.svg
@@ -247,9 +253,9 @@ nx-sig/
     │   ├── mail_cmd.py       mail broker (./mtsig)
     │   └── overview_cmd.py   status, xtop, ps
     ├── shell_test.py     tests of the shell commands
-    ├── storage.py        transactions, totals, rules and watcher state on disk
+    ├── storage.py        trades, totals, rules and watcher state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
-    ├── order_watcher.py  email -> parsed order -> transaction
+    ├── order_watcher.py  email -> parsed order -> trade
     ├── mail_reader.py    IMAP IDLE watcher with reconnects
     ├── order_parser.py   reads an order from a broker email
     ├── ladder.py         price-step alerts, one process each
@@ -265,7 +271,7 @@ nx-sig/
 ## Tests
 
 ```bash
-python scripts/storage.py        # transactions, totals, rules, locking
+python scripts/storage.py        # trades, totals, rules, locking
 python scripts/order_parser.py   # order email parsing
 python scripts/ladder.py         # ladder levels
 python scripts/shell_test.py     # every shell command, faked prices

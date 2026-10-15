@@ -9,11 +9,11 @@
 
 from storage import (
     Stock,
-    TransactionType,
-    transactions_add_one,
-    transactions_delete,
-    transactions_get_all,
-    transactions_total_get,
+    TradeType,
+    trade_add,
+    trade_delete,
+    trades_get_all,
+    trades_total_get,
 )
 from shell.interface import Commands
 from shell.ui import (
@@ -31,7 +31,7 @@ from shell.ui import (
     _column_sep,
     _confirm,
     _parse_stock,
-    _parse_transaction_type,
+    _parse_trade_type,
     _print_error,
     _print_wrapped,
     _short_date,
@@ -46,15 +46,15 @@ class TradeCommands(Commands):
 
     def add(self, arg):
         """record a transaction"""
-        self._transactions_add_one(arg.split())
+        self._trade_add(arg.split())
 
     def ls(self, arg):
         """the transactions and total of a stock"""
-        self._transaction_get(arg.split())
+        self._trades_show(arg.split())
 
     def rm(self, arg):
         """delete the last transaction of a stock"""
-        self._transactions_delete_last(arg.split())
+        self._trade_delete_last(arg.split())
 
     def complete(self, action, args):
         options = [[s.name for s in Stock]]
@@ -62,11 +62,11 @@ class TradeCommands(Commands):
         # stock name
         if action == "add":
             options.append(
-                [t.name.lower() for t in TransactionType]
+                [t.name.lower() for t in TradeType]
             )
         return options
 
-    def _transactions_add_one(self, args):
+    def _trade_add(self, args):
         if len(args) != 4:
             _print_wrapped(
                 "usage: tr add <stock> <buy|sell> <count> "
@@ -75,9 +75,7 @@ class TradeCommands(Commands):
             return
         try:
             stock = _parse_stock(args[0])
-            transaction_type = _parse_transaction_type(
-                args[1]
-            )
+            trade_type = _parse_trade_type(args[1])
             count = int(args[2])
             price = float(args[3])
         except ValueError as e:
@@ -89,15 +87,13 @@ class TradeCommands(Commands):
             )
             return
 
-        transactions_add_one(
-            stock, transaction_type, count, price
-        )
+        trade_add(stock, trade_type, count, price)
         _print_wrapped(
-            f"added {transaction_type.name} {count} "
+            f"added {trade_type.name} {count} "
             f"{stock.name} @ {price}"
         )
 
-    def _transactions_delete(self, args):
+    def _trade_delete(self, args):
         if len(args) != 2:
             _print_wrapped("usage: tr del <stock> <index>")
             return
@@ -117,8 +113,8 @@ class TradeCommands(Commands):
         transaction = next(
             (
                 t
-                for t in transactions_get_all(stock)
-                if t["Index"] == index
+                for t in trades_get_all(stock)
+                if t["Id"] == index
             ),
             None,
         )
@@ -130,7 +126,7 @@ class TradeCommands(Commands):
             return
         self._confirm_and_delete(stock, transaction)
 
-    def _transactions_delete_last(self, args):
+    def _trade_delete_last(self, args):
         if len(args) != 1:
             _print_wrapped("usage: tr del-last <stock>")
             return
@@ -140,7 +136,7 @@ class TradeCommands(Commands):
             _print_error(f"error: {e}")
             return
 
-        transactions = transactions_get_all(stock)
+        transactions = trades_get_all(stock)
         if not transactions:
             _print_wrapped(
                 f"no transactions for {stock.name}"
@@ -153,11 +149,11 @@ class TradeCommands(Commands):
     def _confirm_and_delete(self, stock, transaction):
         """show a transaction, ask for confirmation and
         delete it"""
-        index = transaction["Index"]
+        index = transaction["Id"]
         color = _supports_color()
         print()
-        _print_transactions_header(color)
-        _print_transaction_row(transaction, color)
+        _print_trades_header(color)
+        _print_trade_row(transaction, color)
         print()
         if not _confirm(
             f"delete this {stock.name} transaction? "
@@ -166,12 +162,12 @@ class TradeCommands(Commands):
             _print_wrapped("cancelled")
             return
 
-        transactions_delete(stock, index)
+        trade_delete(stock, index)
         _print_wrapped(
             f"deleted {stock.name} transaction {index}"
         )
 
-    def _transaction_get(self, args):
+    def _trades_show(self, args):
         if len(args) != 1:
             _print_wrapped("usage: tr get <stock>")
             return
@@ -181,7 +177,7 @@ class TradeCommands(Commands):
             _print_error(f"error: {e}")
             return
 
-        transactions = transactions_get_all(stock)
+        transactions = trades_get_all(stock)
         if not transactions:
             _print_wrapped(
                 f"no transactions for {stock.name}"
@@ -190,9 +186,9 @@ class TradeCommands(Commands):
 
         color = _supports_color()
         print()
-        _print_transactions_header(color)
+        _print_trades_header(color)
         for t in transactions:
-            _print_transaction_row(t, color)
+            _print_trade_row(t, color)
         separator = "-" * WIDTH
 
         print(
@@ -204,7 +200,7 @@ class TradeCommands(Commands):
         print()
 
 
-def _print_transactions_header(color):
+def _print_trades_header(color):
     """print the column names of the transactions table and
     a separator line"""
     header_cols = [
@@ -226,28 +222,24 @@ def _print_transactions_header(color):
     )
 
 
-def _print_transaction_row(t, color):
+def _print_trade_row(t, color):
     """print one transaction as a row of the transactions
     table"""
-    transaction_type = t['Type'].name
+    trade_type = t['Type'].name
     if color:
         type_color = (
-            BUY_COLOR
-            if transaction_type == "BUY"
-            else SELL_COLOR
+            BUY_COLOR if trade_type == "BUY" else SELL_COLOR
         )
-        transaction_type = (
-            f"{type_color}{transaction_type:>4}{RESET}"
-        )
+        trade_type = f"{type_color}{trade_type:>4}{RESET}"
         short_date = _short_date(t['Date'])
         date = f"{DATE_COLOR}{short_date:>8}{RESET}"
         time = f"{DIM}{t['Time']:>5}{RESET}"
         count = f"{COUNT_COLOR}{t['Count']:>5}{RESET}"
         price = f"{PRICE_COLOR}{t['Price']:<7.2f}{RESET}"
-        index = f"{DIM}{t['Index']:>4}{RESET}"
+        index = f"{DIM}{t['Id']:>4}{RESET}"
     else:
-        index = f"{t['Index']:>4}"
-        transaction_type = f"{transaction_type:>4}"
+        index = f"{t['Id']:>4}"
+        trade_type = f"{trade_type:>4}"
         date = f"{_short_date(t['Date']):>8}"
         time = f"{t['Time']:>5}"
         count = f"{t['Count']:>5}"
@@ -258,7 +250,7 @@ def _print_transaction_row(t, color):
                 index,
                 date,
                 time,
-                transaction_type,
+                trade_type,
                 count,
                 price,
             ]
@@ -269,7 +261,7 @@ def _print_transaction_row(t, color):
 def _print_total(stock, color):
     """print the stock's total count, average buy price and
     position sum"""
-    total_count, avg_price = transactions_total_get(stock)
+    total_count, avg_price = trades_total_get(stock)
     total_sum = total_count * avg_price
     if color:
         total_line = (

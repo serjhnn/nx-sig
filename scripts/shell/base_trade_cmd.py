@@ -8,9 +8,9 @@
 
 from storage import (
     Stock,
-    base_buy_delete,
-    base_buy_set,
-    base_buys_get_all,
+    basetrade_delete,
+    basetrade_set,
+    basetrades_get_all,
 )
 from shell.interface import Commands
 from shell.ui import (
@@ -42,18 +42,18 @@ class BaseTradeCommands(Commands):
 
     def add(self, arg):
         """save the base buy of a stock"""
-        self._base_buy_add(arg.split())
+        self._basetrade_add(arg.split())
 
     def ls(self, arg):
         """the base buys with the current prices"""
         if arg.split():
             _print_wrapped("usage: bb ls")
             return
-        self._base_buys_show()
+        self._basetrades_show()
 
     def rm(self, arg):
         """delete the base buy of a stock"""
-        self._base_buy_rm(arg.split())
+        self._basetrade_rm(arg.split())
 
     def complete(self, action, args):
         if action == "add":
@@ -66,11 +66,11 @@ class BaseTradeCommands(Commands):
             ]
         if action == "rm":
             return [
-                [b["Stock"] for b in base_buys_get_all()]
+                [b["Stock"] for b in basetrades_get_all()]
             ]
         return []
 
-    def _base_buy_add(self, args):
+    def _basetrade_add(self, args):
         usage = (
             "usage: bb add <stock> price <price> "
             "count <count>"
@@ -106,15 +106,15 @@ class BaseTradeCommands(Commands):
                 "error: price and count must be positive"
             )
             return
-        replaced = base_buy_set(stock.name, price, count)
+        replaced = basetrade_set(stock.name, price, count)
         _print_wrapped(
             f"{'replaced' if replaced else 'added'} "
             f"base buy of {stock.name}: {count} at "
             f"{price:g}"
         )
 
-    def _base_buys_show(self):
-        base_buys = base_buys_get_all()
+    def _basetrades_show(self):
+        base_buys = basetrades_get_all()
         if not base_buys:
             _print_wrapped(
                 "no base buys yet, add one with 'bb add "
@@ -186,7 +186,7 @@ class BaseTradeCommands(Commands):
             )
         print()
 
-    def _base_buy_rm(self, args):
+    def _basetrade_rm(self, args):
         if len(args) != 1:
             _print_wrapped("usage: bb rm <stock>")
             return
@@ -194,7 +194,7 @@ class BaseTradeCommands(Commands):
         found = next(
             (
                 b
-                for b in base_buys_get_all()
+                for b in basetrades_get_all()
                 if b["Stock"] == name
             ),
             None,
@@ -212,5 +212,5 @@ class BaseTradeCommands(Commands):
         ):
             _print_wrapped("cancelled")
             return
-        base_buy_delete(name)
+        basetrade_delete(name)
         _print_wrapped(f"deleted base buy of {name}")

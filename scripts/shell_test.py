@@ -175,9 +175,7 @@ class ShellTest(unittest.TestCase):
             ["added BUY 10 SOXL @ 20.5"],
         )
         self.assertEqual(
-            storage.transactions_total_get(
-                storage.Stock.SOXL
-            ),
+            storage.trades_total_get(storage.Stock.SOXL),
             (10, 20.5),
         )
 
@@ -206,9 +204,7 @@ class ShellTest(unittest.TestCase):
             ["error: count and price must be positive"],
         )
         self.assertEqual(
-            storage.transactions_get_all(
-                storage.Stock.SOXL
-            ),
+            storage.trades_get_all(storage.Stock.SOXL),
             [],
         )
 
@@ -258,11 +254,7 @@ class ShellTest(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            len(
-                storage.transactions_get_all(
-                    storage.Stock.SOXL
-                )
-            ),
+            len(storage.trades_get_all(storage.Stock.SOXL)),
             1,
         )
 
@@ -272,11 +264,7 @@ class ShellTest(unittest.TestCase):
             out = self.lines("tr del-last SOXL", answer)
             self.assertEqual(out[-1], "cancelled")
         self.assertEqual(
-            len(
-                storage.transactions_get_all(
-                    storage.Stock.SOXL
-                )
-            ),
+            len(storage.trades_get_all(storage.Stock.SOXL)),
             1,
         )
         self.assertEqual(
@@ -578,7 +566,7 @@ class ShellTest(unittest.TestCase):
                 "deleted base buy of SOXL",
             ],
         )
-        self.assertEqual(storage.base_buys_get_all(), [])
+        self.assertEqual(storage.basetrades_get_all(), [])
         self.assertEqual(
             self.lines("bb rm SOXL"),
             ["error: no base buy of SOXL, see 'bb ls'"],

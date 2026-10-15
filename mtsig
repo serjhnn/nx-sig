@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mtsig: mail transactions service, runs
+# mtsig: mail trades service, runs
 # scripts/order_watcher.py in the background
 #
 #   ./mtsig start    start it (does nothing if it is

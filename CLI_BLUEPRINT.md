@@ -332,7 +332,11 @@ place.
    (`<stock>_trades.csv`, `trades_total.csv`,
    `base_trades.csv`) and docs,
    and add the trade Id (the existing per-stock Index)
-   to `ls trades`.
+   to `ls trades`. (done) Only names inside the code and
+   the files changed, the output stays the same until
+   step 4. The Index column is now Id, `tr get` already
+   showed it. `./migrate_data` renames old data files
+   once.
 4. **Switch to the new command set** with the verb
    commands, the `run` option of `add ladder` and
    `rm trade <stock> <id>`. Update the help, README,

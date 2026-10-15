@@ -1,20 +1,20 @@
 # storage: reads and writes all nX-sig data in config
-# "storage_dir" (csv files for transactions and totals, json
+# "storage_dir" (csv files for trades and totals, json
 # files for rules and the watcher)
 #
 # public functions:
-#   transactions_add_one(stock, transaction_type,
+#   trade_add(stock, trade_type,
 #                        count, price)
-#       record a BUY/SELL transaction in
-#       {stock}_transactions.csv and update the stock's
-#       totals in transactions_total.csv
-#   transactions_get_all(stock)
-#       return all recorded transactions for a stock
-#   transactions_delete(stock, index)
-#       delete the transaction with the given Index from
-#       {stock}_transactions.csv and recalculate the stock's
-#       totals in transactions_total.csv
-#   transactions_total_get(stock)
+#       record a BUY/SELL trade in
+#       {stock}_trades.csv and update the stock's
+#       totals in trades_total.csv
+#   trades_get_all(stock)
+#       return all recorded trades for a stock
+#   trade_delete(stock, trade_id)
+#       delete the trade with the given Id from
+#       {stock}_trades.csv and recalculate the stock's
+#       totals in trades_total.csv
+#   trades_total_get(stock)
 #       return (count held, average buy price) for a stock
 #   rules_get_all()
 #       return all personal rules from personal_rules.json,
@@ -41,11 +41,11 @@
 #       save the last level a ladder notified
 #   ladder_delete(ladder_id)
 #       delete a saved ladder and its heartbeat
-#   base_buys_get_all()
-#   base_buy_set(stock_name, price, count)
-#   base_buy_delete(stock_name)
-#       base buys (the last buying price you keep for a
-#       stock, one per stock) in base_buy.csv
+#   basetrades_get_all()
+#   basetrade_set(stock_name, price, count)
+#   basetrade_delete(stock_name)
+#       basetrades (the last buying price you keep for a
+#       stock, one per stock) in base_trades.csv
 #   ladder_status_get(ladder_id),
 #   ladder_status_set(ladder_id, status)
 #       heartbeat of a ladder process (dict), kept in
@@ -56,7 +56,7 @@
 # don't overwrite each other's changes
 
 # usage example
-# transactions_add_one(Stock.SOXL, TransactionType.BUY,
+# trade_add(Stock.SOXL, TradeType.BUY,
 #                      1, 100)
 
 import csv
@@ -88,8 +88,8 @@ with open(os.path.join(ROOT_DIR, "config.json")) as f:
 DB_DIR = os.path.normpath(
     os.path.join(ROOT_DIR, config["storage_dir"])
 )
-FIELDNAMES = [
-    "Index",
+TRADE_FIELDNAMES = [
+    "Id",
     "Date",
     "Time",
     "Type",
@@ -97,7 +97,7 @@ FIELDNAMES = [
     "Price",
 ]
 TOTAL_FIELDNAMES = ["Type", "Count", "Price"]
-BASE_BUY_FIELDNAMES = ["Stock", "Price", "Count"]
+BASETRADE_FIELDNAMES = ["Stock", "Price", "Count"]
 LADDER_FIELDNAMES = [
     "Id",
     "Stock",
@@ -112,7 +112,7 @@ LADDER_FIELDNAMES = [
 Stock = Enum("Stock", config["indices"])
 
 
-class TransactionType(Enum):
+class TradeType(Enum):
     BUY = 1
     SELL = 2
 
@@ -125,7 +125,7 @@ def _db_lock():
     """
     exclusive lock on {DB_DIR}/.lock shared by all processes
     using the database, so a read-modify-write (e.g. of
-    transactions_total.csv) is not interleaved with another
+    trades_total.csv) is not interleaved with another
     process doing the same; re-entrant within one thread
     """
     if getattr(_lock_state, "depth", 0):
@@ -176,65 +176,60 @@ def _locked(function):
 
 
 @_locked
-def transactions_add_one(
-    stock, transaction_type, count, price
-):
+def trade_add(stock, trade_type, count, price):
     """
-    Add transaction to {stock_name}_transactions.csv file
+    Add trade to {stock_name}_trades.csv file
 
-        tsmx_transactions.csv
+        tsmx_trades.csv
     ______________________________________________
-    | Index |       Date |  Time | Type | Count |...
+    |    Id |       Date |  Time | Type | Count |...
     |     1 | 05.10.2026 | 14:30 |  BUY |    10 |...
 
     """
     os.makedirs(DB_DIR, exist_ok=True)
-    path = _transactions_path(stock)
+    path = _trades_path(stock)
     rows = []
     if os.path.exists(path) and os.path.getsize(path) > 0:
         with open(path, newline="") as f:
             rows = list(csv.DictReader(f))
-    # Indexes stay stable after deletions, so continue from
+    # Ids stay stable after deletions, so continue from
     # the highest one.
-    next_index = (
-        max((int(row["Index"]) for row in rows), default=0)
-        + 1
+    next_id = (
+        max((int(row["Id"]) for row in rows), default=0) + 1
     )
     now = datetime.now()
 
     rows.append(
         {
-            "Index": next_index,
+            "Id": next_id,
             "Date": now.strftime("%d.%m.%Y"),
             "Time": now.strftime("%H:%M"),
-            "Type": transaction_type.name,
+            "Type": trade_type.name,
             "Count": count,
             "Price": price,
         }
     )
-    _write_csv_atomic(path, FIELDNAMES, rows)
+    _write_csv_atomic(path, TRADE_FIELDNAMES, rows)
 
-    _transactions_total_save(
-        stock, transaction_type, count, price
-    )
+    _trades_total_save(stock, trade_type, count, price)
 
 
-def transactions_get_all(stock):
+def trades_get_all(stock):
     """
-    return all transactions stored in file
-    {stock_name}_transactions.csv in a dictionary
+    return all trades stored in file
+    {stock_name}_trades.csv in a dictionary
     """
-    path = _transactions_path(stock)
+    path = _trades_path(stock)
     if not os.path.exists(path):
         return []
 
     with open(path, newline="") as f:
         return [
             {
-                "Index": int(row["Index"]),
+                "Id": int(row["Id"]),
                 "Date": row["Date"],
                 "Time": row["Time"],
-                "Type": TransactionType[row["Type"]],
+                "Type": TradeType[row["Type"]],
                 "Count": int(row["Count"]),
                 "Price": float(row["Price"]),
             }
@@ -243,30 +238,28 @@ def transactions_get_all(stock):
 
 
 @_locked
-def transactions_delete(stock, index):
+def trade_delete(stock, trade_id):
     """
-    delete the transaction with the given Index from
-    {stock_name}_transactions.csv and recalculate the
-    stock's totals in transactions_total.csv
+    delete the trade with the given Id from
+    {stock_name}_trades.csv and recalculate the
+    stock's totals in trades_total.csv
 
-    remaining transactions keep their Index
-    return True if a transaction was deleted, False if
-    the index was not found
+    remaining trades keep their Id
+    return True if a trade was deleted, False if
+    the Id was not found
     """
-    transactions = transactions_get_all(stock)
-    remaining = [
-        t for t in transactions if t["Index"] != index
-    ]
-    if len(remaining) == len(transactions):
+    trades = trades_get_all(stock)
+    remaining = [t for t in trades if t["Id"] != trade_id]
+    if len(remaining) == len(trades):
         return False
 
     _write_csv_atomic(
-        _transactions_path(stock),
-        FIELDNAMES,
+        _trades_path(stock),
+        TRADE_FIELDNAMES,
         [{**t, "Type": t["Type"].name} for t in remaining],
     )
 
-    # replay the remaining transactions to rebuild the
+    # replay the remaining trades to rebuild the
     # totals from scratch
     total_count, avg_price = 0, 0.0
     for t in remaining:
@@ -277,13 +270,13 @@ def transactions_delete(stock, index):
             t["Count"],
             t["Price"],
         )
-    _transactions_total_set(stock, total_count, avg_price)
+    _trades_total_set(stock, total_count, avg_price)
     return True
 
 
-def _transactions_path(stock):
+def _trades_path(stock):
     return os.path.join(
-        DB_DIR, f"{stock.name.lower()}_transactions.csv"
+        DB_DIR, f"{stock.name.lower()}_trades.csv"
     )
 
 
@@ -326,25 +319,23 @@ def _write_atomic(path, write):
         raise
 
 
-def _transactions_total_save(
-    stock, transaction_type, count, price
-):
+def _trades_total_save(stock, trade_type, count, price):
     """
-        save transactions total in transactions_total.csv
+        save trades total in trades_total.csv
         file
 
-            transactions_total.csv
+            trades_total.csv
      ______________________
     | Type | Count | Price |
     | TSMX |    10 |   250 |
 
     where
         Count and price are repeatedly updated after
-        every transaction
+        every trade
         Count - total sum of all stocks buyed and still
                 not sold
         Price - average price for a stock for multiple
-                buy transaction
+                buy trade
 
         if BUY :
             avg_price = (avg_price * total_count
@@ -361,25 +352,25 @@ def _transactions_total_save(
 
 
     """
-    total_count, avg_price = transactions_total_get(stock)
+    total_count, avg_price = trades_total_get(stock)
     total_count, avg_price = _total_apply(
         total_count,
         avg_price,
-        transaction_type,
+        trade_type,
         count,
         price,
     )
-    _transactions_total_set(stock, total_count, avg_price)
+    _trades_total_set(stock, total_count, avg_price)
 
 
 def _total_apply(
-    total_count, avg_price, transaction_type, count, price
+    total_count, avg_price, trade_type, count, price
 ):
     """
     return (total_count, avg_price) after applying one
-    transaction to them
+    trade to them
     """
-    if transaction_type == TransactionType.BUY:
+    if trade_type == TradeType.BUY:
         if total_count + count > 0:
             avg_price = (
                 avg_price * total_count + price * count
@@ -390,13 +381,13 @@ def _total_apply(
     return total_count, avg_price
 
 
-def _transactions_total_set(stock, total_count, avg_price):
+def _trades_total_set(stock, total_count, avg_price):
     """
     store total_count and avg_price of a stock in
-    transactions_total.csv
+    trades_total.csv
     """
     os.makedirs(DB_DIR, exist_ok=True)
-    path = _transactions_total_path()
+    path = _trades_total_path()
     rows = []
     if os.path.exists(path):
         with open(path, newline="") as f:
@@ -414,12 +405,12 @@ def _transactions_total_set(stock, total_count, avg_price):
     _write_csv_atomic(path, TOTAL_FIELDNAMES, rows)
 
 
-def transactions_total_get(stock):
+def trades_total_get(stock):
     """
     return (total_count, avg_price) for a stock from
-    transactions_total.csv
+    trades_total.csv
     """
-    path = _transactions_total_path()
+    path = _trades_total_path()
     if os.path.exists(path):
         with open(path, newline="") as f:
             for row in csv.DictReader(f):
@@ -544,13 +535,13 @@ def mtsig_pid_get():
         return None
 
 
-def base_buys_get_all():
+def basetrades_get_all():
     """
-    return the base buys of base_buy.csv as dicts: Stock
+    return the basetrades of base_trades.csv as dicts: Stock
     (name), Price (float), Count (int), in the order of
     config "indices" (stocks no longer there come last)
     """
-    path = _base_buy_path()
+    path = _basetrades_path()
     if not os.path.exists(path):
         return []
     with open(path, newline="") as f:
@@ -570,17 +561,17 @@ def base_buys_get_all():
 
 
 @_locked
-def base_buy_set(stock_name, price, count):
+def basetrade_set(stock_name, price, count):
     """
-    save the base buy of a stock to base_buy.csv, one
+    save the basetrade of a stock to base_trades.csv, one
     per stock; return True if it replaced an older one
     """
     rows = [
         r
-        for r in base_buys_get_all()
+        for r in basetrades_get_all()
         if r["Stock"] != stock_name
     ]
-    replaced = len(rows) < len(base_buys_get_all())
+    replaced = len(rows) < len(basetrades_get_all())
     rows.append(
         {
             "Stock": stock_name,
@@ -588,37 +579,37 @@ def base_buy_set(stock_name, price, count):
             "Count": count,
         }
     )
-    _base_buys_save(rows)
+    _basetrades_save(rows)
     return replaced
 
 
 @_locked
-def base_buy_delete(stock_name):
+def basetrade_delete(stock_name):
     """
-    delete the base buy of a stock, return the deleted
+    delete the basetrade of a stock, return the deleted
     row or None if the stock has none
     """
-    rows = base_buys_get_all()
+    rows = basetrades_get_all()
     deleted = next(
         (r for r in rows if r["Stock"] == stock_name), None
     )
     if deleted is None:
         return None
-    _base_buys_save(
+    _basetrades_save(
         [r for r in rows if r["Stock"] != stock_name]
     )
     return deleted
 
 
-def _base_buys_save(rows):
+def _basetrades_save(rows):
     os.makedirs(DB_DIR, exist_ok=True)
     _write_csv_atomic(
-        _base_buy_path(), BASE_BUY_FIELDNAMES, rows
+        _basetrades_path(), BASETRADE_FIELDNAMES, rows
     )
 
 
-def _base_buy_path():
-    return os.path.join(DB_DIR, "base_buy.csv")
+def _basetrades_path():
+    return os.path.join(DB_DIR, "base_trades.csv")
 
 
 def ladders_get_all():
@@ -771,15 +762,15 @@ def _watcher_status_path():
     return os.path.join(DB_DIR, "mtsig_status.json")
 
 
-def _transactions_total_path():
-    return os.path.join(DB_DIR, "transactions_total.csv")
+def _trades_total_path():
+    return os.path.join(DB_DIR, "trades_total.csv")
 
 
 if __name__ == "__main__":
     import tempfile
     import unittest
 
-    class TransactionsTest(unittest.TestCase):
+    class TradesTest(unittest.TestCase):
         def setUp(self):
             # redirect csv files to a temp dir so real data
             # is not touched
@@ -794,20 +785,16 @@ if __name__ == "__main__":
             self._tmp.cleanup()
 
         def test_get_without_file_returns_empty(self):
-            self.assertEqual(
-                transactions_get_all(Stock.SOXL), []
-            )
+            self.assertEqual(trades_get_all(Stock.SOXL), [])
 
         def test_add_creates_file_with_header(self):
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 250
-            )
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
 
             with open(
-                _transactions_path(Stock.TSMX), newline=""
+                _trades_path(Stock.TSMX), newline=""
             ) as f:
                 rows = list(csv.reader(f))
-            self.assertEqual(rows[0], FIELDNAMES)
+            self.assertEqual(rows[0], TRADE_FIELDNAMES)
             self.assertEqual(rows[1][0], "1")
             self.assertEqual(
                 rows[1][3:], ["BUY", "10", "250"]
@@ -815,227 +802,157 @@ if __name__ == "__main__":
             self.assertEqual(len(rows), 2)
 
         def test_add_and_get_roundtrip(self):
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 250
-            )
-            transactions_add_one(
-                Stock.TSMX, TransactionType.SELL, 5, 260.5
-            )
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
+            trade_add(Stock.TSMX, TradeType.SELL, 5, 260.5)
 
-            transactions = transactions_get_all(Stock.TSMX)
-            self.assertEqual(len(transactions), 2)
+            trades = trades_get_all(Stock.TSMX)
+            self.assertEqual(len(trades), 2)
             self.assertEqual(
-                [t["Index"] for t in transactions], [1, 2]
+                [t["Id"] for t in trades], [1, 2]
             )
             self.assertEqual(
-                transactions[0]["Type"], TransactionType.BUY
+                trades[0]["Type"], TradeType.BUY
             )
-            self.assertEqual(transactions[0]["Count"], 10)
+            self.assertEqual(trades[0]["Count"], 10)
+            self.assertEqual(trades[0]["Price"], 250.0)
             self.assertEqual(
-                transactions[0]["Price"], 250.0
+                trades[1]["Type"],
+                TradeType.SELL,
             )
-            self.assertEqual(
-                transactions[1]["Type"],
-                TransactionType.SELL,
-            )
-            self.assertEqual(transactions[1]["Count"], 5)
-            self.assertEqual(
-                transactions[1]["Price"], 260.5
-            )
+            self.assertEqual(trades[1]["Count"], 5)
+            self.assertEqual(trades[1]["Price"], 260.5)
 
         def test_date_and_time_format(self):
-            transactions_add_one(
-                Stock.SOXL, TransactionType.BUY, 1, 100
-            )
+            trade_add(Stock.SOXL, TradeType.BUY, 1, 100)
 
-            transaction = transactions_get_all(Stock.SOXL)[
-                0
-            ]
-            datetime.strptime(
-                transaction["Date"], "%d.%m.%Y"
-            )
-            datetime.strptime(transaction["Time"], "%H:%M")
+            trade = trades_get_all(Stock.SOXL)[0]
+            datetime.strptime(trade["Date"], "%d.%m.%Y")
+            datetime.strptime(trade["Time"], "%H:%M")
 
         def test_stocks_are_stored_separately(self):
-            transactions_add_one(
-                Stock.SOXL, TransactionType.BUY, 1, 100
-            )
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 2, 200
-            )
+            trade_add(Stock.SOXL, TradeType.BUY, 1, 100)
+            trade_add(Stock.TSMX, TradeType.BUY, 2, 200)
 
             self.assertEqual(
-                len(transactions_get_all(Stock.SOXL)), 1
+                len(trades_get_all(Stock.SOXL)), 1
             )
             self.assertEqual(
-                len(transactions_get_all(Stock.TSMX)), 1
+                len(trades_get_all(Stock.TSMX)), 1
             )
             self.assertEqual(
-                transactions_get_all(Stock.TSMX)[0][
-                    "Count"
-                ],
+                trades_get_all(Stock.TSMX)[0]["Count"],
                 2,
             )
 
         def test_total_buy_averages_price(self):
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 250
-            )
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 270
-            )
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 270)
 
             self.assertEqual(
-                transactions_total_get(Stock.TSMX),
+                trades_total_get(Stock.TSMX),
                 (20, 260.0),
             )
 
         def test_total_sell_keeps_price(self):
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 250
-            )
-            transactions_add_one(
-                Stock.TSMX, TransactionType.SELL, 4, 300
-            )
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
+            trade_add(Stock.TSMX, TradeType.SELL, 4, 300)
 
             self.assertEqual(
-                transactions_total_get(Stock.TSMX),
+                trades_total_get(Stock.TSMX),
                 (6, 250.0),
             )
 
         def test_total_stocks_in_one_file(self):
-            transactions_add_one(
-                Stock.SOXL, TransactionType.BUY, 1, 100
-            )
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 2, 200
-            )
+            trade_add(Stock.SOXL, TradeType.BUY, 1, 100)
+            trade_add(Stock.TSMX, TradeType.BUY, 2, 200)
 
             with open(
-                _transactions_total_path(), newline=""
+                _trades_total_path(), newline=""
             ) as f:
                 rows = list(csv.reader(f))
             self.assertEqual(rows[0], TOTAL_FIELDNAMES)
             self.assertEqual(len(rows), 3)
             self.assertEqual(
-                transactions_total_get(Stock.SOXL),
+                trades_total_get(Stock.SOXL),
                 (1, 100.0),
             )
             self.assertEqual(
-                transactions_total_get(Stock.TSMX),
+                trades_total_get(Stock.TSMX),
                 (2, 200.0),
             )
 
-        def test_delete_removes_row_and_keeps_indexes(self):
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 250
-            )
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 270
-            )
-            transactions_add_one(
-                Stock.TSMX, TransactionType.SELL, 5, 300
-            )
+        def test_delete_removes_row_and_keeps_ids(self):
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 270)
+            trade_add(Stock.TSMX, TradeType.SELL, 5, 300)
 
-            self.assertTrue(
-                transactions_delete(Stock.TSMX, 2)
-            )
+            self.assertTrue(trade_delete(Stock.TSMX, 2))
 
-            transactions = transactions_get_all(Stock.TSMX)
+            trades = trades_get_all(Stock.TSMX)
             self.assertEqual(
-                [t["Index"] for t in transactions], [1, 3]
+                [t["Id"] for t in trades], [1, 3]
             )
             self.assertEqual(
-                transactions[1]["Type"],
-                TransactionType.SELL,
+                trades[1]["Type"],
+                TradeType.SELL,
             )
 
         def test_delete_recalculates_total(self):
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 250
-            )
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 270
-            )
-            transactions_add_one(
-                Stock.TSMX, TransactionType.SELL, 5, 300
-            )
-            transactions_add_one(
-                Stock.SOXL, TransactionType.BUY, 1, 100
-            )
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 270)
+            trade_add(Stock.TSMX, TradeType.SELL, 5, 300)
+            trade_add(Stock.SOXL, TradeType.BUY, 1, 100)
 
-            transactions_delete(Stock.TSMX, 2)
+            trade_delete(Stock.TSMX, 2)
 
             self.assertEqual(
-                transactions_total_get(Stock.TSMX),
+                trades_total_get(Stock.TSMX),
                 (5, 250.0),
             )
             self.assertEqual(
-                transactions_total_get(Stock.SOXL),
+                trades_total_get(Stock.SOXL),
                 (1, 100.0),
             )
 
-        def test_delete_last_transaction_resets_total(self):
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 250
-            )
+        def test_delete_last_trade_resets_total(self):
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
 
-            self.assertTrue(
-                transactions_delete(Stock.TSMX, 1)
-            )
+            self.assertTrue(trade_delete(Stock.TSMX, 1))
 
+            self.assertEqual(trades_get_all(Stock.TSMX), [])
             self.assertEqual(
-                transactions_get_all(Stock.TSMX), []
+                trades_total_get(Stock.TSMX), (0, 0.0)
             )
+
+        def test_delete_unknown_id_returns_false(self):
+            self.assertFalse(trade_delete(Stock.TSMX, 1))
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
+
+            self.assertFalse(trade_delete(Stock.TSMX, 5))
             self.assertEqual(
-                transactions_total_get(Stock.TSMX), (0, 0.0)
+                len(trades_get_all(Stock.TSMX)), 1
             )
 
-        def test_delete_unknown_index_returns_false(self):
-            self.assertFalse(
-                transactions_delete(Stock.TSMX, 1)
-            )
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 250
-            )
-
-            self.assertFalse(
-                transactions_delete(Stock.TSMX, 5)
-            )
-            self.assertEqual(
-                len(transactions_get_all(Stock.TSMX)), 1
-            )
-
-        def test_add_after_delete_does_not_reuse_index(
+        def test_add_after_delete_does_not_reuse_id(
             self,
         ):
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 250
-            )
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 270
-            )
-            transactions_delete(Stock.TSMX, 1)
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 1, 100
-            )
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 270)
+            trade_delete(Stock.TSMX, 1)
+            trade_add(Stock.TSMX, TradeType.BUY, 1, 100)
 
             self.assertEqual(
                 [
-                    t["Index"]
-                    for t in transactions_get_all(
-                        Stock.TSMX
-                    )
+                    t["Id"]
+                    for t in trades_get_all(Stock.TSMX)
                 ],
                 [2, 3],
             )
 
         def test_failed_write_keeps_old_file(self):
             # and leaves no temp files
-            transactions_add_one(
-                Stock.TSMX, TransactionType.BUY, 10, 250
-            )
-            path = _transactions_path(Stock.TSMX)
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
+            path = _trades_path(Stock.TSMX)
             with open(path, newline="") as f:
                 before = f.read()
 
@@ -1045,7 +962,9 @@ if __name__ == "__main__":
 
             with self.assertRaises(Exception):
                 _write_csv_atomic(
-                    path, FIELDNAMES, [{"Index": 1}, Boom()]
+                    path,
+                    TRADE_FIELDNAMES,
+                    [{"Id": 1}, Boom()],
                 )
 
             with open(path, newline="") as f:
@@ -1057,8 +976,8 @@ if __name__ == "__main__":
                     if f != ".lock"
                 ),
                 [
-                    "transactions_total.csv",
-                    "tsmx_transactions.csv",
+                    "trades_total.csv",
+                    "tsmx_trades.csv",
                 ],
             )
 
@@ -1121,20 +1040,20 @@ if __name__ == "__main__":
                 watcher_status_get()["state"], "waiting"
             )
 
-        def test_base_buys(self):
-            self.assertEqual(base_buys_get_all(), [])
-            self.assertFalse(base_buy_set("SOXL", 20.5, 3))
+        def test_basetrades(self):
+            self.assertEqual(basetrades_get_all(), [])
+            self.assertFalse(basetrade_set("SOXL", 20.5, 3))
             self.assertFalse(
-                base_buy_set("MRVU", 100.0, 10)
+                basetrade_set("MRVU", 100.0, 10)
             )
             # config order (MRVU before SOXL), not the
             # order they were added in
             self.assertEqual(
-                [b["Stock"] for b in base_buys_get_all()],
+                [b["Stock"] for b in basetrades_get_all()],
                 ["MRVU", "SOXL"],
             )
             self.assertEqual(
-                base_buys_get_all()[1],
+                basetrades_get_all()[1],
                 {
                     "Stock": "SOXL",
                     "Price": 20.5,
@@ -1143,18 +1062,18 @@ if __name__ == "__main__":
             )
 
             # one per stock: a new one replaces the old
-            self.assertTrue(base_buy_set("SOXL", 19.0, 5))
-            self.assertEqual(len(base_buys_get_all()), 2)
+            self.assertTrue(basetrade_set("SOXL", 19.0, 5))
+            self.assertEqual(len(basetrades_get_all()), 2)
             self.assertEqual(
-                base_buys_get_all()[1]["Price"], 19.0
+                basetrades_get_all()[1]["Price"], 19.0
             )
 
             self.assertEqual(
-                base_buy_delete("MRVU")["Count"], 10
+                basetrade_delete("MRVU")["Count"], 10
             )
-            self.assertIsNone(base_buy_delete("MRVU"))
+            self.assertIsNone(basetrade_delete("MRVU"))
             self.assertEqual(
-                [b["Stock"] for b in base_buys_get_all()],
+                [b["Stock"] for b in basetrades_get_all()],
                 ["SOXL"],
             )
 
@@ -1209,14 +1128,14 @@ if __name__ == "__main__":
         def test_lock_is_reentrant(self):
             with _db_lock():
                 with _db_lock():
-                    transactions_add_one(
+                    trade_add(
                         Stock.TSMX,
-                        TransactionType.BUY,
+                        TradeType.BUY,
                         1,
                         100,
                     )
             self.assertEqual(
-                transactions_total_get(Stock.TSMX),
+                trades_total_get(Stock.TSMX),
                 (1, 100.0),
             )
 
@@ -1229,9 +1148,9 @@ if __name__ == "__main__":
 
             def add_many():
                 for _ in range(25):
-                    transactions_add_one(
+                    trade_add(
                         Stock.TSMX,
-                        TransactionType.BUY,
+                        TradeType.BUY,
                         1,
                         100,
                     )
@@ -1248,19 +1167,19 @@ if __name__ == "__main__":
             for p in processes:
                 p.join()
 
-            transactions = transactions_get_all(Stock.TSMX)
-            self.assertEqual(len(transactions), 100)
+            trades = trades_get_all(Stock.TSMX)
+            self.assertEqual(len(trades), 100)
             self.assertEqual(
-                sorted(t["Index"] for t in transactions),
+                sorted(t["Id"] for t in trades),
                 list(range(1, 101)),
             )
             self.assertEqual(
-                transactions_total_get(Stock.TSMX),
+                trades_total_get(Stock.TSMX),
                 (100, 100.0),
             )
 
     unittest.main()
 
-    # transactions_add_one(Stock.SOXL, TransactionType.BUY,
-    # 1, 100) transactions_add_one(Stock.TSMX,
-    # TransactionType.BUY, 2, 200)
+    # trade_add(Stock.SOXL, TradeType.BUY,
+    # 1, 100) trade_add(Stock.TSMX,
+    # TradeType.BUY, 2, 200)
