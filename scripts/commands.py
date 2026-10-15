@@ -883,14 +883,15 @@ class NxSigShell(cmd.Cmd):
         prices = _fetch_prices()
 
         color = _supports_color()
-        # laid out like the xtop table
+        # laid out like the xtop table, the columns
+        # widened to fill WIDTH
         column_sep = XTOP_SEP
         header_cols = [
             f"{'Name':<5}",
-            f"{'Qty':>4}",
-            f"{'Buy':>8}",
-            f"{'Price':>8}",
-            f"{'Change %':>8}",
+            f"{'Qty':>6}",
+            f"{'Buy':>11}",
+            f"{'Price':>11}",
+            f"{'Change %':>11}",
         ]
         if color:
             header_cols = [
@@ -907,12 +908,12 @@ class NxSigShell(cmd.Cmd):
         for b in base_buys:
             current = prices.get(b["Stock"])
             name = f"{b['Stock']:<5.5}"
-            qty = f"{b['Count']:>4}"
-            buy = f"{b['Price']:>8.2f}"
-            price = f"{'-':>8}"
-            change = f"{'-':>8}"
+            qty = f"{b['Count']:>6}"
+            buy = f"{b['Price']:>11.2f}"
+            price = f"{'-':>11}"
+            change = f"{'-':>11}"
             if current is not None:
-                price = f"{current:>8.2f}"
+                price = f"{current:>11.2f}"
                 # how far the current price is from the
                 # buying price
                 pct = (
@@ -920,7 +921,7 @@ class NxSigShell(cmd.Cmd):
                     / b["Price"]
                     * 100
                 )
-                change = f"{pct:>+7.2f}%"
+                change = f"{pct:>+10.2f}%"
             if color:
                 # the current price is green above the
                 # buying price and red below it
