@@ -306,10 +306,13 @@ engines with the same name (`ladder_cmd.py` vs
 Each step is its own commit, so a problem is easy to
 place.
 
-1. **Move the code, keep the commands.** Split
+1. **Move the code, keep the commands.** (done) Split
    `commands.py` into `scripts/shell/` as above, without
    changing any command. Check it by running every
    command before and after and comparing the output.
+   Until step 4, `ls`, `run`, `stop` and `rm` stay in
+   `commands.py` and pass the call on to the feature,
+   and the mail broker has functions, not a class.
 2. **Add the interface and the module classes,** and
    collect them at start, still with the old command
    names.

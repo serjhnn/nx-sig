@@ -1,0 +1,156 @@
+# mail_cmd: the shell side of the mail broker
+# (order_watcher.py, started by ./mtsig)
+#
+#   _mtsig(action)          run ./mtsig start/stop
+#   _mail_broker_task()     its row in 'ps'
+#   _print_watcher_status() its line in 'status'
+
+import os
+import subprocess
+from datetime import datetime
+
+import ladder
+from storage import (
+    ROOT_DIR,
+    mtsig_pid_get,
+    watcher_status_get,
+)
+from shell.ui import (
+    _print_error,
+    _print_wrapped,
+)
+
+# order_watcher.py writes a heartbeat at least every 9
+# minutes (IMAP IDLE renewal)
+WATCHER_STALE_SECONDS = 15 * 60
+# an order the watcher could not record stays visible in
+# 'status' this long
+WATCHER_ERROR_DAYS = 7
+
+
+def _print_watcher_status():
+    """print one line about order_watcher.py from its
+    heartbeat file"""
+    status = watcher_status_get()
+    if not status or not status.get("updated"):
+        _print_wrapped("mail watcher: not started")
+        return
+    try:
+        updated = datetime.fromisoformat(status["updated"])
+    except ValueError:
+        _print_wrapped("mail watcher: unknown state")
+        return
+
+    state = status.get("state", "")
+    age = (datetime.now() - updated).total_seconds()
+    if state == "stopped":
+        line = (
+            f"mail watcher: stopped {updated:%d.%m %H:%M}"
+        )
+    elif age > WATCHER_STALE_SECONDS:
+        line = (
+            "mail watcher: not responding, last seen "
+            f"{updated:%d.%m %H:%M}"
+        )
+    elif state in ("starting", "connected", "waiting"):
+        line = (
+            "mail watcher: running, checked "
+            f"{updated:%H:%M}"
+        )
+    else:
+        line = f"mail watcher: {state}, {updated:%H:%M}"
+    if status.get("last_order"):
+        line += f", last order {status['last_order']}"
+    _print_wrapped(line)
+
+    error = status.get("last_error") or {}
+    try:
+        error_time = (
+            datetime.fromisoformat(error["time"])
+            if error.get("time")
+            else None
+        )
+    except ValueError:
+        error_time = None
+    recent_error = (
+        error_time
+        and (datetime.now() - error_time).days
+        < WATCHER_ERROR_DAYS
+    )
+    if recent_error:
+        _print_error(
+            "mail watcher error "
+            f"{error_time:%d.%m %H:%M}: "
+            f"{error.get('text', '')}"
+        )
+    if status.get("log") and (
+        recent_error
+        or state.startswith("crashed")
+        or age > WATCHER_STALE_SECONDS
+    ):
+        _print_wrapped(
+            f"log: {os.path.relpath(status['log'])}"
+        )
+
+
+def _mail_broker_task():
+    """the ps row of the mail broker, or None if it
+    isn't running"""
+    pid = mtsig_pid_get()
+    if pid is None or not ladder.process_runs(
+        pid, "order_watcher.py"
+    ):
+        return None
+    status = watcher_status_get() or {}
+    started = updated = None
+    # the heartbeat may be left from an earlier run
+    if status.get("pid") == pid:
+        try:
+            started = datetime.fromisoformat(
+                status["started"]
+            )
+            updated = datetime.fromisoformat(
+                status["updated"]
+            )
+        except (KeyError, TypeError, ValueError):
+            pass
+    state = status.get("state", "") if updated else "-"
+    healthy = state in ("starting", "connected", "waiting")
+    if updated:
+        age = (datetime.now() - updated).total_seconds()
+        if age > WATCHER_STALE_SECONDS:
+            state, healthy = "no reply", False
+    return {
+        "id": "-",
+        "task": "mail-broker",
+        "pid": pid,
+        "started": started,
+        "state": state,
+        "healthy": healthy,
+    }
+
+
+def _mtsig(action):
+    """run ./mtsig <action> and print what it says"""
+    if action == "start":
+        # it waits 3s to catch a crash at start
+        _print_wrapped("starting the mail broker...")
+    elif action == "stop":
+        # it waits up to 20s for a clean logout
+        _print_wrapped("stopping the mail broker...")
+    try:
+        result = subprocess.run(
+            [os.path.join(ROOT_DIR, "mtsig"), action],
+            capture_output=True,
+            text=True,
+            # its own session, so Ctrl+C or closing the
+            # shell doesn't reach the watcher
+            start_new_session=True,
+        )
+    except OSError as e:
+        _print_error(f"error: can't run ./mtsig: {e}")
+        return
+    for line in result.stdout.splitlines():
+        _print_wrapped(line)
+    for line in result.stderr.splitlines():
+        _print_error(line)

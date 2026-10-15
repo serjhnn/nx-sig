@@ -20,7 +20,6 @@
 import io
 import os
 import subprocess
-import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -30,11 +29,12 @@ from unittest import mock
 # plain output without color codes
 os.environ["NO_COLOR"] = "1"
 
-import commands
 import ladder
 import storage
 import trade_engine
-from commands import WIDTH, NxSigShell
+from commands import NxSigShell
+from shell.overview_cmd import _xtop_lines
+from shell.ui import WIDTH
 
 FAKE_PID = 4242
 
@@ -400,7 +400,7 @@ class ShellTest(unittest.TestCase):
         self.run_cmd("tr add SOXL buy 10 20")
         self.run_cmd("tr add MUU buy 2 50")
         updated = datetime(2026, 1, 2, 9, 30, 5)
-        lines = commands._xtop_lines(
+        lines = _xtop_lines(
             {"SOXL": 22},
             None,
             updated,

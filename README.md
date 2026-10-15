@@ -234,7 +234,16 @@ nx-sig/
 ├── CODE_STYLE.md         code style rules
 ├── assets/logo.svg
 └── scripts/
-    ├── commands.py       the shell and its commands
+    ├── commands.py       the shell: puts the command modules together
+    ├── shell/            the shell's commands, one module per feature
+    │   ├── ui.py             colors, WIDTH, printing, parsers
+    │   ├── trade_cmd.py      tr (transactions)
+    │   ├── stocks_cmd.py     ls (held stocks)
+    │   ├── rule_cmd.py       rules
+    │   ├── base_trade_cmd.py bb (base buys)
+    │   ├── ladder_cmd.py     ladders (the shell side)
+    │   ├── mail_cmd.py       mail broker (./mtsig)
+    │   └── overview_cmd.py   status, xtop, ps
     ├── shell_test.py     tests of the shell commands
     ├── storage.py        transactions, totals, rules and watcher state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)

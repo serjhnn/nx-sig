@@ -21,7 +21,7 @@ with 1, so it can run before each commit (see
   docstrings included. Characters are counted, not bytes,
   so Armenian or other non-latin text is measured right.
 - **What the shell prints is at most 48 characters**
-  (`WIDTH` in `scripts/commands.py`), so tables and
+  (`WIDTH` in `scripts/shell/ui.py`), so tables and
   messages fit the screen without wrapping. Wrap long
   messages with `_print_wrapped()` / `_print_error()`.
 
@@ -87,15 +87,17 @@ so fix what `check_style.py` still reports by hand.
 - Comments explain *why*, short and lowercase, like the
   rest of the code.
 - Docstrings of `do_<command>` methods in `commands.py`
-  are the shell's `help <command>` text: keep them within
-  48 characters after the indentation.
+  and `scripts/shell/` are the shell's `help <command>`
+  text: keep them within 48 characters after the
+  indentation.
 
 ## Names
 
 - `snake_case` for functions and variables,
   `UPPER_CASE` for constants, `CamelCase` for classes.
 - A leading `_` marks a helper used only inside its
-  module.
+  module. The shell's shared helpers in `shell/ui.py`
+  keep it too: they are used only inside the shell.
 
 ## Project rules
 
@@ -108,7 +110,7 @@ so fix what `check_style.py` still reports by hand.
   atomically.
 - Secrets (API keys, passwords) go in `.env` only, never
   in the code or `config.json`.
-- Colors come from the constants in `commands.py`
+- Colors come from the constants in `shell/ui.py`
   (the logo gradient, `PRICE_COLOR`, `DIM`, ...), and
   output must still work without color (`NO_COLOR`, or
   output that is not a terminal).
