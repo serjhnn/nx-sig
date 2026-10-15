@@ -55,6 +55,27 @@ In this order, before metrics and strategy add more:
    - `status` still says `order_watcher.py`, see the
      mtsig split above
 
+## Privacy
+
+The data lives only on your devices; a few services
+see some of it. Say so, and let alerts say less:
+
+1. **A Privacy section in the README** that lists
+   what leaves the device and to whom:
+   - Alpaca: the symbols you ask prices for, with your
+     API key (not your positions)
+   - Gmail: the broker emails, read over IMAP
+   - Telegram: the alerts, with stock, gain and
+     amounts (bot messages are not end-to-end
+     encrypted)
+   - ntfy.sh, if used: the same as Telegram
+   - Syncthing: nothing, it syncs directly between
+     your devices (discovery and relays are off)
+2. **Alerts that say less**, as an option: e.g. a
+   config switch for 'SOXL alert, see nX-sig' without
+   the amounts, and a self-hosted ntfy as an
+   alternative to Telegram.
+
 ## Later: open it up for other people
 
 Only if it should be useful to others too; build it
