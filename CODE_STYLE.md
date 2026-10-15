@@ -115,12 +115,16 @@ so fix what `check_style.py` still reports by hand.
 - Python 3.12+ for everything except
   `order_watcher.py` / `mail_reader.py`, which need 3.14+.
 - Tests live at the end of their module, under
-  `if __name__ == "__main__":`; run them after a change:
+  `if __name__ == "__main__":`, except the shell's: they
+  are in `scripts/shell_test.py`, so they stay the same
+  while the shell is split into modules. Run them after
+  a change:
 
   ```bash
   python scripts/storage.py
   python scripts/order_parser.py
   python scripts/ladder.py
+  python scripts/shell_test.py
   ```
 
 ## Pre-commit check

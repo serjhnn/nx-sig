@@ -235,6 +235,7 @@ nx-sig/
 ├── assets/logo.svg
 └── scripts/
     ├── commands.py       the shell and its commands
+    ├── shell_test.py     tests of the shell commands
     ├── storage.py        transactions, totals, rules and watcher state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
     ├── order_watcher.py  email -> parsed order -> transaction
@@ -256,6 +257,7 @@ nx-sig/
 python scripts/storage.py        # transactions, totals, rules, locking
 python scripts/order_parser.py   # order email parsing
 python scripts/ladder.py         # ladder levels
+python scripts/shell_test.py     # every shell command, faked prices
 python scripts/sync.py           # device IDs, .stignore
 python scripts/check_style.py    # code style (line width)
 ```

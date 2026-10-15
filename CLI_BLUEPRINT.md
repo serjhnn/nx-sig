@@ -330,10 +330,14 @@ place.
 
 ## Tests
 
-Add `scripts/shell_test.py`: runs every command through
-`NxSigShell.onecmd()` against a temporary data folder
-and a fake price feed, and checks the output. It is
-written in step 1, so steps 2-5 are checked by it.
+`scripts/shell_test.py` (done) runs every command
+through `NxSigShell.onecmd()` against a temporary data
+folder, with faked prices, Telegram, ladder processes
+and `./mtsig`, and checks the output and that every
+line fits 48 characters. It tests the commands as they
+are now, so steps 1 and 2 must leave it passing
+unchanged, and steps 3 and 4 update it together with
+the commands they rename.
 
 ## Open questions, for later
 
