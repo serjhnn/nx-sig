@@ -91,26 +91,22 @@ show), `add` (save), `rm` (delete, after confirmation), `run` and `stop`
 (background tasks). The object is plural after `ls` and singular everywhere
 else: `ls ladders`, but `rm ladder 1`.
 
-| Command | What it does |
-|---|---|
-| `ls stocks` | count, average price, total and growth % (current price vs. average price) of every stock you hold |
-| `ls trades [<stock>]` | the stock's trades with their ids and its total; without a stock, the stocks that have trades |
-| `add trade <stock> <buy\|sell> count <count> price <price>` | record a trade, e.g. `add trade SOXL buy count 10 price 20.5` |
-| `rm trade <stock> <id>` | delete a trade after confirmation, the stock's total is recalculated |
-| `ls rules`, `add rule <rule>`, `rm rule <id>` | your personal trading rules |
-| `ls basetrades` | the basetrades in `indices` order, laid out like `xtop` (name, quantity, buying price, current price, change % from the buying price), green above the buying price and red below |
-| `add basetrade <stock> price <price> count <count>` | save a stock's basetrade: the last price you bought it at and how many, e.g. `add basetrade MRVU price 100 count 10`; one per stock, a new one replaces the old |
-| `rm basetrade <stock>` | delete a stock's basetrade after confirmation |
-| `ls ladders` | the saved ladders with their ids, the next level they alert at and whether they run |
-| `add ladder <stock> <down\|up> <step> from <price> [run]` | save a ladder: it sends a Telegram message each time the price moves another `step` down (or up) from `price`, e.g. `add ladder SOXL down 10 from 100` at 90, 80, 70, ...; with `run` at the end it starts right away |
-| `run ladder <id>`, `stop ladder <id>` | start a saved ladder in the background, or stop it (it stays saved) |
-| `rm ladder <id>` | delete a saved ladder after confirmation (a running one is stopped first), with its logs |
-| `run mail-broker`, `stop mail-broker` | start or stop the mail watcher in the background (calls `./mtsig start` / `stop`) |
-| `ls tasks` | the background tasks that are running (ladders and the mail watcher), with their pid, start time and state |
-| `status` | positions with the current price and gain/loss, and the order watcher's state |
-| `xtop [sec]` | live gain/loss of the stocks you hold (quantity, average price, current price, gain, gain %, total), updated every 5 (or `sec`) seconds, Ctrl+C to leave; sends a Telegram alert when a stock's gain reaches `gain_alert` or `gain_alert_pct` |
-| `help [<command>]` | all commands, or the details of one: `help add trade`, `help rm` (every `rm`), `help ladder` (everything for ladders) |
-| `exit`, `quit`, `q` | leave the shell |
+| Object | Actions | e.g. |
+|---|---|---|
+| `stocks` | `ls` | `ls stocks`: held stocks with growth % |
+| `trade` | `ls`, `add`, `rm` | `add trade SOXL buy count 10 price 20.5` |
+| `ladder` | `ls`, `add`, `rm`, `run`, `stop` | `add ladder SOXL down 10 from 100 run` |
+| `rule` | `ls`, `add`, `rm` | `add rule never buy on a gap up` |
+| `basetrade` | `ls`, `add`, `rm` | `add basetrade MRVU price 100 count 10` |
+| `mail-broker` | `run`, `stop` | `run mail-broker` |
+| `tasks` | `ls` | `ls tasks`: running background tasks |
+
+And the commands of their own: `status` (positions with gain/loss and the
+mail watcher's state), `xtop [sec]` (live gain/loss with Telegram alerts at
+`gain_alert` / `gain_alert_pct`), `help [<command>]` and `exit`.
+
+Every command with its arguments is in **[COMMANDS.md](COMMANDS.md)**, the same
+text as `help` in the shell (`help add trade`, `help rm`, `help ladder`).
 
 An action alone lists its objects (`ls` prints `ls: stocks, trades, ...`).
 Keywords with a value, like `count 10 price 20.5`, may come in either order.
@@ -243,6 +239,7 @@ nx-sig/
 ├── migrate_data          renames old data files once (temporary)
 ├── config.json           stocks, data folder, price API
 ├── CODE_STYLE.md         code style rules
+├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg
 └── scripts/
     ├── commands.py       the shell: actions, help, collects the modules
@@ -270,7 +267,8 @@ nx-sig/
     ├── ntfy.py           push notification through ntfy.sh
     ├── telegram_notify.py  message through a Telegram bot
     ├── watch_notify.py   notes for a planned Garmin watch app
-    └── check_style.py    checks the code style rules
+    ├── gen_docs.py       writes COMMANDS.md from the help texts
+    └── check_style.py    checks the code style rules and COMMANDS.md
 ```
 
 ## Tests
@@ -281,7 +279,7 @@ python scripts/order_parser.py   # order email parsing
 python scripts/ladder.py         # ladder levels
 python scripts/shell_test.py     # every shell command, faked prices
 python scripts/sync.py           # device IDs, .stignore
-python scripts/check_style.py    # code style (line width)
+python scripts/check_style.py    # code style (line width), COMMANDS.md
 ```
 
 ## Code style

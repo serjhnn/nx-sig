@@ -225,7 +225,8 @@ class TradeCommands(Commands):
         )
         for stock, trades in rows:
             last = trades[-1]
-            when = f"{_short_date(last['Date'])} {last['Time']}"
+            date = _short_date(last["Date"])
+            when = f"{date} {last['Time']}"
             cols = [
                 f"{stock.name:<5}",
                 f"{len(trades):>6}",

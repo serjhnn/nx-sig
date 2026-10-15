@@ -22,9 +22,8 @@ and the docs.
 
 - ~~**Reorganise the shell commands** as
   `<action> <object>` (`ls ladders`, `add trade ...`)~~
-  (done), see [CLI_BLUEPRINT.md](CLI_BLUEPRINT.md).
-  Still open: step 5, a `COMMANDS.md` generated from
-  the help texts
+  (done, all commands in [COMMANDS.md](COMMANDS.md)),
+  see [CLI_BLUEPRINT.md](CLI_BLUEPRINT.md)
 - Delete `./migrate_data` once every device has run
   it
 - **Background tasks**: ~~`run`, `stop`, `ls tasks`,

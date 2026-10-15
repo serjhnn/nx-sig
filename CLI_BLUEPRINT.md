@@ -1,8 +1,8 @@
 # CLI blueprint
 
 The plan for reorganising the `nxshell` commands.
-Steps 1 to 4 are done, step 5 (`COMMANDS.md`) is
-still open.
+All five steps are done; the open questions at the
+end are for later.
 
 ## Why
 
@@ -348,7 +348,9 @@ place.
 5. **Generate `COMMANDS.md`** from the docstrings with a
    small `scripts/gen_docs.py`. The README keeps a short
    overview and links to it. `check_style.py` warns
-   when `COMMANDS.md` is out of date.
+   when `COMMANDS.md` is out of date. (done) It fails
+   then, like for a too long line, so the pre-commit
+   check stops the commit.
 
 ## Tests
 

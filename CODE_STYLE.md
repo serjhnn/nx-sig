@@ -104,6 +104,11 @@ so fix what `check_style.py` still reports by hand.
       """
   ```
 
+  `COMMANDS.md` is made from the same texts: after
+  changing one, run `python scripts/gen_docs.py`
+  (`check_style.py` fails while `COMMANDS.md` is out
+  of date).
+
 ## Names
 
 - `snake_case` for functions and variables,
