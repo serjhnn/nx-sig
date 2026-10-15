@@ -9,6 +9,10 @@
 # and nothing is sent. every printed line is also
 # checked to fit WIDTH.
 #
+# the fakes replace the engines (trade_engine, ladder,
+# subprocess, the .env keys), not names inside the
+# shell, so they work wherever the shell code lives.
+#
 # the tests pin down what the commands print now, so a
 # change of the shell (see CLI_BLUEPRINT.md) shows what
 # it changes.
@@ -29,6 +33,7 @@ os.environ["NO_COLOR"] = "1"
 import commands
 import ladder
 import storage
+import trade_engine
 from commands import WIDTH, NxSigShell
 
 FAKE_PID = 4242
@@ -45,17 +50,21 @@ class ShellTest(unittest.TestCase):
         self.running = set()
         # what ./mtsig was called with
         self.mtsig_calls = []
-        self.mtsig_pid = None
-        fakes = {
-            "get_latest_prices": self._fake_prices,
-            "telegram_configured": lambda: True,
-            "mtsig_pid_get": lambda: self.mtsig_pid,
-        }
         self._patches = [
-            mock.patch.object(commands, name, fake)
-            for name, fake in fakes.items()
-        ]
-        self._patches += [
+            # the API keys and the request
+            mock.patch.object(
+                trade_engine, "_headers", lambda: {}
+            ),
+            mock.patch.object(
+                trade_engine,
+                "_latest_prices",
+                lambda headers: dict(self.prices),
+            ),
+            # Telegram is set up, but never called
+            mock.patch.dict(
+                os.environ,
+                {"TOKEN": "test", "CHAT_ID": "test"},
+            ),
             mock.patch.object(
                 ladder, "start", self._fake_start
             ),
@@ -84,9 +93,6 @@ class ShellTest(unittest.TestCase):
         self._tmp.cleanup()
 
     # ---------------- fakes ----------------
-
-    def _fake_prices(self):
-        return dict(self.prices)
 
     def _fake_start(self, ladder_id):
         if storage.ladder_get(ladder_id) is None:
@@ -320,7 +326,7 @@ class ShellTest(unittest.TestCase):
             raise KeyError("APCA_API_KEY_ID")
 
         with mock.patch.object(
-            commands, "get_latest_prices", missing_key
+            trade_engine, "_headers", missing_key
         ):
             out = self.lines("ls")
         self.assertEqual(
@@ -643,9 +649,8 @@ class ShellTest(unittest.TestCase):
                 "error: no ladder 3, see 'ls ladder'",
             ],
         )
-        with mock.patch.object(
-            commands, "telegram_configured", lambda: False
-        ):
+        with mock.patch.dict(os.environ):
+            del os.environ["TOKEN"]
             self.assertEqual(
                 self.lines("run ladder SOXL up 5 100"),
                 [
@@ -834,7 +839,11 @@ class ShellTest(unittest.TestCase):
                 "state": "waiting",
             },
         )
-        self.mtsig_pid = 777
+        # the pid file of ./mtsig start
+        with open(
+            os.path.join(storage.DB_DIR, "mtsig.pid"), "w"
+        ) as f:
+            f.write("777\n")
         storage.watcher_status_set(
             {
                 "pid": 777,
