@@ -802,7 +802,8 @@ class NxSigShell(cmd.Cmd):
             replaces the stock's older base buy
         bb ls
             the base buys in config order, with
-            the current price of each stock
+            the current price of each stock and its
+            change % from the buying price
         bb rm <stock>
             delete the base buy of <stock>, after
             confirmation
@@ -889,6 +890,7 @@ class NxSigShell(cmd.Cmd):
             f"{'Qty':>4}",
             f"{'Buy':>8}",
             f"{'Price':>8}",
+            f"{'Change %':>8}",
         ]
         if color:
             header_cols = [
@@ -907,11 +909,18 @@ class NxSigShell(cmd.Cmd):
             name = f"{b['Stock']:<5.5}"
             qty = f"{b['Count']:>4}"
             buy = f"{b['Price']:>8.2f}"
-            price = (
-                f"{current:>8.2f}"
-                if current is not None
-                else f"{'-':>8}"
-            )
+            price = f"{'-':>8}"
+            change = f"{'-':>8}"
+            if current is not None:
+                price = f"{current:>8.2f}"
+                # how far the current price is from the
+                # buying price
+                pct = (
+                    (current - b["Price"])
+                    / b["Price"]
+                    * 100
+                )
+                change = f"{pct:>+7.2f}%"
             if color:
                 # the current price is green above the
                 # buying price and red below it
@@ -927,7 +936,12 @@ class NxSigShell(cmd.Cmd):
                 qty = f"{COUNT_COLOR}{qty}{RESET}"
                 buy = f"{PRICE_COLOR}{buy}{RESET}"
                 price = f"{price_color}{price}{RESET}"
-            print(column_sep.join([name, qty, buy, price]))
+                change = f"{price_color}{change}{RESET}"
+            print(
+                column_sep.join(
+                    [name, qty, buy, price, change]
+                )
+            )
         print()
 
     def _base_buy_rm(self, args):

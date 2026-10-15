@@ -96,7 +96,7 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 | `xtop [sec]` | live gain/loss of the stocks you hold (quantity, average price, current price, gain, gain %, total), updated every 5 (or `sec`) seconds, Ctrl+C to leave; sends a Telegram alert when a stock's gain reaches `gain_alert` or `gain_alert_pct` |
 | `rules`, `rules add <rule>`, `rules delete <id>` | your personal trading rules |
 | `bb add <stock> price <price> count <count>` | save a stock's base buy: the last price you bought it at and how many, e.g. `bb add MRVU price 100 count 10`; one per stock, a new one replaces the old (`bb` is short for base buy) |
-| `bb ls` | the base buys in `indices` order, laid out like `xtop` (name, quantity, buying price, current price), the current price green above the buying price and red below |
+| `bb ls` | the base buys in `indices` order, laid out like `xtop` (name, quantity, buying price, current price, change % from the buying price), green above the buying price and red below |
 | `bb rm <stock>` | delete a stock's base buy after confirmation |
 | `run ladder <stock> <down\|up> <step> <price>` | save a new ladder and start it in the background: it sends a Telegram message each time the price moves another `step` down (or up) from `price`, e.g. `run ladder SOXL down 10 100` at 90, 80, 70, ... |
 | `run ladder <id>` | start a saved ladder again, e.g. after a restart |
