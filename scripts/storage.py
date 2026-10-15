@@ -41,6 +41,11 @@
 #       save the last level a ladder notified
 #   ladder_delete(ladder_id)
 #       delete a saved ladder and its heartbeat
+#   base_buys_get_all()
+#   base_buy_add(stock_name, price, count)
+#   base_buy_delete(base_buy_id)
+#       base buys (the last buying price you keep for a
+#       stock) in base_buy.csv
 #   ladder_status_get(ladder_id),
 #   ladder_status_set(ladder_id, status)
 #       heartbeat of a ladder process (dict), kept in
@@ -92,6 +97,7 @@ FIELDNAMES = [
     "Price",
 ]
 TOTAL_FIELDNAMES = ["Type", "Count", "Price"]
+BASE_BUY_FIELDNAMES = ["Id", "Stock", "Price", "Count"]
 LADDER_FIELDNAMES = [
     "Id",
     "Stock",
@@ -536,6 +542,75 @@ def mtsig_pid_get():
             return int(f.read().strip())
     except (OSError, ValueError):
         return None
+
+
+def base_buys_get_all():
+    """
+    return the base buys of base_buy.csv as dicts: Id
+    (int), Stock (name), Price (float), Count (int)
+    """
+    path = _base_buy_path()
+    if not os.path.exists(path):
+        return []
+    with open(path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    for row in rows:
+        row["Id"] = int(row["Id"])
+        row["Price"] = float(row["Price"])
+        row["Count"] = int(row["Count"])
+    return rows
+
+
+@_locked
+def base_buy_add(stock_name, price, count):
+    """
+    save a base buy to base_buy.csv and return its Id;
+    Ids stay stable after deletes, like transaction
+    Indexes
+    """
+    rows = base_buys_get_all()
+    base_buy_id = (
+        max((r["Id"] for r in rows), default=0) + 1
+    )
+    rows.append(
+        {
+            "Id": base_buy_id,
+            "Stock": stock_name,
+            "Price": price,
+            "Count": count,
+        }
+    )
+    _base_buys_save(rows)
+    return base_buy_id
+
+
+@_locked
+def base_buy_delete(base_buy_id):
+    """
+    delete the base buy with this Id, return the deleted
+    row or None if there is no such Id
+    """
+    rows = base_buys_get_all()
+    deleted = next(
+        (r for r in rows if r["Id"] == base_buy_id), None
+    )
+    if deleted is None:
+        return None
+    _base_buys_save(
+        [r for r in rows if r["Id"] != base_buy_id]
+    )
+    return deleted
+
+
+def _base_buys_save(rows):
+    os.makedirs(DB_DIR, exist_ok=True)
+    _write_csv_atomic(
+        _base_buy_path(), BASE_BUY_FIELDNAMES, rows
+    )
+
+
+def _base_buy_path():
+    return os.path.join(DB_DIR, "base_buy.csv")
 
 
 def ladders_get_all():
@@ -1036,6 +1111,37 @@ if __name__ == "__main__":
             )
             self.assertEqual(
                 watcher_status_get()["state"], "waiting"
+            )
+
+        def test_base_buys(self):
+            self.assertEqual(base_buys_get_all(), [])
+            self.assertEqual(
+                base_buy_add("MRVU", 100.0, 10), 1
+            )
+            self.assertEqual(
+                base_buy_add("SOXL", 20.5, 3), 2
+            )
+            self.assertEqual(
+                base_buys_get_all()[1],
+                {
+                    "Id": 2,
+                    "Stock": "SOXL",
+                    "Price": 20.5,
+                    "Count": 3,
+                },
+            )
+
+            self.assertEqual(
+                base_buy_delete(1)["Stock"], "MRVU"
+            )
+            self.assertIsNone(base_buy_delete(1))
+            # Ids stay stable: the next one is not 2
+            self.assertEqual(
+                base_buy_add("TSMX", 50.0, 1), 3
+            )
+            self.assertEqual(
+                [b["Id"] for b in base_buys_get_all()],
+                [2, 3],
             )
 
         def test_ladders(self):

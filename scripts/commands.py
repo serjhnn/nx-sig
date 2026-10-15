@@ -13,6 +13,10 @@
 #                   updated every 5 or <sec> seconds
 #   rules [add <rule>/delete <id>]
 #                   personal rules
+#   bb add <stock> price <price> count <count>
+#   bb ls, bb rm <id>
+#                   base buys: your last buying price
+#                   of a stock, with the current price
 #   background tasks, each its own process:
 #   run ladder <stock> <down|up> <step> <price>
 #                     save and start a new ladder
@@ -51,6 +55,9 @@ from storage import (
     rules_add,
     rules_delete,
     rules_get_all,
+    base_buy_add,
+    base_buy_delete,
+    base_buys_get_all,
     ladder_get,
     ladder_status_get,
     ladders_get_all,
@@ -150,6 +157,12 @@ commands:
       show personal rules
   rules add <rule>, rules delete <id>
       add or delete a personal rule
+  bb add <stock> price <price> count <count>
+      save a base buy (bb): a last buying price
+  bb ls
+      base buys with the current price
+  bb rm <id>
+      delete a base buy
   run ladder <stock> <down|up> <step> <price>
       price-step alerts in the background
   run ladder <id>, run mail-broker
@@ -774,6 +787,206 @@ class NxSigShell(cmd.Cmd):
 
     def complete_rules(self, text, line, begidx, endidx):
         return _complete(text, line, [["add", "delete"]])
+
+    # ---------------- base buy ----------------
+    # base buys are the last buying prices you keep for
+    # a stock (base_buy.csv), they don't change the
+    # transactions or totals
+
+    def do_bb(self, arg):
+        """
+        bb add <stock> price <price> count <count>
+            save a base buy: the last price you
+            bought <stock> at and how many,
+            e.g. 'bb add MRVU price 100 count 10'
+        bb ls
+            the base buys with their ids and the
+            current price of each stock
+        bb rm <id>
+            delete the base buy with the given id,
+            after confirmation
+        bb is short for base buy
+        """
+        args = arg.split()
+        if not args:
+            self.do_help("bb")
+            return
+        action, rest = args[0].lower(), args[1:]
+        if action == "add":
+            self._base_buy_add(rest)
+        elif action == "ls":
+            if rest:
+                _print_wrapped("usage: bb ls")
+                return
+            self._base_buys_show()
+        elif action == "rm":
+            self._base_buy_rm(rest)
+        else:
+            _print_error(
+                f"unknown action '{args[0]}' for bb, "
+                "expected add/ls/rm"
+            )
+
+    def _base_buy_add(self, args):
+        usage = (
+            "usage: bb add <stock> price <price> "
+            "count <count>"
+        )
+        # the keywords say which number is which, so
+        # their order doesn't matter
+        if len(args) != 5:
+            _print_wrapped(usage)
+            return
+        values = {
+            args[1].lower(): args[2],
+            args[3].lower(): args[4],
+        }
+        if set(values) != {"price", "count"}:
+            _print_wrapped(usage)
+            return
+        try:
+            stock = _parse_stock(args[0])
+        except ValueError as e:
+            _print_error(f"error: {e}")
+            return
+        try:
+            price = float(values["price"])
+            count = int(values["count"])
+        except ValueError:
+            _print_error(
+                "error: price must be a number and "
+                "count a whole number"
+            )
+            return
+        if price <= 0 or count <= 0:
+            _print_error(
+                "error: price and count must be positive"
+            )
+            return
+        base_buy_id = base_buy_add(stock.name, price, count)
+        _print_wrapped(
+            f"added base buy {base_buy_id}: {count} "
+            f"{stock.name} at {price:g}"
+        )
+
+    def _base_buys_show(self):
+        base_buys = base_buys_get_all()
+        if not base_buys:
+            _print_wrapped(
+                "no base buys yet, add one with 'bb add "
+                "<stock> price <price> count <count>'"
+            )
+            return
+        prices = _fetch_prices()
+
+        color = _supports_color()
+        column_sep = _column_sep(color)
+        header_cols = [
+            f"{'Id':>3}",
+            f"{'Name':<5}",
+            f"{'Buy Price':>9}",
+            f"{'Count':>5}",
+            f"{'Price':>9}",
+        ]
+        if color:
+            header_cols = [
+                f"{DIM}{col}{RESET}" for col in header_cols
+            ]
+        separator = "-" * WIDTH
+        print()
+        print(column_sep.join(header_cols))
+        print(
+            f"{DIM}{separator}{RESET}"
+            if color
+            else separator
+        )
+        for b in base_buys:
+            current = prices.get(b["Stock"])
+            cols = [
+                f"{b['Id']:>3}",
+                f"{b['Stock']:<5.5}",
+                f"{b['Price']:>9.2f}",
+                f"{b['Count']:>5}",
+                (
+                    f"{current:>9.2f}"
+                    if current is not None
+                    else f"{'-':>9}"
+                ),
+            ]
+            if color:
+                # the current price is green above the
+                # buying price and red below it
+                current_color = (
+                    _gain_color(current - b["Price"])
+                    if current is not None
+                    else DIM
+                )
+                cols = [
+                    f"{DIM}{cols[0]}{RESET}",
+                    f"{BOLD}{TOTAL_STOCK_COLOR}"
+                    f"{cols[1]}{RESET}",
+                    f"{PRICE_COLOR}{cols[2]}{RESET}",
+                    f"{COUNT_COLOR}{cols[3]}{RESET}",
+                    f"{current_color}{cols[4]}{RESET}",
+                ]
+            print(column_sep.join(cols))
+        print()
+
+    def _base_buy_rm(self, args):
+        base_buy_id = (
+            _parse_id(args[0]) if len(args) == 1 else None
+        )
+        if base_buy_id is None:
+            _print_wrapped("usage: bb rm <id>")
+            return
+        found = next(
+            (
+                b
+                for b in base_buys_get_all()
+                if b["Id"] == base_buy_id
+            ),
+            None,
+        )
+        if found is None:
+            _print_error(
+                f"error: no base buy {base_buy_id}, "
+                "see 'bb ls'"
+            )
+            return
+        try:
+            answer = input(
+                f"delete base buy {base_buy_id}: "
+                f"{found['Count']} {found['Stock']} at "
+                f"{found['Price']:g}? [y/N] "
+            )
+        except (EOFError, KeyboardInterrupt):
+            # Ctrl+D / Ctrl+C at the prompt cancels instead
+            # of leaving the shell
+            answer = ""
+            print()
+        if answer.strip().lower() not in ("y", "yes"):
+            _print_wrapped("cancelled")
+            return
+        base_buy_delete(base_buy_id)
+        _print_wrapped(f"deleted base buy {base_buy_id}")
+
+    def complete_bb(self, text, line, begidx, endidx):
+        options = [["add", "ls", "rm"]]
+        args = line.split()
+        action = args[1].lower() if len(args) > 1 else ""
+        if action == "add":
+            keywords = ["price", "count"]
+            options += [
+                [s.name for s in Stock],
+                keywords,
+                [],
+                keywords,
+            ]
+        elif action == "rm":
+            options.append(
+                [str(b["Id"]) for b in base_buys_get_all()]
+            )
+        return _complete(text, line, options)
 
     # ---------------- background tasks ----------------
     # every task runs as its own process, so it keeps

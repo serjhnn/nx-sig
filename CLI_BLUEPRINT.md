@@ -61,6 +61,12 @@ so the two can't be swapped by mistake.
 | `rules add <rule>` | `rules add <rule>` |
 | `rules delete <id>` | `rules rm <id>` |
 
+### Base buys (`bb`)
+
+Already in the new form, nothing to rename:
+`bb add <stock> price <price> count <count>`,
+`bb ls`, `bb rm <id>`. A bare `bb` shows its help.
+
 ### Ladders (`ladder`)
 
 | Now | New |
@@ -110,6 +116,7 @@ scripts/
                     (_parse_stock, _parse_id, ...)
     tr_cmd.py       tr
     rules_cmd.py    rules
+    bb_cmd.py       bb
     ladder_cmd.py   ladder (the shell side;
                     the engine stays scripts/ladder.py)
     mail_cmd.py     mail-broker
