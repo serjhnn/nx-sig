@@ -75,6 +75,17 @@ see some of it. Say so, and let alerts say less:
    config switch for 'SOXL alert, see nX-sig' without
    the amounts, and a self-hosted ntfy as an
    alternative to Telegram.
+3. **Local notifications through Termux:API**: the
+   ladders, xtop and the mail watcher post an Android
+   notification with `termux-notification` (title,
+   text, `--id` per ladder so a new alert replaces the
+   old one, sound, vibration, maybe a 'stop' button).
+   Nothing leaves the phone, so it is the most private
+   alert. Needs the Termux:API app (from the same
+   source as Termux) and `pkg install termux-api`;
+   without them, or when the task runs on the PC,
+   fall back to Telegram. A config setting chooses:
+   local, Telegram or both.
 
 ## Later: open it up for other people
 
@@ -118,6 +129,9 @@ for your own use first. In this order:
 - Metrics (`scripts/metrics.py`): statistics of your
   actions, once enough data is collected
 - `strategy` commands
-- Notifications to a Garmin watch
+- Notifications to a Garmin watch: Garmin Connect
+  mirrors Android notifications to the watch, so the
+  local notifications (Privacy, item 3) may already be
+  enough, without a watch app
   (see `scripts/watch_notify.py`)
 - Send a notification when the watcher records an order
