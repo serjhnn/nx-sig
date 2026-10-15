@@ -5,14 +5,14 @@
 #   xtop [sec]  live gain/loss with Telegram alerts
 #   ps          running background tasks
 #
-# OverviewCmd is mixed into NxSigShell
+# OverviewCmd is mixed into NxSigShell: these are
+# commands of their own, not kinds of data
 
 import queue
 import sys
 import threading
 from datetime import datetime
 
-from storage import ladders_get_all
 from trade_engine import config, start_polling
 from telegram_notify import (
     is_configured as telegram_configured,
@@ -38,11 +38,7 @@ from shell.ui import (
     _print_wrapped,
     _supports_color,
 )
-from shell.ladder_cmd import _ladder_task
-from shell.mail_cmd import (
-    _mail_broker_task,
-    _print_watcher_status,
-)
+from shell.mail_cmd import _print_watcher_status
 
 
 class OverviewCmd:
@@ -247,10 +243,13 @@ class OverviewCmd:
         if arg.strip():
             _print_wrapped("usage: ps")
             return
-        tasks = [_mail_broker_task()] + [
-            _ladder_task(l) for l in ladders_get_all()
+        # every module with background tasks adds its
+        # rows
+        tasks = [
+            task
+            for module in self.objects.values()
+            for task in module.tasks()
         ]
-        tasks = [t for t in tasks if t]
         if not tasks:
             _print_wrapped("no background tasks running")
             return

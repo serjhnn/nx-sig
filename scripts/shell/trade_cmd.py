@@ -3,8 +3,9 @@
 #   tr add <stock> <buy|sell> <count> <price>
 #   tr get <stock>, tr del-last <stock>
 #
-# TradeCmd is mixed into NxSigShell; 'ls <stock>' in
-# commands.py shows the same table as 'tr get'
+# TradeCommands implements add, ls and rm of trades;
+# the tr and 'ls <stock>' commands (old_commands.py)
+# call them
 
 from storage import (
     Stock,
@@ -14,6 +15,7 @@ from storage import (
     transactions_get_all,
     transactions_total_get,
 )
+from shell.interface import Commands
 from shell.ui import (
     BOLD,
     BUY_COLOR,
@@ -27,7 +29,6 @@ from shell.ui import (
     TOTAL_STOCK_COLOR,
     WIDTH,
     _column_sep,
-    _complete,
     _confirm,
     _parse_stock,
     _parse_transaction_type,
@@ -38,46 +39,32 @@ from shell.ui import (
 )
 
 
-class TradeCmd:
-    # ---------------- transactions ----------------
+class TradeCommands(Commands):
+    name = "trade"
+    plural = "trades"
+    order = 20
 
-    def do_transactions(self, arg):
-        """
-        tr add <stock> <buy|sell> <count> <price>
-            record a transaction,
-            e.g. 'tr add SOXL buy 10 20.5'
-        tr get <stock>
-            show all transactions and the current
-            total for a stock
-        tr del-last <stock>
-            show the last transaction of a stock
-            and delete it after confirmation,
-            e.g. 'tr del-last SOXL'
-        tr is short for transactions
-        """
-        args = arg.split()
-        if not args:
-            _print_wrapped(
-                "usage: tr [add/get/del-last] ..."
-            )
-            return
+    def add(self, arg):
+        """record a transaction"""
+        self._transactions_add_one(arg.split())
 
-        sub, rest = args[0].lower(), args[1:]
-        if sub == "add":
-            self._transactions_add_one(rest)
-        elif sub == "get":
-            self._transaction_get(rest)
-        elif sub == "del-last":
-            self._transactions_delete_last(rest)
-        # 'tr del <stock> <index>' is disabled in favour of
-        # 'tr del-last <stock>'
-        # elif sub == "del":
-        #     self._transactions_delete(rest)
-        else:
-            _print_error(
-                f"unknown subcommand '{sub}', expected "
-                "add/get/del-last"
+    def ls(self, arg):
+        """the transactions and total of a stock"""
+        self._transaction_get(arg.split())
+
+    def rm(self, arg):
+        """delete the last transaction of a stock"""
+        self._transactions_delete_last(arg.split())
+
+    def complete(self, action, args):
+        options = [[s.name for s in Stock]]
+        # only 'add' takes a transaction type after the
+        # stock name
+        if action == "add":
+            options.append(
+                [t.name.lower() for t in TransactionType]
             )
+        return options
 
     def _transactions_add_one(self, args):
         if len(args) != 4:
@@ -215,25 +202,6 @@ class TradeCmd:
         )
         _print_total(stock, color)
         print()
-
-    def complete_transactions(
-        self, text, line, begidx, endidx
-    ):
-        options = [
-            ["add", "get", "del-last"],
-            [s.name for s in Stock],
-        ]
-        # only 'add' takes a transaction type after the
-        # stock name
-        args = line.split()
-        if len(args) > 1 and args[1].lower() == "add":
-            options.append(
-                [t.name.lower() for t in TransactionType]
-            )
-        return _complete(text, line, options)
-
-    do_tr = do_transactions
-    complete_tr = complete_transactions
 
 
 def _print_transactions_header(color):

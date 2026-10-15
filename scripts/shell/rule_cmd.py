@@ -2,68 +2,55 @@
 #
 #   rules, rules add <rule>, rules delete <id>
 #
-# RuleCmd is mixed into NxSigShell
+# RuleCommands implements ls, add and rm of rules; the
+# rules command (old_commands.py) calls them
 
 import textwrap
 
 from storage import rules_add, rules_delete, rules_get_all
+from shell.interface import Commands
 from shell.ui import (
     DIM,
     RESET,
     RULE_COLOR,
     WIDTH,
     _column_sep,
-    _complete,
     _print_error,
     _print_wrapped,
     _supports_color,
 )
 
 
-class RuleCmd:
-    # ---------------- personal rules ----------------
+class RuleCommands(Commands):
+    name = "rule"
+    plural = "rules"
+    order = 30
 
-    def do_rules(self, arg):
-        """
-        rules
-            show all personal rules
-        rules add <rule>
-            add a rule,
-            e.g. 'rules add never buy on a gap up'
-        rules delete <id>
-            delete the rule with the given Id,
-            the remaining rules are renumbered
-        """
-        args = arg.split(maxsplit=1)
-        if not args:
-            self._rules_show()
+    def ls(self, arg):
+        """the personal rules"""
+        self._rules_show()
+
+    def add(self, arg):
+        """save a rule, the rest of the line"""
+        rest = arg.strip()
+        if not rest:
+            _print_wrapped("usage: rules add <rule>")
             return
+        rule_id = rules_add(rest)
+        _print_wrapped(f"added rule {rule_id}")
 
-        sub = args[0].lower()
-        rest = args[1].strip() if len(args) > 1 else ""
-        if sub == "add":
-            if not rest:
-                _print_wrapped("usage: rules add <rule>")
-                return
-            rule_id = rules_add(rest)
-            _print_wrapped(f"added rule {rule_id}")
-        elif sub == "delete":
-            if not rest.isdigit():
-                _print_wrapped("usage: rules delete <id>")
-                return
-            deleted = rules_delete(int(rest))
-            if deleted is None:
-                _print_error(
-                    f"error: no rule with Id {rest}"
-                )
-            else:
-                _print_wrapped(
-                    f"deleted rule {rest}: {deleted}"
-                )
+    def rm(self, arg):
+        """delete the rule with this Id"""
+        rest = arg.strip()
+        if not rest.isdigit():
+            _print_wrapped("usage: rules delete <id>")
+            return
+        deleted = rules_delete(int(rest))
+        if deleted is None:
+            _print_error(f"error: no rule with Id {rest}")
         else:
-            _print_error(
-                f"unknown subcommand '{sub}', expected "
-                "add/delete"
+            _print_wrapped(
+                f"deleted rule {rest}: {deleted}"
             )
 
     def _rules_show(self):
@@ -110,6 +97,3 @@ class RuleCmd:
                     line = f"{RULE_COLOR}{line}{RESET}"
                 print(column_sep.join([rule_id, line]))
         print()
-
-    def complete_rules(self, text, line, begidx, endidx):
-        return _complete(text, line, [["add", "delete"]])

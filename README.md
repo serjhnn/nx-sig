@@ -236,6 +236,8 @@ nx-sig/
 └── scripts/
     ├── commands.py       the shell: puts the command modules together
     ├── shell/            the shell's commands, one module per feature
+    │   ├── interface.py      Commands: what every *_cmd.py implements
+    │   ├── old_commands.py   the commands as typed now (until step 4)
     │   ├── ui.py             colors, WIDTH, printing, parsers
     │   ├── trade_cmd.py      tr (transactions)
     │   ├── stocks_cmd.py     ls (held stocks)

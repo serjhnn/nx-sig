@@ -917,6 +917,39 @@ class ShellTest(unittest.TestCase):
         for line in ("exit", "quit", "q"):
             self.assertTrue(self.shell.onecmd(line))
 
+    # ---------------- the command modules ----------------
+
+    def test_collected_modules(self):
+        self.assertEqual(
+            list(self.shell.objects),
+            [
+                "stocks",
+                "trade",
+                "rule",
+                "basetrade",
+                "mail-broker",
+                "ladder",
+            ],
+        )
+        data = ["trade", "rule", "basetrade", "ladder"]
+        tasks = ["mail-broker", "ladder"]
+        self.assertEqual(
+            self.shell.actions,
+            {
+                "ls": ["stocks"] + data,
+                "add": data,
+                "rm": data,
+                "run": tasks,
+                "stop": tasks,
+            },
+        )
+        trade = self.shell.objects["trade"]
+        self.assertEqual(
+            trade.actions(), ["ls", "add", "rm"]
+        )
+        self.assertFalse(trade.supports("run"))
+        self.assertFalse(trade.supports("complete"))
+
     # ---------------- completion ----------------
 
     def test_complete(self):

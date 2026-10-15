@@ -5,14 +5,16 @@
 #   run ladder <id>, stop ladder <id>, rm ladder <id>
 #   ls ladder
 #
-# LadderCmd is mixed into NxSigShell; the run, stop, rm
-# and ls commands in commands.py call its methods.
-# _ladder_task(saved) is the ladder's row in 'ps'
+# LadderCommands implements add, run, stop, rm and ls of
+# ladders; the run, stop, rm and ls commands
+# (old_commands.py) call them. its tasks() are the
+# ladders' rows in 'ps'
 
 from datetime import datetime
 
 import ladder
 from storage import (
+    Stock,
     ladder_get,
     ladder_status_get,
     ladders_get_all,
@@ -20,6 +22,7 @@ from storage import (
 from telegram_notify import (
     is_configured as telegram_configured,
 )
+from shell.interface import Commands
 from shell.ui import (
     BOLD,
     BUY_COLOR,
@@ -38,72 +41,42 @@ from shell.ui import (
     _supports_color,
 )
 
+RUN_USAGE = (
+    "usage: run ladder <stock> <down|up> <step> "
+    "<price>, or run ladder <id>"
+)
 
-class LadderCmd:
-    def _run_ladder(self, args):
-        usage = (
-            "usage: run ladder <stock> <down|up> <step> "
-            "<price>, or run ladder <id>"
-        )
+
+class LadderCommands(Commands):
+    name = "ladder"
+    plural = "ladders"
+    order = 60
+
+    def add(self, arg):
+        """save a new ladder without starting it"""
+        # step 4 gives it its own syntax, 'add ladder'
+        self._save(arg.split())
+
+    def run(self, arg):
+        """start a saved ladder by its id, or save a
+        new one and start it"""
+        args = arg.split()
         if len(args) == 1:
             ladder_id = _parse_id(args[0])
             if ladder_id is None:
-                _print_wrapped(usage)
+                _print_wrapped(RUN_USAGE)
                 return
             self._start_ladder(ladder_id)
             return
-        if len(args) != 4:
-            _print_wrapped(usage)
-            return
-        try:
-            stock = _parse_stock(args[0])
-            direction = _parse_direction(args[1])
-        except ValueError as e:
-            _print_error(f"error: {e}")
-            return
-        try:
-            step = float(args[2])
-            price = float(args[3])
-        except ValueError:
-            _print_error(
-                "error: step and price must be numbers"
-            )
-            return
-        if not telegram_configured():
-            _print_error(
-                "error: Telegram isn't set up, add TOKEN "
-                "and CHAT_ID to .env"
-            )
-            return
-        try:
-            ladder_id = ladder.create(
-                stock.name, direction, step, price
-            )
-        except ladder.LadderError as e:
-            _print_error(f"error: {e}")
-            return
-        _print_wrapped(
-            f"ladder {ladder_id} saved: {stock.name} "
-            f"{direction} every {step:g} from {price:g}"
-        )
-        self._start_ladder(ladder_id)
+        ladder_id = self._save(args)
+        if ladder_id is not None:
+            self._start_ladder(ladder_id)
 
-    def _start_ladder(self, ladder_id):
-        _print_wrapped(f"starting ladder {ladder_id}...")
-        try:
-            pid = ladder.start(ladder_id)
-        except ladder.LadderError as e:
-            _print_error(f"error: {e}")
-            return
-        saved = ladder_get(ladder_id)
-        _print_wrapped(
-            f"ladder {ladder_id} started (pid {pid}), "
-            f"next alert at {ladder.next_level(saved):g}"
-        )
-
-    def _stop_ladder(self, rest):
+    def stop(self, arg):
+        """stop the process of a running ladder"""
+        args = arg.split()
         ladder_id = (
-            _parse_id(rest[0]) if len(rest) == 1 else None
+            _parse_id(args[0]) if len(args) == 1 else None
         )
         if ladder_id is None:
             _print_wrapped("usage: stop ladder <id>")
@@ -119,13 +92,12 @@ class LadderCmd:
             else f"ladder {ladder_id} is not running"
         )
 
-    def _rm_ladder(self, arg):
+    def rm(self, arg):
+        """delete a saved ladder, a running one is
+        stopped first"""
         args = arg.split()
         ladder_id = (
-            _parse_id(args[1])
-            if len(args) == 2
-            and args[0].lower() == "ladder"
-            else None
+            _parse_id(args[0]) if len(args) == 1 else None
         )
         if ladder_id is None:
             _print_wrapped("usage: rm ladder <id>")
@@ -158,7 +130,11 @@ class LadderCmd:
             + "deleted"
         )
 
-    def _ladders_list(self):
+    def ls(self, arg):
+        """the saved ladders"""
+        if arg.split():
+            _print_wrapped("usage: ls ladder")
+            return
         ladders = ladders_get_all()
         if not ladders:
             _print_wrapped(
@@ -166,6 +142,74 @@ class LadderCmd:
             )
             return
         _print_ladders(ladders)
+
+    def complete(self, action, args):
+        if action == "run":
+            # only a new ladder takes a stock and a
+            # direction
+            return [[s.name for s in Stock], ["down", "up"]]
+        if action == "stop":
+            # the ids of the running ladders
+            return [self._ladder_ids(running=True)]
+        if action == "rm":
+            return [self._ladder_ids()]
+        return []
+
+    def tasks(self):
+        tasks = [_ladder_task(l) for l in ladders_get_all()]
+        return [t for t in tasks if t]
+
+    def _save(self, args):
+        """check and save a new ladder, return its Id
+        or None"""
+        if len(args) != 4:
+            _print_wrapped(RUN_USAGE)
+            return None
+        try:
+            stock = _parse_stock(args[0])
+            direction = _parse_direction(args[1])
+        except ValueError as e:
+            _print_error(f"error: {e}")
+            return None
+        try:
+            step = float(args[2])
+            price = float(args[3])
+        except ValueError:
+            _print_error(
+                "error: step and price must be numbers"
+            )
+            return None
+        if not telegram_configured():
+            _print_error(
+                "error: Telegram isn't set up, add TOKEN "
+                "and CHAT_ID to .env"
+            )
+            return None
+        try:
+            ladder_id = ladder.create(
+                stock.name, direction, step, price
+            )
+        except ladder.LadderError as e:
+            _print_error(f"error: {e}")
+            return None
+        _print_wrapped(
+            f"ladder {ladder_id} saved: {stock.name} "
+            f"{direction} every {step:g} from {price:g}"
+        )
+        return ladder_id
+
+    def _start_ladder(self, ladder_id):
+        _print_wrapped(f"starting ladder {ladder_id}...")
+        try:
+            pid = ladder.start(ladder_id)
+        except ladder.LadderError as e:
+            _print_error(f"error: {e}")
+            return
+        saved = ladder_get(ladder_id)
+        _print_wrapped(
+            f"ladder {ladder_id} started (pid {pid}), "
+            f"next alert at {ladder.next_level(saved):g}"
+        )
 
     def _ladder_ids(self, running=False):
         """the ids of the saved ladders, or of the

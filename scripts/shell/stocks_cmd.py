@@ -1,7 +1,9 @@
 # stocks_cmd: the held stocks, 'ls' without arguments
 #
-# StocksCmd is mixed into NxSigShell; 'ls' in
-# commands.py calls _totals_all()
+# StocksCommands implements ls of the held stocks; 'ls'
+# (old_commands.py) calls it
+
+from shell.interface import Commands
 from shell.ui import (
     BOLD,
     COUNT_COLOR,
@@ -19,7 +21,16 @@ from shell.ui import (
 )
 
 
-class StocksCmd:
+class StocksCommands(Commands):
+    name = "stocks"
+    plural = "stocks"
+    order = 10
+
+    def ls(self, arg):
+        """count, average price, total and growth % of
+        the held stocks"""
+        self._totals_all()
+
     def _totals_all(self):
         totals = _held_positions()
         if not totals:

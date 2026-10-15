@@ -3,7 +3,8 @@
 #   bb add <stock> price <price> count <count>
 #   bb ls, bb rm <stock>
 #
-# BaseTradeCmd is mixed into NxSigShell
+# BaseTradeCommands implements add, ls and rm of base
+# buys; the bb command (old_commands.py) calls them
 
 from storage import (
     Stock,
@@ -11,6 +12,7 @@ from storage import (
     base_buy_set,
     base_buys_get_all,
 )
+from shell.interface import Commands
 from shell.ui import (
     BOLD,
     COUNT_COLOR,
@@ -20,7 +22,6 @@ from shell.ui import (
     TOTAL_STOCK_COLOR,
     WIDTH,
     XTOP_SEP,
-    _complete,
     _confirm,
     _fetch_prices,
     _gain_color,
@@ -31,47 +32,43 @@ from shell.ui import (
 )
 
 
-class BaseTradeCmd:
-    # ---------------- base buy ----------------
+class BaseTradeCommands(Commands):
     # base buys are the last buying prices you keep, one
     # per stock (base_buy.csv); they don't change the
     # transactions or totals
+    name = "basetrade"
+    plural = "basetrades"
+    order = 40
 
-    def do_bb(self, arg):
-        """
-        bb add <stock> price <price> count <count>
-            save the base buy of <stock>: the last
-            price you bought it at and how many,
-            e.g. 'bb add MRVU price 100 count 10';
-            replaces the stock's older base buy
-        bb ls
-            the base buys in config order, with
-            the current price of each stock and its
-            change % from the buying price
-        bb rm <stock>
-            delete the base buy of <stock>, after
-            confirmation
-        bb is short for base buy
-        """
-        args = arg.split()
-        if not args:
-            self.do_help("bb")
+    def add(self, arg):
+        """save the base buy of a stock"""
+        self._base_buy_add(arg.split())
+
+    def ls(self, arg):
+        """the base buys with the current prices"""
+        if arg.split():
+            _print_wrapped("usage: bb ls")
             return
-        action, rest = args[0].lower(), args[1:]
+        self._base_buys_show()
+
+    def rm(self, arg):
+        """delete the base buy of a stock"""
+        self._base_buy_rm(arg.split())
+
+    def complete(self, action, args):
         if action == "add":
-            self._base_buy_add(rest)
-        elif action == "ls":
-            if rest:
-                _print_wrapped("usage: bb ls")
-                return
-            self._base_buys_show()
-        elif action == "rm":
-            self._base_buy_rm(rest)
-        else:
-            _print_error(
-                f"unknown action '{args[0]}' for bb, "
-                "expected add/ls/rm"
-            )
+            keywords = ["price", "count"]
+            return [
+                [s.name for s in Stock],
+                keywords,
+                [],
+                keywords,
+            ]
+        if action == "rm":
+            return [
+                [b["Stock"] for b in base_buys_get_all()]
+            ]
+        return []
 
     def _base_buy_add(self, args):
         usage = (
@@ -217,21 +214,3 @@ class BaseTradeCmd:
             return
         base_buy_delete(name)
         _print_wrapped(f"deleted base buy of {name}")
-
-    def complete_bb(self, text, line, begidx, endidx):
-        options = [["add", "ls", "rm"]]
-        args = line.split()
-        action = args[1].lower() if len(args) > 1 else ""
-        if action == "add":
-            keywords = ["price", "count"]
-            options += [
-                [s.name for s in Stock],
-                keywords,
-                [],
-                keywords,
-            ]
-        elif action == "rm":
-            options.append(
-                [b["Stock"] for b in base_buys_get_all()]
-            )
-        return _complete(text, line, options)

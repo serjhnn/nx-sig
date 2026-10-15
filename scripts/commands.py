@@ -32,13 +32,22 @@
 #                   not implemented yet
 #   help, exit, quit, q
 #
-# the commands live in scripts/shell/, one module per
-# feature; this file puts them together into the shell
+# the commands live in scripts/shell/: every *_cmd.py
+# has a Commands class (shell/interface.py) for one kind
+# of data, collected here at start into
+# NxSigShell.objects; the commands as typed now are in
+# shell/old_commands.py
 
 import cmd
+import glob
+import importlib
 import inspect
+import os
 
-from storage import Stock
+import shell
+from shell.interface import Commands
+from shell.old_commands import OldCommands
+from shell.overview_cmd import OverviewCmd
 from shell.ui import (
     LOGO_COLORS,
     DIM,
@@ -50,13 +59,6 @@ from shell.ui import (
     _print_wrapped,
     _supports_color,
 )
-from shell.base_trade_cmd import BaseTradeCmd
-from shell.ladder_cmd import LadderCmd
-from shell.mail_cmd import _mtsig
-from shell.overview_cmd import OverviewCmd
-from shell.rule_cmd import RuleCmd
-from shell.stocks_cmd import StocksCmd
-from shell.trade_cmd import TradeCmd
 
 LOGO = r"""
          __  __             _
@@ -135,15 +137,27 @@ commands:
 """
 
 
-class NxSigShell(
-    TradeCmd,
-    StocksCmd,
-    OverviewCmd,
-    RuleCmd,
-    BaseTradeCmd,
-    LadderCmd,
-    cmd.Cmd,
-):
+def collect_commands():
+    """the Commands subclasses of every
+    scripts/shell/*_cmd.py, in their order"""
+    folder = os.path.dirname(shell.__file__)
+    found = []
+    for path in sorted(
+        glob.glob(os.path.join(folder, "*_cmd.py"))
+    ):
+        name = os.path.basename(path)[: -len(".py")]
+        module = importlib.import_module(f"shell.{name}")
+        found += [
+            value
+            for value in vars(module).values()
+            if isinstance(value, type)
+            and issubclass(value, Commands)
+            and value.__module__ == module.__name__
+        ]
+    return sorted(found, key=lambda c: c.order)
+
+
+class NxSigShell(OldCommands, OverviewCmd, cmd.Cmd):
     intro = _banner()
     # \001/\002 tell readline the escape codes are
     # zero-width so line editing stays aligned
@@ -152,6 +166,23 @@ class NxSigShell(
         if _supports_color()
         else "nX-sig> "
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # object name -> its module, e.g. "ladder"
+        self.objects = {
+            c.name: c(self) for c in collect_commands()
+        }
+        # action -> the names of the objects that have
+        # it, e.g. "rm" -> ["trade", "rule", ...]
+        self.actions = {
+            action: [
+                name
+                for name, module in self.objects.items()
+                if module.supports(action)
+            ]
+            for action in Commands.ACTIONS
+        }
 
     def preloop(self):
         # keep '-' inside words so 'del-last' completes as
@@ -166,147 +197,6 @@ class NxSigShell(
             )
         except ImportError:
             pass
-
-    # ---------------- ls ----------------
-
-    def do_ls(self, arg):
-        """
-        ls <stock>
-            alias for 'transactions get <stock>'
-        ls
-            show count, average buy price and
-            total price of all stocks held, and
-            growth %: how much the current price
-            is above (or below) the average price
-        ls ladder
-            the saved ladders with their ids, the
-            next level they alert at and whether
-            they run, see 'help run'
-        """
-        args = arg.split()
-        if not args:
-            self._totals_all()
-            return
-        if args[0].lower() == "ladder":
-            if len(args) != 1:
-                _print_wrapped("usage: ls ladder")
-                return
-            self._ladders_list()
-            return
-        self._transaction_get(args)
-
-    def complete_ls(self, text, line, begidx, endidx):
-        return _complete(
-            text,
-            line,
-            [["ladder"] + [s.name for s in Stock]],
-        )
-
-    # ---------------- background tasks ----------------
-    # every task runs as its own process, so it keeps
-    # running when the shell is closed; ladders are in
-    # ladder.py
-
-    def do_run(self, arg):
-        """
-        run ladder <stock> <down|up> <step> <price>
-            save a new ladder and start it as a
-            background process: it sends a Telegram
-            message each time the stock's price
-            moves another <step> down (or up) from
-            <price>, e.g. 'run ladder SOXL down 10
-            100' at 90, 80, 70, ...
-        run ladder <id>
-            start saved ladder <id> again, e.g.
-            after a restart, see 'ls ladder'
-        run mail-broker
-            start the mail watcher (./mtsig start)
-            that records broker order emails, it
-            keeps running when the shell is closed
-        """
-        args = arg.split()
-        if not args:
-            _print_wrapped(
-                "usage: run ladder <stock> <down|up> "
-                "<step> <price>, run ladder <id>, "
-                "run mail-broker"
-            )
-            return
-        task, rest = args[0].lower(), args[1:]
-        if task == "ladder":
-            self._run_ladder(rest)
-        elif task == "mail-broker":
-            if rest:
-                _print_wrapped("usage: run mail-broker")
-                return
-            _mtsig("start")
-        else:
-            _print_error(
-                f"unknown task '{args[0]}', expected "
-                "ladder/mail-broker"
-            )
-
-    def complete_run(self, text, line, begidx, endidx):
-        options = [["ladder", "mail-broker"]]
-        # only a new ladder takes a stock and a direction
-        args = line.split()
-        if len(args) > 1 and args[1].lower() == "ladder":
-            options += [
-                [s.name for s in Stock],
-                ["down", "up"],
-            ]
-        return _complete(text, line, options)
-
-    def do_stop(self, arg):
-        """
-        stop ladder <id>
-            stop the process of running ladder <id>,
-            it stays saved, see 'ls ladder'
-        stop mail-broker
-            stop the mail watcher (./mtsig stop)
-        """
-        args = arg.split()
-        usage = "usage: stop ladder <id>, stop mail-broker"
-        if not args:
-            _print_wrapped(usage)
-            return
-        task, rest = args[0].lower(), args[1:]
-        if task == "ladder":
-            self._stop_ladder(rest)
-        elif task == "mail-broker":
-            if rest:
-                _print_wrapped("usage: stop mail-broker")
-                return
-            _mtsig("stop")
-        else:
-            _print_error(
-                f"unknown task '{args[0]}', expected "
-                "ladder/mail-broker"
-            )
-
-    def complete_stop(self, text, line, begidx, endidx):
-        options = [["ladder", "mail-broker"]]
-        args = line.split()
-        if len(args) > 1 and args[1].lower() == "ladder":
-            # the ids of the running ladders
-            options.append(self._ladder_ids(running=True))
-        return _complete(text, line, options)
-
-    def do_rm(self, arg):
-        """
-        rm ladder <id>
-            delete saved ladder <id> after
-            confirmation; a running ladder is
-            stopped first
-        """
-        self._rm_ladder(arg)
-
-    def complete_rm(self, text, line, begidx, endidx):
-        return _complete(
-            text,
-            line,
-            [["ladder"], self._ladder_ids()],
-        )
 
     # ---------------- strategy ----------------
 

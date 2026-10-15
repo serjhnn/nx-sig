@@ -310,12 +310,17 @@ place.
    `commands.py` into `scripts/shell/` as above, without
    changing any command. Check it by running every
    command before and after and comparing the output.
-   Until step 4, `ls`, `run`, `stop` and `rm` stay in
-   `commands.py` and pass the call on to the feature,
-   and the mail broker has functions, not a class.
 2. **Add the interface and the module classes,** and
    collect them at start, still with the old command
-   names.
+   names. (done) The commands as typed now (`tr`,
+   `rules`, `bb`, `ls`, `run`, `stop`, `rm`) are in
+   `shell/old_commands.py` and call the modules'
+   actions; step 4 replaces that file with the verb
+   commands. `ps` already joins the modules' `tasks()`.
+   Until step 4 the actions of a module work as the old
+   commands did (`ls` of trade is `tr get`, `rm` of
+   trade is `tr del-last`, `run` of ladder also saves a
+   new one).
 3. **Rename transaction to trade and bb to
    basetrade** in code, data files
    (`<stock>_trades.csv`, `trades_total.csv`,
