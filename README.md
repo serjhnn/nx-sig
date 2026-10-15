@@ -3,19 +3,19 @@
 </p>
 
 **nX-sig** is a small terminal tool for tracking stock positions. It records
-your buy and sell transactions, keeps the count and average buy price of every
+your buy and sell trades, keeps the count and average buy price of every
 stock, shows live prices and your gain or loss, and can record broker orders
 automatically from the confirmation emails. It is made to run on a phone in
 [Termux](https://termux.dev), so all output fits a 48-character screen.
 
 ## Features
 
-- **Interactive shell** (`./nxshell`) to add, list and delete transactions,
+- **Interactive shell** (`./nxshell`) to add, list and delete trades,
   see positions with live prices and gain/loss, and keep personal trading rules
 - **Live prices** from the [Alpaca](https://alpaca.markets) market data API
-- **Mail transactions service** (`./mtsig`) that waits for broker emails over IMAP and
-  records FILLED orders as transactions, running in the background
-- **Plain files** for storage: CSV for transactions, JSON for rules and state,
+- **Mail trades service** (`./mtsig`) that waits for broker emails over IMAP and
+  records FILLED orders as trades, running in the background
+- **Plain files** for storage: CSV for trades, JSON for rules and state,
   written atomically and locked, so the shell and the watcher can run together
 - **Ladders**: background price-step alerts on Telegram, e.g. at 90, 80, 70, ...
   when a stock falls from 100
@@ -86,36 +86,41 @@ For Gmail, turn on 2-Step Verification and create an app password at
 It starts from the repo folder by itself, so `~/nx-sig/nxshell` works from
 anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 
+Commands are `<action> <object> [arguments]`. The actions are `ls` (list or
+show), `add` (save), `rm` (delete, after confirmation), `run` and `stop`
+(background tasks). The object is plural after `ls` and singular everywhere
+else: `ls ladders`, but `rm ladder 1`.
+
 | Command | What it does |
 |---|---|
-| `tr add <stock> <buy\|sell> <count> <price>` | record a transaction, e.g. `tr add SOXL buy 10 20.5` |
-| `tr get <stock>`, `ls <stock>` | the stock's transactions and its total |
-| `ls` | count, average price, total and growth % (current price vs. average price) of every stock you hold |
-| `tr del-last <stock>` | show the last transaction and delete it after confirmation |
+| `ls stocks` | count, average price, total and growth % (current price vs. average price) of every stock you hold |
+| `ls trades [<stock>]` | the stock's trades with their ids and its total; without a stock, the stocks that have trades |
+| `add trade <stock> <buy\|sell> count <count> price <price>` | record a trade, e.g. `add trade SOXL buy count 10 price 20.5` |
+| `rm trade <stock> <id>` | delete a trade after confirmation, the stock's total is recalculated |
+| `ls rules`, `add rule <rule>`, `rm rule <id>` | your personal trading rules |
+| `ls basetrades` | the basetrades in `indices` order, laid out like `xtop` (name, quantity, buying price, current price, change % from the buying price), green above the buying price and red below |
+| `add basetrade <stock> price <price> count <count>` | save a stock's basetrade: the last price you bought it at and how many, e.g. `add basetrade MRVU price 100 count 10`; one per stock, a new one replaces the old |
+| `rm basetrade <stock>` | delete a stock's basetrade after confirmation |
+| `ls ladders` | the saved ladders with their ids, the next level they alert at and whether they run |
+| `add ladder <stock> <down\|up> <step> from <price> [run]` | save a ladder: it sends a Telegram message each time the price moves another `step` down (or up) from `price`, e.g. `add ladder SOXL down 10 from 100` at 90, 80, 70, ...; with `run` at the end it starts right away |
+| `run ladder <id>`, `stop ladder <id>` | start a saved ladder in the background, or stop it (it stays saved) |
+| `rm ladder <id>` | delete a saved ladder after confirmation (a running one is stopped first), with its logs |
+| `run mail-broker`, `stop mail-broker` | start or stop the mail watcher in the background (calls `./mtsig start` / `stop`) |
+| `ls tasks` | the background tasks that are running (ladders and the mail watcher), with their pid, start time and state |
 | `status` | positions with the current price and gain/loss, and the order watcher's state |
 | `xtop [sec]` | live gain/loss of the stocks you hold (quantity, average price, current price, gain, gain %, total), updated every 5 (or `sec`) seconds, Ctrl+C to leave; sends a Telegram alert when a stock's gain reaches `gain_alert` or `gain_alert_pct` |
-| `rules`, `rules add <rule>`, `rules delete <id>` | your personal trading rules |
-| `bb add <stock> price <price> count <count>` | save a stock's base buy: the last price you bought it at and how many, e.g. `bb add MRVU price 100 count 10`; one per stock, a new one replaces the old (`bb` is short for base buy) |
-| `bb ls` | the base buys in `indices` order, laid out like `xtop` (name, quantity, buying price, current price, change % from the buying price), green above the buying price and red below |
-| `bb rm <stock>` | delete a stock's base buy after confirmation |
-| `run ladder <stock> <down\|up> <step> <price>` | save a new ladder and start it in the background: it sends a Telegram message each time the price moves another `step` down (or up) from `price`, e.g. `run ladder SOXL down 10 100` at 90, 80, 70, ... |
-| `run ladder <id>` | start a saved ladder again, e.g. after a restart |
-| `run mail-broker` | start the mail watcher in the background (calls `./mtsig start`) |
-| `ps` | the background tasks that are running (ladders and the mail watcher), with their pid, start time and state |
-| `ls ladder` | the saved ladders with their ids, the next level they alert at and whether they run |
-| `stop ladder <id>` | stop a running ladder, it stays saved |
-| `rm ladder <id>` | delete a saved ladder after confirmation (a running one is stopped first), with its logs |
-| `stop mail-broker` | stop the mail watcher (calls `./mtsig stop`) |
-| `help [command]` | all commands, or details of one |
+| `help [<command>]` | all commands, or the details of one: `help add trade`, `help rm` (every `rm`), `help ladder` (everything for ladders) |
 | `exit`, `quit`, `q` | leave the shell |
 
-`tr` is short for `transactions`. Tab completes commands and stock names.
+An action alone lists its objects (`ls` prints `ls: stocks, trades, ...`).
+Keywords with a value, like `count 10 price 20.5`, may come in either order.
+Tab completes actions, objects, stock names, ids and keywords.
 
 The average price is a weighted average of your buys:
 `avg = (avg × count + price × bought) / (count + bought)`. Sells lower the count
 and keep the average. Gain/loss in `status` is `count × price − count × avg`.
 
-### The mail transactions service (mtsig)
+### The mail trades service (mtsig)
 
 ```bash
 ./mtsig start      # run it in the background
@@ -146,12 +151,12 @@ Status *FILLED*
 - Logs are in `data/logs/mtsig.log` (rotated at 1 MB, 5 files kept).
   `LOG_LEVEL=DEBUG` in `.env` logs more detail.
 - If an order is found but can't be saved, the log and `status` in the shell
-  show `ORDER NOT RECORDED` with the `tr add` command to add it by hand.
+  show `ORDER NOT RECORDED` with the `add trade` command to add it by hand.
 
 ### Ladders
 
 ```
-nX-sig> run ladder SOXL down 10 100
+nX-sig> add ladder SOXL down 10 from 100 run
 ladder 1 saved: SOXL down every 10 from 100
 starting ladder 1...
 ladder 1 started (pid 366), next alert at 90
@@ -166,7 +171,7 @@ several levels between two checks, one message names the farthest one.
 - The last level sent is saved, so after `stop ladder` and `run ladder <id>`,
   or a phone restart, no level is sent twice.
 - A down ladder ends when its next level would be 0 or less (`done` in
-  `ls ladder`).
+  `ls ladders`).
 - If a message can't be sent, the level is not saved and is sent at the next
   check.
 - Telegram (`TOKEN`, `CHAT_ID` in `.env`) must be set up to start a ladder.
@@ -197,7 +202,7 @@ data in `data/`. Otherwise, the files that differ end up as
 
 - Run the mail watcher and the ladders on one device only, or the alerts come
   twice.
-- Don't record transactions on both devices before they have synced.
+- Don't record trades on both devices before they have synced.
 - These stay on each device and are never synced: `.lock`, `logs/`,
   `mtsig.pid` and the `*_status.json` heartbeats (see `data/.stignore`).
 - Replaced or deleted files are kept in `data/.stversions` (the last 10).
@@ -219,7 +224,7 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `mtsig_status.json` | the watcher's heartbeat, shown by `status` |
 | `mtsig.pid` | the process id of the running `./mtsig` |
 | `ladders.csv` | the saved ladders: Id, Stock, Direction, Step, From, Last (the last level sent), Created |
-| `ladders_status.json` | the ladder processes' heartbeats, shown by `ps` |
+| `ladders_status.json` | the ladder processes' heartbeats, shown by `ls tasks` |
 | `logs/` | the watcher's and the ladders' logs (`mtsig.log`, `ladder_<id>.log`) |
 
 Data from before the rename of transactions to trades (the files
@@ -240,18 +245,18 @@ nx-sig/
 ├── CODE_STYLE.md         code style rules
 ├── assets/logo.svg
 └── scripts/
-    ├── commands.py       the shell: puts the command modules together
+    ├── commands.py       the shell: actions, help, collects the modules
     ├── shell/            the shell's commands, one module per feature
     │   ├── interface.py      Commands: what every *_cmd.py implements
-    │   ├── old_commands.py   the commands as typed now (until step 4)
     │   ├── ui.py             colors, WIDTH, printing, parsers
-    │   ├── trade_cmd.py      tr (transactions)
-    │   ├── stocks_cmd.py     ls (held stocks)
+    │   ├── trade_cmd.py      trades
+    │   ├── stocks_cmd.py     ls stocks
     │   ├── rule_cmd.py       rules
-    │   ├── base_trade_cmd.py bb (base buys)
+    │   ├── base_trade_cmd.py basetrades
     │   ├── ladder_cmd.py     ladders (the shell side)
     │   ├── mail_cmd.py       mail broker (./mtsig)
-    │   └── overview_cmd.py   status, xtop, ps
+    │   ├── tasks_cmd.py      ls tasks
+    │   └── overview_cmd.py   status, xtop
     ├── shell_test.py     tests of the shell commands
     ├── storage.py        trades, totals, rules and watcher state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)

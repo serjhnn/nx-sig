@@ -2,7 +2,7 @@
 # (order_watcher.py, started by ./mtsig)
 #
 # MailBrokerCommands implements run and stop (./mtsig
-# start/stop); its tasks() are the row in 'ps'.
+# start/stop); its tasks() are its row in 'ls tasks'.
 # _print_watcher_status() is its line in 'status'
 
 import os
@@ -95,8 +95,8 @@ def _print_watcher_status():
 
 
 def _mail_broker_task():
-    """the ps row of the mail broker, or None if it
-    isn't running"""
+    """the 'ls tasks' row of the mail broker, or None
+    if it isn't running"""
     pid = mtsig_pid_get()
     if pid is None or not ladder.process_runs(
         pid, "order_watcher.py"
@@ -159,17 +159,26 @@ def _mtsig(action):
 
 class MailBrokerCommands(Commands):
     name = "mail-broker"
-    order = 50
+    order = 60
 
     def run(self, arg):
-        """start the mail watcher"""
+        """
+        run mail-broker
+            start the mail watcher (./mtsig start)
+            that records broker order emails as
+            trades; it keeps running when the shell
+            is closed
+        """
         if arg.split():
             _print_wrapped("usage: run mail-broker")
             return
         _mtsig("start")
 
     def stop(self, arg):
-        """stop the mail watcher"""
+        """
+        stop mail-broker
+            stop the mail watcher (./mtsig stop)
+        """
         if arg.split():
             _print_wrapped("usage: stop mail-broker")
             return

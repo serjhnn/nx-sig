@@ -68,8 +68,8 @@ from telegram_notify import notify
 SCRIPT = os.path.join(ROOT_DIR, "scripts", "ladder.py")
 DIRECTIONS = ("down", "up")
 INTERVAL = config.get("ladder_interval", 30)
-# 'ps' shows a ladder as 'no reply' when its heartbeat
-# is older than this
+# 'ls tasks' shows a ladder as 'no reply' when its
+# heartbeat is older than this
 STALE_SECONDS = max(3 * INTERVAL, 120)
 # how long start() watches for a crash at start
 START_CHECK_SECONDS = 2
@@ -139,7 +139,7 @@ def start(ladder_id):
     """
     if ladder_get(ladder_id) is None:
         raise LadderError(
-            f"no ladder {ladder_id}, see 'ls ladder'"
+            f"no ladder {ladder_id}, see 'ls ladders'"
         )
     pid = running_pid(ladder_id)
     if pid:
@@ -193,7 +193,7 @@ def stop(ladder_id):
     """
     if ladder_get(ladder_id) is None:
         raise LadderError(
-            f"no ladder {ladder_id}, see 'ls ladder'"
+            f"no ladder {ladder_id}, see 'ls ladders'"
         )
     pid = running_pid(ladder_id)
     if not pid:
@@ -417,7 +417,7 @@ def _check(ladder):
 
 
 def _status(ladder_id, pid, started, state, price=None):
-    """write the heartbeat that 'ps' shows"""
+    """write the heartbeat that 'ls tasks' shows"""
     previous = ladder_status_get(ladder_id) or {}
     try:
         ladder_status_set(

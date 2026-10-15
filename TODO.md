@@ -20,11 +20,15 @@ and the docs.
 
 ## Other
 
-- **Reorganise the shell commands by feature**
-  (`ladder run ...`, `tr ls`, ...), see
-  [CLI_BLUEPRINT.md](CLI_BLUEPRINT.md)
-- **Background tasks**: ~~`run`, `stop`, `ps`,
-  `ls ladder` for ladders and the mail broker~~ (done,
+- ~~**Reorganise the shell commands** as
+  `<action> <object>` (`ls ladders`, `add trade ...`)~~
+  (done), see [CLI_BLUEPRINT.md](CLI_BLUEPRINT.md).
+  Still open: step 5, a `COMMANDS.md` generated from
+  the help texts
+- Delete `./migrate_data` once every device has run
+  it
+- **Background tasks**: ~~`run`, `stop`, `ls tasks`,
+  `ls ladders` for ladders and the mail broker~~ (done,
   `scripts/ladder.py`). Still open:
   - maybe start the ladders that were running before
     when the phone restarts

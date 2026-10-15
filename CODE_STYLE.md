@@ -86,10 +86,23 @@ so fix what `check_style.py` still reports by hand.
   and lists its public functions.
 - Comments explain *why*, short and lowercase, like the
   rest of the code.
-- Docstrings of `do_<command>` methods in `commands.py`
-  and `scripts/shell/` are the shell's `help <command>`
-  text: keep them within 48 characters after the
-  indentation.
+- The docstrings of the actions (`ls`, `add`, ...) of
+  the `Commands` classes in `scripts/shell/` and of the
+  `do_<command>` methods are the shell's help: the
+  usage first, continued with a 2-space indent, then
+  the description indented by 4 spaces. `help` lists
+  the usage lines, `help <command>` the whole text.
+  Keep them within 48 characters:
+
+  ```python
+  def add(self, arg):
+      """
+      add trade <stock> <buy|sell>
+        count <count> price <price>
+          record a trade, e.g. 'add trade SOXL
+          buy count 10 price 20.5'
+      """
+  ```
 
 ## Names
 

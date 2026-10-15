@@ -1,7 +1,9 @@
-# stocks_cmd: the held stocks, 'ls' without arguments
+# stocks_cmd: the stocks you hold
 #
-# StocksCommands implements ls of the held stocks; 'ls'
-# (old_commands.py) calls it
+#   ls stocks
+#
+# StocksCommands implements it for the verb commands of
+# commands.py
 
 from shell.interface import Commands
 from shell.ui import (
@@ -16,6 +18,7 @@ from shell.ui import (
     _fetch_prices,
     _gain_color,
     _held_positions,
+    _parse_stock,
     _print_wrapped,
     _supports_color,
 )
@@ -27,8 +30,27 @@ class StocksCommands(Commands):
     order = 10
 
     def ls(self, arg):
-        """count, average price, total and growth % of
-        the held stocks"""
+        """
+        ls stocks
+            count, average buy price and total of
+            the stocks you hold, and growth %: how
+            far the current price is above (or
+            below) the average price
+        """
+        args = arg.split()
+        if args:
+            try:
+                stock = _parse_stock(args[0])
+            except ValueError:
+                stock = None
+            # one stock's details are its trades
+            if len(args) == 1 and stock:
+                _print_wrapped(
+                    f"use 'ls trades {stock.name}'"
+                )
+            else:
+                _print_wrapped("usage: ls stocks")
+            return
         self._totals_all()
 
     def _totals_all(self):

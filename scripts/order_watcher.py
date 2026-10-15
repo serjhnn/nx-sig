@@ -100,9 +100,9 @@ def handle_email(message):
         # the email is not handled again, so say exactly
         # what is missing and how to add it
         command = (
-            f"tr add {stock.name} "
+            f"add trade {stock.name} "
             f"{side.name.lower()} "
-            f"{quantity} {price}"
+            f"count {quantity} price {price}"
         )
         log.exception(
             "ORDER NOT RECORDED: %s from email %r, "

@@ -1,10 +1,12 @@
-# base_trade_cmd: the bb (base buy) commands of the shell
+# base_trade_cmd: the basetrades, the last price you
+# bought each stock at
 #
-#   bb add <stock> price <price> count <count>
-#   bb ls, bb rm <stock>
+#   ls basetrades
+#   add basetrade <stock> price <price> count <count>
+#   rm basetrade <stock>
 #
-# BaseTradeCommands implements add, ls and rm of base
-# buys; the bb command (old_commands.py) calls them
+# BaseTradeCommands implements them for the verb
+# commands of commands.py
 
 from storage import (
     Stock,
@@ -25,67 +27,54 @@ from shell.ui import (
     _confirm,
     _fetch_prices,
     _gain_color,
+    _parse_keywords,
     _parse_stock,
     _print_error,
     _print_wrapped,
     _supports_color,
 )
 
+ADD_USAGE = (
+    "usage: add basetrade <stock> price <price> "
+    "count <count>"
+)
+
 
 class BaseTradeCommands(Commands):
-    # base buys are the last buying prices you keep, one
-    # per stock (base_buy.csv); they don't change the
-    # transactions or totals
+    # a basetrade is the last buying price you keep for
+    # a stock, one per stock (base_trades.csv); it
+    # doesn't change the trades or totals
     name = "basetrade"
     plural = "basetrades"
-    order = 40
-
-    def add(self, arg):
-        """save the base buy of a stock"""
-        self._basetrade_add(arg.split())
+    order = 50
 
     def ls(self, arg):
-        """the base buys with the current prices"""
+        """
+        ls basetrades
+            the basetrades in config order, with
+            the current price of each stock and its
+            change % from the buying price
+        """
         if arg.split():
-            _print_wrapped("usage: bb ls")
+            _print_wrapped("usage: ls basetrades")
             return
         self._basetrades_show()
 
-    def rm(self, arg):
-        """delete the base buy of a stock"""
-        self._basetrade_rm(arg.split())
-
-    def complete(self, action, args):
-        if action == "add":
-            keywords = ["price", "count"]
-            return [
-                [s.name for s in Stock],
-                keywords,
-                [],
-                keywords,
-            ]
-        if action == "rm":
-            return [
-                [b["Stock"] for b in basetrades_get_all()]
-            ]
-        return []
-
-    def _basetrade_add(self, args):
-        usage = (
-            "usage: bb add <stock> price <price> "
-            "count <count>"
+    def add(self, arg):
+        """
+        add basetrade <stock> price <price>
+          count <count>
+            save the last price you bought <stock>
+            at and how many, e.g. 'add basetrade
+            MRVU price 100 count 10'; replaces the
+            stock's older basetrade
+        """
+        args = arg.split()
+        values = _parse_keywords(
+            args[1:], ["price", "count"]
         )
-        # the keywords say which number is which, so
-        # their order doesn't matter
-        if len(args) != 5:
-            _print_wrapped(usage)
-            return
-        values = {
-            args[1].lower(): args[2],
-            args[3].lower(): args[4],
-        }
-        if set(values) != {"price", "count"}:
-            _print_wrapped(usage)
+        if not args or values is None:
+            _print_wrapped(ADD_USAGE)
             return
         try:
             stock = _parse_stock(args[0])
@@ -109,16 +98,66 @@ class BaseTradeCommands(Commands):
         replaced = basetrade_set(stock.name, price, count)
         _print_wrapped(
             f"{'replaced' if replaced else 'added'} "
-            f"base buy of {stock.name}: {count} at "
+            f"basetrade of {stock.name}: {count} at "
             f"{price:g}"
         )
 
+    def rm(self, arg):
+        """
+        rm basetrade <stock>
+            delete the basetrade of <stock> after
+            confirmation
+        """
+        args = arg.split()
+        if len(args) != 1:
+            _print_wrapped("usage: rm basetrade <stock>")
+            return
+        name = args[0].upper()
+        found = next(
+            (
+                b
+                for b in basetrades_get_all()
+                if b["Stock"] == name
+            ),
+            None,
+        )
+        if found is None:
+            _print_error(
+                f"error: no basetrade of {name}, "
+                "see 'ls basetrades'"
+            )
+            return
+        if not _confirm(
+            f"delete basetrade of {name}: "
+            f"{found['Count']} at "
+            f"{found['Price']:g}? [y/N] "
+        ):
+            _print_wrapped("cancelled")
+            return
+        basetrade_delete(name)
+        _print_wrapped(f"deleted basetrade of {name}")
+
+    def complete(self, action, args):
+        if action == "add":
+            keywords = ["price", "count"]
+            return [
+                [s.name for s in Stock],
+                keywords,
+                [],
+                keywords,
+            ]
+        if action == "rm":
+            return [
+                [b["Stock"] for b in basetrades_get_all()]
+            ]
+        return []
+
     def _basetrades_show(self):
-        base_buys = basetrades_get_all()
-        if not base_buys:
+        basetrades = basetrades_get_all()
+        if not basetrades:
             _print_wrapped(
-                "no base buys yet, add one with 'bb add "
-                "<stock> price <price> count <count>'"
+                "no basetrades yet, see 'help add "
+                "basetrade'"
             )
             return
         prices = _fetch_prices()
@@ -146,7 +185,7 @@ class BaseTradeCommands(Commands):
             if color
             else separator
         )
-        for b in base_buys:
+        for b in basetrades:
             current = prices.get(b["Stock"])
             name = f"{b['Stock']:<5.5}"
             qty = f"{b['Count']:>6}"
@@ -185,32 +224,3 @@ class BaseTradeCommands(Commands):
                 )
             )
         print()
-
-    def _basetrade_rm(self, args):
-        if len(args) != 1:
-            _print_wrapped("usage: bb rm <stock>")
-            return
-        name = args[0].upper()
-        found = next(
-            (
-                b
-                for b in basetrades_get_all()
-                if b["Stock"] == name
-            ),
-            None,
-        )
-        if found is None:
-            _print_error(
-                f"error: no base buy of {name}, "
-                "see 'bb ls'"
-            )
-            return
-        if not _confirm(
-            f"delete base buy of {name}: "
-            f"{found['Count']} at "
-            f"{found['Price']:g}? [y/N] "
-        ):
-            _print_wrapped("cancelled")
-            return
-        basetrade_delete(name)
-        _print_wrapped(f"deleted base buy of {name}")

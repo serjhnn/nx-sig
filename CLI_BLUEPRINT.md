@@ -1,7 +1,8 @@
 # CLI blueprint
 
 The plan for reorganising the `nxshell` commands.
-Nothing here is implemented yet.
+Steps 1 to 4 are done, step 5 (`COMMANDS.md`) is
+still open.
 
 ## Why
 
@@ -341,6 +342,9 @@ place.
    commands, the `run` option of `add ladder` and
    `rm trade <stock> <id>`. Update the help, README,
    TODO.md and the docstring rule in CODE_STYLE.md.
+   (done) `shell/old_commands.py` is gone, `ps` is
+   `ls tasks` (`shell/tasks_cmd.py`), and `rm rule`
+   asks for confirmation like every `rm`.
 5. **Generate `COMMANDS.md`** from the docstrings with a
    small `scripts/gen_docs.py`. The README keeps a short
    overview and links to it. `check_style.py` warns

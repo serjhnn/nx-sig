@@ -3,7 +3,6 @@
 #   status      held positions with gain/loss and the
 #               mail watcher
 #   xtop [sec]  live gain/loss with Telegram alerts
-#   ps          running background tasks
 #
 # OverviewCmd is mixed into NxSigShell: these are
 # commands of their own, not kinds of data
@@ -22,7 +21,6 @@ from shell.ui import (
     BOLD,
     BUY_COLOR,
     COUNT_COLOR,
-    DATE_COLOR,
     DIM,
     PRICE_COLOR,
     RESET,
@@ -232,28 +230,6 @@ class OverviewCmd:
             if color:
                 print("\033[?25h", end="")
             print()
-
-    def do_ps(self, arg):
-        """
-        ps
-            list the background tasks that are
-            running as their own process, with
-            their pid, start time and state
-        """
-        if arg.strip():
-            _print_wrapped("usage: ps")
-            return
-        # every module with background tasks adds its
-        # rows
-        tasks = [
-            task
-            for module in self.objects.values()
-            for task in module.tasks()
-        ]
-        if not tasks:
-            _print_wrapped("no background tasks running")
-            return
-        _print_tasks(tasks)
 
 
 # a Telegram alert is sent when a held stock's gain
@@ -478,53 +454,3 @@ def _draw_xtop(lines, drawn, color):
     print("\n".join(lines))
     sys.stdout.flush()
     return len(lines)
-
-
-def _print_tasks(tasks):
-    """the ps table: Id, Task, PID, Started, State"""
-    color = _supports_color()
-    sep = "  "
-    header = sep.join(
-        [
-            f"{'Id':>2}",
-            f"{'Task':<11}",
-            f"{'PID':>7}",
-            f"{'Started':<11}",
-            f"{'State':<9}",
-        ]
-    )
-    separator = "-" * WIDTH
-    print()
-    if color:
-        print(f"{DIM}{header}{RESET}")
-        print(f"{DIM}{separator}{RESET}")
-    else:
-        print(header)
-        print(separator)
-    for t in tasks:
-        started = (
-            f"{t['started']:%d.%m %H:%M}"
-            if t["started"]
-            else "-"
-        )
-        cols = [
-            f"{t['id']:>2}",
-            f"{t['task']:<11.11}",
-            f"{t['pid']:>7}",
-            f"{started:<11}",
-            f"{t['state']:<9.9}",
-        ]
-        if color:
-            state_color = (
-                BUY_COLOR if t["healthy"] else SELL_COLOR
-            )
-            cols = [
-                f"{DIM}{cols[0]}{RESET}",
-                f"{BOLD}{TOTAL_STOCK_COLOR}"
-                f"{cols[1]}{RESET}",
-                f"{COUNT_COLOR}{cols[2]}{RESET}",
-                f"{DATE_COLOR}{cols[3]}{RESET}",
-                f"{state_color}{cols[4]}{RESET}",
-            ]
-        print(sep.join(cols))
-    print()

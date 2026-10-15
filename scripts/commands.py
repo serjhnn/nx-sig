@@ -1,42 +1,31 @@
 # interactive shell for nX-sig, started with ./nxshell
 #
-# commands (tr is short for transactions):
-#   tr add <stock> <buy|sell> <count> <price>
-#   tr get <stock>
-#   tr del-last <stock>
-#   tr del <stock> <index>  (disabled, use 'tr del-last')
-#   ls <stock>      alias for 'tr get <stock>'
-#   ls              totals and growth % of held stocks
-#   status          positions with current price and
-#                   gain/loss
-#   xtop [sec]      live gain/loss of held stocks,
-#                   updated every 5 or <sec> seconds
-#   rules [add <rule>/delete <id>]
-#                   personal rules
-#   bb add <stock> price <price> count <count>
-#   bb ls, bb rm <stock>
-#                   base buys: your last buying price
-#                   of a stock, with the current price
-#   background tasks, each its own process:
-#   run ladder <stock> <down|up> <step> <price>
-#                     save and start a new ladder
-#                     (price-step alerts, ladder.py)
-#   run ladder <id>   start a saved ladder again
-#   stop ladder <id>  stop it
-#   rm ladder <id>    delete a saved ladder
-#   ls ladder         saved ladders
-#   run mail-broker   start the mail watcher (./mtsig)
-#   stop mail-broker  stop it
-#   ps                running background tasks
-#   strategy [run/stop/list/get]
-#                   not implemented yet
-#   help, exit, quit, q
+# commands are <action> <object> [arguments]:
+#   ls stocks              held stocks, growth %
+#   ls trades [<stock>]    a stock's trades and total
+#   add trade <stock> <buy|sell> count <count>
+#       price <price>
+#   rm trade <stock> <id>
+#   ls rules, add rule <rule>, rm rule <id>
+#   ls basetrades          last buying prices
+#   add basetrade <stock> price <price> count <count>
+#   rm basetrade <stock>
+#   ls ladders             price-step alerts
+#   add ladder <stock> <down|up> <step> from <price>
+#       [run]
+#   run ladder <id>, stop ladder <id>, rm ladder <id>
+#   run mail-broker, stop mail-broker
+#   ls tasks               running background tasks
+# and the commands of their own:
+#   status, xtop [sec], strategy (not implemented yet)
+#   help [<command>], exit, quit, q
 #
-# the commands live in scripts/shell/: every *_cmd.py
+# the objects live in scripts/shell/: every *_cmd.py
 # has a Commands class (shell/interface.py) for one kind
-# of data, collected here at start into
-# NxSigShell.objects; the commands as typed now are in
-# shell/old_commands.py
+# of data. this file collects them at start into
+# NxSigShell.objects; the action commands (do_ls, ...)
+# find the object and call its action, help and tab
+# completion are built from them. see CLI_BLUEPRINT.md
 
 import cmd
 import glob
@@ -46,7 +35,6 @@ import os
 
 import shell
 from shell.interface import Commands
-from shell.old_commands import OldCommands
 from shell.overview_cmd import OverviewCmd
 from shell.ui import (
     LOGO_COLORS,
@@ -89,52 +77,15 @@ def _banner():
     )
 
 
-HELP = """
-commands:
-  tr add <stock> <buy|sell> <count> <price>
-      record a transaction
-  tr get <stock>, ls <stock>
-      show transactions and total
-  ls
-      totals of all stocks held, with growth %
-  tr del-last <stock>
-      delete the last transaction
-  status
-      positions with current price and gain/loss
-  xtop [sec]
-      live gain/loss of held stocks, updated
-      every 5 or <sec> seconds
-  rules
-      show personal rules
-  rules add <rule>, rules delete <id>
-      add or delete a personal rule
-  bb add <stock> price <price> count <count>
-      save a base buy (bb): a last buying price
-  bb ls
-      base buys with the current price
-  bb rm <stock>
-      delete a stock's base buy
-  run ladder <stock> <down|up> <step> <price>
-      price-step alerts in the background
-  run ladder <id>, run mail-broker
-      start a saved ladder / the mail watcher
-  ps
-      background tasks that are running
-  ls ladder
-      saved ladders with their ids
-  stop ladder <id>, stop mail-broker
-      stop a background task
-  rm ladder <id>
-      delete a saved ladder
-  strategy [run/stop/list/get]
-      not implemented yet
-  help [command]
-      show help
-  exit, quit, q
-      leave the shell
-
-  tr is short for transactions
-"""
+# the commands that are not an action on an object, in
+# the order of 'help'
+OWN_COMMANDS = [
+    "status",
+    "xtop",
+    "strategy",
+    "help",
+    "exit",
+]
 
 
 def collect_commands():
@@ -157,7 +108,23 @@ def collect_commands():
     return sorted(found, key=lambda c: c.order)
 
 
-class NxSigShell(OldCommands, OverviewCmd, cmd.Cmd):
+def _doc(method):
+    """the help text of a command: its docstring"""
+    return inspect.cleandoc(method.__doc__ or "")
+
+
+def _usage(method):
+    """the usage lines of a help text, the lines before
+    the indented description"""
+    lines = []
+    for line in _doc(method).split("\n"):
+        if line.startswith("    "):
+            break
+        lines.append(line)
+    return lines
+
+
+class NxSigShell(OverviewCmd, cmd.Cmd):
     intro = _banner()
     # \001/\002 tell readline the escape codes are
     # zero-width so line editing stays aligned
@@ -185,8 +152,8 @@ class NxSigShell(OldCommands, OverviewCmd, cmd.Cmd):
         }
 
     def preloop(self):
-        # keep '-' inside words so 'del-last' completes as
-        # one word
+        # keep '-' inside words so 'mail-broker' completes
+        # as one word
         try:
             import readline
 
@@ -197,6 +164,112 @@ class NxSigShell(OldCommands, OverviewCmd, cmd.Cmd):
             )
         except ImportError:
             pass
+
+    # ---------------- the actions ----------------
+
+    def do_ls(self, arg):
+        """list or show: ls <objects>"""
+        self._action("ls", arg)
+
+    def do_add(self, arg):
+        """save a new record: add <object> ..."""
+        self._action("add", arg)
+
+    def do_rm(self, arg):
+        """delete after confirmation: rm <object> ..."""
+        self._action("rm", arg)
+
+    def do_run(self, arg):
+        """start a background task: run <object> ..."""
+        self._action("run", arg)
+
+    def do_stop(self, arg):
+        """stop a background task: stop <object> ..."""
+        self._action("stop", arg)
+
+    def complete_ls(self, text, line, begidx, endidx):
+        return self._complete_action("ls", text, line)
+
+    def complete_add(self, text, line, begidx, endidx):
+        return self._complete_action("add", text, line)
+
+    def complete_rm(self, text, line, begidx, endidx):
+        return self._complete_action("rm", text, line)
+
+    def complete_run(self, text, line, begidx, endidx):
+        return self._complete_action("run", text, line)
+
+    def complete_stop(self, text, line, begidx, endidx):
+        return self._complete_action("stop", text, line)
+
+    def _action(self, action, arg):
+        """find the object named first in arg and call
+        its action with the rest of the line"""
+        words = arg.split(maxsplit=1)
+        expected = self._object_words(action)
+        if not words:
+            _print_wrapped(
+                f"{action}: {', '.join(expected)}"
+            )
+            return
+        rest = words[1] if len(words) > 1 else ""
+        module = self._find_object(words[0])
+        if module is None:
+            _print_error(
+                f"unknown object '{words[0]}' for "
+                f"{action}, "
+                f"expected {'/'.join(expected)}"
+            )
+            return
+        if not module.supports(action):
+            _print_error(
+                f"{module.name} has no {action}, it has "
+                f"{'/'.join(module.actions())}"
+            )
+            return
+        # plural after ls, singular everywhere else
+        right = self._object_word(module, action)
+        if words[0].lower() != right:
+            _print_error(
+                "use '"
+                + " ".join([action, right, rest]).strip()
+                + "'"
+            )
+            return
+        getattr(module, action)(rest)
+
+    def _object_word(self, module, action):
+        return (
+            module.plural if action == "ls" else module.name
+        )
+
+    def _object_words(self, action):
+        """the object words that go with action"""
+        return [
+            self._object_word(self.objects[name], action)
+            for name in self.actions[action]
+        ]
+
+    def _find_object(self, word):
+        """the module named word, in the singular or the
+        plural, or None"""
+        word = word.lower()
+        for module in self.objects.values():
+            if word in (module.name, module.plural):
+                return module
+        return None
+
+    def _complete_action(self, action, text, line):
+        args = line.split()
+        options = [self._object_words(action)]
+        module = (
+            self._find_object(args[1])
+            if len(args) > 1
+            else None
+        )
+        if module and module.supports(action):
+            options += module.complete(action, args[2:])
+        return _complete(text, line, options)
 
     # ---------------- strategy ----------------
 
@@ -231,7 +304,10 @@ class NxSigShell(OldCommands, OverviewCmd, cmd.Cmd):
     # ---------------- shell ----------------
 
     def do_exit(self, arg):
-        """exit the shell"""
+        """
+        exit, quit, q
+            leave the shell
+        """
         return True
 
     do_quit = do_exit
@@ -242,17 +318,91 @@ class NxSigShell(OldCommands, OverviewCmd, cmd.Cmd):
         return True
 
     def do_help(self, arg):
-        """show commands, or details with 'help <cmd>'"""
-        if arg:
-            command = getattr(self, f"do_{arg}", None)
-            if command and command.__doc__:
-                _print_dim(
-                    inspect.cleandoc(command.__doc__)
-                )
-            else:
-                _print_error(f"no help on '{arg}'")
+        """
+        help [<command>]
+            all commands, or the details of one,
+            e.g. 'help add trade', 'help rm' or
+            'help ladder'
+        """
+        words = arg.lower().split()
+        if not words:
+            self._help_overview()
             return
-        _print_dim(HELP)
+        texts = self._help_texts(words)
+        if not texts:
+            _print_error(f"no help on '{' '.join(words)}'")
+            return
+        _print_dim("\n".join(texts))
+
+    def _help_texts(self, words):
+        """the help texts for 'help <words>': an action,
+        an action and its object, an object, or a
+        command of its own"""
+        topic = words[0]
+        if topic in Commands.ACTIONS:
+            modules = [
+                self.objects[name]
+                for name in self.actions[topic]
+            ]
+            if len(words) > 1:
+                module = self._find_object(words[1])
+                modules = [
+                    m for m in modules if m is module
+                ]
+            return [
+                _doc(getattr(m, topic)) for m in modules
+            ]
+        if len(words) > 1:
+            return []
+        module = self._find_object(topic)
+        if module:
+            return [
+                _doc(getattr(module, action))
+                for action in module.actions()
+            ]
+        command = getattr(self, f"do_{topic}", None)
+        if command and command.__doc__:
+            return [_doc(command)]
+        return []
+
+    def _help_overview(self):
+        lines = [
+            "",
+            "commands ('help <command>' for more):",
+        ]
+        for action in Commands.ACTIONS:
+            lines.append("")
+            for name in self.actions[action]:
+                method = getattr(self.objects[name], action)
+                lines += ["  " + l for l in _usage(method)]
+        lines.append("")
+        for name in OWN_COMMANDS:
+            method = getattr(self, f"do_{name}")
+            lines += ["  " + l for l in _usage(method)]
+        lines += [
+            "",
+            "'help <object>' shows all its commands,",
+            "e.g. 'help ladder'",
+            "",
+        ]
+        _print_dim("\n".join(lines))
+
+    def complete_help(self, text, line, begidx, endidx):
+        args = line.split()
+        words = list(Commands.ACTIONS)
+        for module in self.objects.values():
+            words += [module.name]
+            if module.plural not in ("", module.name):
+                words.append(module.plural)
+        options = [words + OWN_COMMANDS]
+        if (
+            len(args) > 1
+            and args[1].lower() in Commands.ACTIONS
+        ):
+            options.append(
+                self._object_words(args[1].lower())
+            )
+        return _complete(text, line, options)
 
     def precmd(self, line):
         # Windows consoles/pipes may prefix input with a

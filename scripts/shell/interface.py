@@ -12,7 +12,7 @@
 #   .actions()           the actions it has
 #   .complete(action, args)
 #                        completion options per argument
-#   .tasks()             its rows for 'ps'
+#   .tasks()             its rows for 'ls tasks'
 
 
 class Commands:
@@ -24,8 +24,8 @@ class Commands:
     name = ""
     # used after ls: "ladders"
     plural = ""
-    # where the module comes in 'ps' and in lists of
-    # objects, lowest first
+    # where the module comes in 'ls tasks' and in the
+    # lists of objects, lowest first
     order = 100
 
     # the actions take the rest of the command line as
@@ -50,10 +50,10 @@ class Commands:
     def complete(self, action, args):
         """the completion options of each argument of
         action, one list per position; args are the
-        words typed after the action so far"""
+        words typed after the object so far"""
         return []
 
     def tasks(self):
-        """the 'ps' rows of the module's running
+        """the 'ls tasks' rows of the module's running
         background tasks"""
         return []

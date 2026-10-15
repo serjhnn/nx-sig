@@ -1,14 +1,14 @@
 # ladder_cmd: the shell side of the ladders, the engine
 # is scripts/ladder.py
 #
-#   run ladder <stock> <down|up> <step> <price>
+#   add ladder <stock> <down|up> <step> from <price>
+#       [run]
 #   run ladder <id>, stop ladder <id>, rm ladder <id>
-#   ls ladder
+#   ls ladders
 #
-# LadderCommands implements add, run, stop, rm and ls of
-# ladders; the run, stop, rm and ls commands
-# (old_commands.py) call them. its tasks() are the
-# ladders' rows in 'ps'
+# LadderCommands implements them for the verb commands
+# of commands.py; its tasks() are the ladders' rows in
+# 'ls tasks'
 
 from datetime import datetime
 
@@ -41,39 +41,86 @@ from shell.ui import (
     _supports_color,
 )
 
-RUN_USAGE = (
-    "usage: run ladder <stock> <down|up> <step> "
-    "<price>, or run ladder <id>"
+ADD_USAGE = (
+    "usage: add ladder <stock> <down|up> <step> from "
+    "<price> [run]"
 )
 
 
 class LadderCommands(Commands):
     name = "ladder"
     plural = "ladders"
-    order = 60
+    order = 30
+
+    def ls(self, arg):
+        """
+        ls ladders
+            the saved ladders with their ids, the
+            next level they alert at and whether
+            they run
+        """
+        if arg.split():
+            _print_wrapped("usage: ls ladders")
+            return
+        ladders = ladders_get_all()
+        if not ladders:
+            _print_wrapped(
+                "no ladders yet, see 'help add ladder'"
+            )
+            return
+        _print_ladders(ladders)
 
     def add(self, arg):
-        """save a new ladder without starting it"""
-        # step 4 gives it its own syntax, 'add ladder'
-        self._save(arg.split())
+        """
+        add ladder <stock> <down|up> <step>
+          from <price> [run]
+            save a ladder: a Telegram message each
+            time the price moves another <step>
+            down (or up) from <price>, e.g. 'add
+            ladder SOXL down 10 from 100' at 90,
+            80, 70, ...; run starts it right away
+        """
+        args = arg.split()
+        start = len(args) == 6 and args[5].lower() == "run"
+        if len(args) not in (5, 6) or (
+            len(args) == 6 and not start
+        ):
+            _print_wrapped(ADD_USAGE)
+            return
+        if args[3].lower() != "from":
+            _print_wrapped(ADD_USAGE)
+            return
+        ladder_id = self._save(args[:3] + args[4:5])
+        if ladder_id is None:
+            return
+        if start:
+            self._start_ladder(ladder_id)
+        else:
+            _print_wrapped(
+                f"start it with 'run ladder {ladder_id}'"
+            )
 
     def run(self, arg):
-        """start a saved ladder by its id, or save a
-        new one and start it"""
+        """
+        run ladder <id>
+            start a saved ladder as a background
+            process, it keeps running when the
+            shell is closed
+        """
         args = arg.split()
-        if len(args) == 1:
-            ladder_id = _parse_id(args[0])
-            if ladder_id is None:
-                _print_wrapped(RUN_USAGE)
-                return
-            self._start_ladder(ladder_id)
+        ladder_id = (
+            _parse_id(args[0]) if len(args) == 1 else None
+        )
+        if ladder_id is None:
+            _print_wrapped("usage: run ladder <id>")
             return
-        ladder_id = self._save(args)
-        if ladder_id is not None:
-            self._start_ladder(ladder_id)
+        self._start_ladder(ladder_id)
 
     def stop(self, arg):
-        """stop the process of a running ladder"""
+        """
+        stop ladder <id>
+            stop a running ladder, it stays saved
+        """
         args = arg.split()
         ladder_id = (
             _parse_id(args[0]) if len(args) == 1 else None
@@ -93,8 +140,12 @@ class LadderCommands(Commands):
         )
 
     def rm(self, arg):
-        """delete a saved ladder, a running one is
-        stopped first"""
+        """
+        rm ladder <id>
+            delete a saved ladder after
+            confirmation; a running ladder is
+            stopped first
+        """
         args = arg.split()
         ladder_id = (
             _parse_id(args[0]) if len(args) == 1 else None
@@ -106,7 +157,7 @@ class LadderCommands(Commands):
         if saved is None:
             _print_error(
                 f"error: no ladder {ladder_id}, "
-                "see 'ls ladder'"
+                "see 'ls ladders'"
             )
             return
         _print_ladders([saved])
@@ -130,24 +181,19 @@ class LadderCommands(Commands):
             + "deleted"
         )
 
-    def ls(self, arg):
-        """the saved ladders"""
-        if arg.split():
-            _print_wrapped("usage: ls ladder")
-            return
-        ladders = ladders_get_all()
-        if not ladders:
-            _print_wrapped(
-                "no ladders saved, see 'help run'"
-            )
-            return
-        _print_ladders(ladders)
-
     def complete(self, action, args):
+        if action == "add":
+            return [
+                [s.name for s in Stock],
+                ["down", "up"],
+                [],
+                ["from"],
+                [],
+                ["run"],
+            ]
         if action == "run":
-            # only a new ladder takes a stock and a
-            # direction
-            return [[s.name for s in Stock], ["down", "up"]]
+            # the ids of the ladders that don't run
+            return [self._ladder_ids(running=False)]
         if action == "stop":
             # the ids of the running ladders
             return [self._ladder_ids(running=True)]
@@ -160,11 +206,9 @@ class LadderCommands(Commands):
         return [t for t in tasks if t]
 
     def _save(self, args):
-        """check and save a new ladder, return its Id
-        or None"""
-        if len(args) != 4:
-            _print_wrapped(RUN_USAGE)
-            return None
+        """check and save a new ladder from its stock,
+        direction, step and price, return its Id or
+        None"""
         try:
             stock = _parse_stock(args[0])
             direction = _parse_direction(args[1])
@@ -211,19 +255,21 @@ class LadderCommands(Commands):
             f"next alert at {ladder.next_level(saved):g}"
         )
 
-    def _ladder_ids(self, running=False):
-        """the ids of the saved ladders, or of the
-        running ones only"""
+    def _ladder_ids(self, running=None):
+        """the ids of the saved ladders; with running
+        True or False only of the ones that run or
+        don't"""
         return [
             str(l["Id"])
             for l in ladders_get_all()
-            if not running or ladder.running_pid(l["Id"])
+            if running is None
+            or bool(ladder.running_pid(l["Id"])) == running
         ]
 
 
 def _ladder_task(saved):
-    """the ps row of a ladder, or None if it isn't
-    running"""
+    """the 'ls tasks' row of a ladder, or None if it
+    isn't running"""
     pid = ladder.running_pid(saved["Id"])
     if not pid:
         return None
@@ -251,8 +297,9 @@ def _ladder_task(saved):
 
 
 def _print_ladders(ladders):
-    """the ls ladder table: Id, Stock, Ladder (direction
-    and step), From, Next (the next alert), State"""
+    """the ls ladders table: Id, Stock, Ladder
+    (direction and step), From, Next (the next alert),
+    State"""
     color = _supports_color()
     sep = "  "
     header = sep.join(

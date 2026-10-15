@@ -13,6 +13,8 @@
 #   _confirm(question)  True if answered y/yes
 #   _parse_stock(name), _parse_id(text),
 #   _parse_direction(name), _parse_trade_type(name)
+#   _parse_keywords(args, keywords)
+#                       {keyword: value} of 'count 10 ...'
 #   _short_date(value)
 #   _complete(text, line, options_per_position)
 #   _fetch_prices(), _held_positions(), _gain_color(gain)
@@ -28,8 +30,8 @@ from storage import (
 )
 from trade_engine import get_latest_prices
 
-# all output is kept within the width of the 'tr get' table
-# so it fits a mobile screen
+# all output is kept within the width of the
+# 'ls trades <stock>' table so it fits a mobile screen
 WIDTH = 48
 
 # 256-color gradient, one per logo line, top to bottom:
@@ -145,9 +147,24 @@ def _parse_trade_type(name):
         return TradeType[name.upper()]
     except KeyError:
         raise ValueError(
-            f"unknown transaction type '{name}', expected "
+            f"unknown trade type '{name}', expected "
             "buy/sell"
         )
+
+
+def _parse_keywords(args, keywords):
+    """{keyword: value} of words like 'count 10 price
+    20', the keywords in any order; None unless each of
+    keywords comes once with a value"""
+    if len(args) != 2 * len(keywords):
+        return None
+    values = {
+        key.lower(): value
+        for key, value in zip(args[::2], args[1::2])
+    }
+    if set(values) != set(keywords):
+        return None
+    return values
 
 
 def _complete(text, line, options_per_position):

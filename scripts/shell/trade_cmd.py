@@ -1,11 +1,12 @@
-# trade_cmd: the tr (transactions) commands of the shell
+# trade_cmd: the trades, your buys and sells
 #
-#   tr add <stock> <buy|sell> <count> <price>
-#   tr get <stock>, tr del-last <stock>
+#   ls trades [<stock>]
+#   add trade <stock> <buy|sell> count <count>
+#       price <price>
+#   rm trade <stock> <id>
 #
-# TradeCommands implements add, ls and rm of trades;
-# the tr and 'ls <stock>' commands (old_commands.py)
-# call them
+# TradeCommands implements them for the verb commands
+# of commands.py
 
 from storage import (
     Stock,
@@ -30,6 +31,8 @@ from shell.ui import (
     WIDTH,
     _column_sep,
     _confirm,
+    _parse_id,
+    _parse_keywords,
     _parse_stock,
     _parse_trade_type,
     _print_error,
@@ -38,48 +41,84 @@ from shell.ui import (
     _supports_color,
 )
 
+ADD_USAGE = (
+    "usage: add trade <stock> <buy|sell> count "
+    "<count> price <price>"
+)
+
 
 class TradeCommands(Commands):
     name = "trade"
     plural = "trades"
     order = 20
 
-    def add(self, arg):
-        """record a transaction"""
-        self._trade_add(arg.split())
-
     def ls(self, arg):
-        """the transactions and total of a stock"""
-        self._trades_show(arg.split())
+        """
+        ls trades [<stock>]
+            the trades of <stock> with their ids
+            and its total; without a stock, the
+            stocks that have trades
+        """
+        args = arg.split()
+        if not args:
+            self._stocks_with_trades()
+            return
+        if len(args) != 1:
+            _print_wrapped("usage: ls trades [<stock>]")
+            return
+        try:
+            stock = _parse_stock(args[0])
+        except ValueError as e:
+            _print_error(f"error: {e}")
+            return
 
-    def rm(self, arg):
-        """delete the last transaction of a stock"""
-        self._trade_delete_last(arg.split())
+        trades = trades_get_all(stock)
+        if not trades:
+            _print_wrapped(f"no trades for {stock.name}")
+            return
 
-    def complete(self, action, args):
-        options = [[s.name for s in Stock]]
-        # only 'add' takes a transaction type after the
-        # stock name
-        if action == "add":
-            options.append(
-                [t.name.lower() for t in TradeType]
-            )
-        return options
+        color = _supports_color()
+        print()
+        _print_trades_header(color)
+        for t in trades:
+            _print_trade_row(t, color)
+        separator = "-" * WIDTH
+        print(
+            f"{DIM}{separator}{RESET}"
+            if color
+            else separator
+        )
+        _print_total(stock, color)
+        print()
 
-    def _trade_add(self, args):
-        if len(args) != 4:
-            _print_wrapped(
-                "usage: tr add <stock> <buy|sell> <count> "
-                "<price>"
-            )
+    def add(self, arg):
+        """
+        add trade <stock> <buy|sell>
+          count <count> price <price>
+            record a trade, e.g. 'add trade SOXL
+            buy count 10 price 20.5'
+        """
+        args = arg.split()
+        values = _parse_keywords(
+            args[2:], ["count", "price"]
+        )
+        if len(args) < 2 or values is None:
+            _print_wrapped(ADD_USAGE)
             return
         try:
             stock = _parse_stock(args[0])
             trade_type = _parse_trade_type(args[1])
-            count = int(args[2])
-            price = float(args[3])
         except ValueError as e:
             _print_error(f"error: {e}")
+            return
+        try:
+            count = int(values["count"])
+            price = float(values["price"])
+        except ValueError:
+            _print_error(
+                "error: count must be a whole number and "
+                "price a number"
+            )
             return
         if count <= 0 or price <= 0:
             _print_error(
@@ -90,119 +129,134 @@ class TradeCommands(Commands):
         trade_add(stock, trade_type, count, price)
         _print_wrapped(
             f"added {trade_type.name} {count} "
-            f"{stock.name} @ {price}"
+            f"{stock.name} @ {price:g}"
         )
 
-    def _trade_delete(self, args):
-        if len(args) != 2:
-            _print_wrapped("usage: tr del <stock> <index>")
+    def rm(self, arg):
+        """
+        rm trade <stock> <id>
+            delete a trade after confirmation, the
+            stock's total is recalculated; the ids
+            are in 'ls trades <stock>'
+        """
+        args = arg.split()
+        trade_id = (
+            _parse_id(args[1]) if len(args) == 2 else None
+        )
+        if trade_id is None:
+            _print_wrapped("usage: rm trade <stock> <id>")
             return
         try:
             stock = _parse_stock(args[0])
         except ValueError as e:
             _print_error(f"error: {e}")
             return
-        if not args[1].isdigit():
-            _print_error(
-                "error: index must be a number, got "
-                f"'{args[1]}'"
-            )
-            return
-        index = int(args[1])
-
-        transaction = next(
+        trade = next(
             (
                 t
                 for t in trades_get_all(stock)
-                if t["Id"] == index
+                if t["Id"] == trade_id
             ),
             None,
         )
-        if transaction is None:
+        if trade is None:
             _print_error(
-                f"error: no {stock.name} transaction with "
-                f"Id {index}"
+                f"error: no {stock.name} trade {trade_id}, "
+                f"see 'ls trades {stock.name}'"
             )
             return
-        self._confirm_and_delete(stock, transaction)
 
-    def _trade_delete_last(self, args):
-        if len(args) != 1:
-            _print_wrapped("usage: tr del-last <stock>")
-            return
-        try:
-            stock = _parse_stock(args[0])
-        except ValueError as e:
-            _print_error(f"error: {e}")
-            return
-
-        transactions = trades_get_all(stock)
-        if not transactions:
-            _print_wrapped(
-                f"no transactions for {stock.name}"
-            )
-            return
-        # transactions are appended, so the last row is the
-        # latest one
-        self._confirm_and_delete(stock, transactions[-1])
-
-    def _confirm_and_delete(self, stock, transaction):
-        """show a transaction, ask for confirmation and
-        delete it"""
-        index = transaction["Id"]
         color = _supports_color()
         print()
         _print_trades_header(color)
-        _print_trade_row(transaction, color)
+        _print_trade_row(trade, color)
         print()
         if not _confirm(
-            f"delete this {stock.name} transaction? "
-            "[y/N] "
+            f"delete {stock.name} trade {trade_id}? [y/N] "
         ):
             _print_wrapped("cancelled")
             return
-
-        trade_delete(stock, index)
+        trade_delete(stock, trade_id)
         _print_wrapped(
-            f"deleted {stock.name} transaction {index}"
+            f"deleted {stock.name} trade {trade_id}"
         )
 
-    def _trades_show(self, args):
-        if len(args) != 1:
-            _print_wrapped("usage: tr get <stock>")
-            return
-        try:
-            stock = _parse_stock(args[0])
-        except ValueError as e:
-            _print_error(f"error: {e}")
-            return
+    def complete(self, action, args):
+        stocks = [s.name for s in Stock]
+        if action == "add":
+            keywords = ["count", "price"]
+            types = [t.name.lower() for t in TradeType]
+            return [stocks, types, keywords, [], keywords]
+        if action == "rm":
+            return [stocks, _trade_ids(args[:1])]
+        return [stocks]
 
-        transactions = trades_get_all(stock)
-        if not transactions:
+    def _stocks_with_trades(self):
+        """the stocks that have trades: how many and the
+        date of the last one"""
+        rows = []
+        for stock in Stock:
+            trades = trades_get_all(stock)
+            if trades:
+                rows.append((stock, trades))
+        if not rows:
             _print_wrapped(
-                f"no transactions for {stock.name}"
+                "no trades yet, see 'help add trade'"
             )
             return
-
         color = _supports_color()
-        print()
-        _print_trades_header(color)
-        for t in transactions:
-            _print_trade_row(t, color)
+        column_sep = _column_sep(color)
+        header_cols = [
+            f"{'Name':<5}",
+            f"{'Trades':>6}",
+            f"{'Last trade':<14}",
+        ]
+        if color:
+            header_cols = [
+                f"{DIM}{col}{RESET}" for col in header_cols
+            ]
         separator = "-" * WIDTH
-
+        print()
+        print(column_sep.join(header_cols))
         print(
             f"{DIM}{separator}{RESET}"
             if color
             else separator
         )
-        _print_total(stock, color)
+        for stock, trades in rows:
+            last = trades[-1]
+            when = f"{_short_date(last['Date'])} {last['Time']}"
+            cols = [
+                f"{stock.name:<5}",
+                f"{len(trades):>6}",
+                f"{when:<14}",
+            ]
+            if color:
+                cols = [
+                    f"{BOLD}{TOTAL_STOCK_COLOR}"
+                    f"{cols[0]}{RESET}",
+                    f"{COUNT_COLOR}{cols[1]}{RESET}",
+                    f"{DATE_COLOR}{cols[2]}{RESET}",
+                ]
+            print(column_sep.join(cols))
         print()
 
 
+def _trade_ids(args):
+    """the trade ids of the stock named in args, for
+    completion"""
+    try:
+        stock = _parse_stock(args[0]) if args else None
+    except ValueError:
+        stock = None
+    if stock is None:
+        return []
+    return [str(t["Id"]) for t in trades_get_all(stock)]
+
+
 def _print_trades_header(color):
-    """print the column names of the transactions table and
-    a separator line"""
+    """print the column names of the trades table and a
+    separator line"""
     header_cols = [
         f"{'Id':>4}",
         f"{'Date':>8}",
@@ -223,8 +277,7 @@ def _print_trades_header(color):
 
 
 def _print_trade_row(t, color):
-    """print one transaction as a row of the transactions
-    table"""
+    """print one trade as a row of the trades table"""
     trade_type = t['Type'].name
     if color:
         type_color = (
@@ -236,9 +289,9 @@ def _print_trade_row(t, color):
         time = f"{DIM}{t['Time']:>5}{RESET}"
         count = f"{COUNT_COLOR}{t['Count']:>5}{RESET}"
         price = f"{PRICE_COLOR}{t['Price']:<7.2f}{RESET}"
-        index = f"{DIM}{t['Id']:>4}{RESET}"
+        trade_id = f"{DIM}{t['Id']:>4}{RESET}"
     else:
-        index = f"{t['Id']:>4}"
+        trade_id = f"{t['Id']:>4}"
         trade_type = f"{trade_type:>4}"
         date = f"{_short_date(t['Date']):>8}"
         time = f"{t['Time']:>5}"
@@ -247,7 +300,7 @@ def _print_trade_row(t, color):
     print(
         _column_sep(color).join(
             [
-                index,
+                trade_id,
                 date,
                 time,
                 trade_type,
