@@ -33,9 +33,12 @@ from email.utils import getaddresses
 
 from dotenv import load_dotenv
 
-# .env lives in the repo root, one level above scripts/
+# .env lives in the repo root, two levels above
+# scripts/mtsig/
 ROOT_DIR = os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))
+    os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))
+    )
 )
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
 

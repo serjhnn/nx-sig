@@ -2,13 +2,13 @@
 #
 #   python scripts/check_style.py [file ...]
 #
-# without files it checks the python scripts (scripts/
-# and scripts/shell/) and the shell scripts of the
-# repo, and that COMMANDS.md matches the shell's help
-# texts (scripts/gen_docs.py). prints every line longer
-# than MAX_WIDTH characters and exits with 1 if there
-# are any or COMMANDS.md is out of date, so it can also
-# run before a commit.
+# without files it checks the python scripts (scripts/,
+# scripts/shell/ and scripts/mtsig/) and the shell
+# scripts of the repo, and that COMMANDS.md matches the
+# shell's help texts (scripts/gen_docs.py). prints
+# every line longer than MAX_WIDTH characters and exits
+# with 1 if there are any or COMMANDS.md is out of
+# date, so it can also run before a commit.
 
 import os
 import sys
@@ -26,6 +26,7 @@ def default_files():
     for folder in (
         "scripts",
         os.path.join("scripts", "shell"),
+        os.path.join("scripts", "mtsig"),
     ):
         folder = os.path.join(ROOT_DIR, folder)
         files += [

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # mtsig: mail trades service, runs
-# scripts/order_watcher.py in the background
+# scripts/mtsig/order_watcher.py in the background
 #
 #   ./mtsig start    start it (does nothing if it is
 #                    already running)
@@ -22,7 +22,7 @@
 
 set -u
 cd "$(dirname "$0")" || exit 1
-WATCHER_SCRIPT=scripts/order_watcher.py
+WATCHER_SCRIPT=scripts/mtsig/order_watcher.py
 OWNER_SCRIPT=scripts/tasks_owner.py
 NEEDS_314='import sys; sys.exit(sys.version_info < (3, 14))'
 

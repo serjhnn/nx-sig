@@ -1,7 +1,7 @@
 # order watcher: records broker order emails as trades
 #
 # runs as its own process, next to the CLI:
-#   python scripts/order_watcher.py
+#   python scripts/mtsig/order_watcher.py
 #   (needs Python 3.14+, see mail_reader.py)
 # or in the background:
 #   ./mtsig start | stop | status
@@ -36,6 +36,15 @@ import re
 import signal
 import sys
 from datetime import datetime
+
+# storage.py, ladder.py and tasks_owner.py are in
+# scripts/, one level up
+sys.path.insert(
+    1,
+    os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))
+    ),
+)
 
 import ladder
 import storage

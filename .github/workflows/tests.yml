@@ -27,7 +27,7 @@ jobs:
       - name: storage
         run: python scripts/storage.py
       - name: order_parser
-        run: python scripts/order_parser.py
+        run: python scripts/mtsig/order_parser.py
       - name: ladder
         run: python scripts/ladder.py
       - name: shell_test
@@ -43,7 +43,8 @@ jobs:
       - name: compile mail watcher
         run: >-
           python -m py_compile
-          scripts/order_watcher.py scripts/mail_reader.py
+          scripts/mtsig/order_watcher.py
+          scripts/mtsig/mail_reader.py
       - name: shell scripts syntax
         run: |
           for f in nxshell mtsig syncnx migrate_data; do

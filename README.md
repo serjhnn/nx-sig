@@ -138,7 +138,7 @@ and keep the average. Gain/loss in `status` is `count × price − count × avg`
 ```
 
 It waits for new emails from `IMAP_SENDER`, reads the order with
-`scripts/order_parser.py` and records it when its status is `FILLED` and the
+`scripts/mtsig/order_parser.py` and records it when its status is `FILLED` and the
 symbol is in `indices`. Emails like this one are understood (a
 translation in brackets after each label is allowed too):
 
@@ -293,12 +293,13 @@ nx-sig/
     │   ├── mail_cmd.py       mail broker (./mtsig)
     │   ├── tasks_cmd.py      ls tasks
     │   └── overview_cmd.py   status, xtop
+    ├── mtsig/            the mail broker (mail trades service)
+    │   ├── order_watcher.py  email -> parsed order -> trade
+    │   ├── mail_reader.py    IMAP IDLE watcher with reconnects
+    │   └── order_parser.py   reads an order from a broker email
     ├── shell_test.py     tests of the shell commands
     ├── storage.py        trades, totals, rules and mail broker state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
-    ├── order_watcher.py  email -> parsed order -> trade
-    ├── mail_reader.py    IMAP IDLE watcher with reconnects
-    ├── order_parser.py   reads an order from a broker email
     ├── ladder.py         price-step alerts, one process each
     ├── tasks_owner.py    one device runs the background tasks
     ├── sync.py           syncs data/ between phone and PC (Syncthing)
@@ -315,7 +316,7 @@ nx-sig/
 
 ```bash
 python scripts/storage.py        # trades, totals, rules, locking
-python scripts/order_parser.py   # order email parsing
+python scripts/mtsig/order_parser.py  # order email parsing
 python scripts/ladder.py         # ladder levels
 python scripts/tasks_owner.py    # which device runs the tasks
 python scripts/shell_test.py     # every shell command, faked prices

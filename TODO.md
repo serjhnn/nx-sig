@@ -11,8 +11,9 @@ that run in the background, and show it in the names:
     the planned Garmin watch notifications)
 - **`mtsig`: mail trades service**
   - ~~rename `watcher` to `mtsig`~~ (done)
-  - the service code: `order_watcher.py`,
-    `mail_reader.py`, `order_parser.py`
+  - ~~the service code: `order_watcher.py`,
+    `mail_reader.py`, `order_parser.py`~~ (done, in
+    `scripts/mtsig/`)
 
 ~~When doing it, also update the names that still point
 to the watcher: the `mail watcher:` line of `status`
