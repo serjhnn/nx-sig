@@ -79,8 +79,8 @@ Why action first:
   buying price of a stock. Its plural is
   **basetrades**. The data file becomes
   `base_trades.csv`.
-- **task** is a background process: a ladder or the
-  mail broker.
+- **task** is a background process: a ladder, the
+  alerts or the mail broker.
 
 ## The command set
 
@@ -93,6 +93,7 @@ Why action first:
 | rule | yes | yes | yes | | |
 | basetrade | yes | yes | yes | | |
 | ladder | yes | yes | yes | yes | yes |
+| alert | yes | yes | yes | yes | yes |
 | mail-broker | | | | yes | yes |
 | tasks | yes | | | | |
 

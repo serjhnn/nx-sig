@@ -21,6 +21,7 @@ come in either order.
 - [ladders](#ladders)
 - [rules](#rules)
 - [basetrades](#basetrades)
+- [alerts](#alerts)
 - [mail-broker](#mail-broker)
 - [tasks](#tasks)
 - [other commands](#other-commands)
@@ -107,7 +108,9 @@ rm rule <id>
 ls basetrades
     the basetrades in config order, with
     the current price of each stock and its
-    change % from the buying price
+    change % from the buying price; below
+    it each alert's price per stock, a !
+    when the price is past it
 
 add basetrade <stock> price <price>
   count <count>
@@ -119,6 +122,43 @@ add basetrade <stock> price <price>
 rm basetrade <stock>
     delete the basetrade of <stock> after
     confirmation
+```
+
+## alerts
+
+```
+ls alerts
+    the saved alerts and whether the alerts
+    process checks them; the levels per
+    stock are in 'ls basetrades'
+
+add alert basetrades <down|up> <n> percent
+    a Telegram message each time the price
+    of a basetrade's stock crosses <n>
+    percent below (down) or above (up) its
+    buying price, e.g. 'add alert basetrades
+    down 10 percent'; sent again after the
+    price went back past the level (by 1%
+    of the buying price) and crosses it
+    once more. starts the alerts process if
+    it isn't running
+
+rm alert <id>
+    delete alert <id> after confirmation;
+    the alerts process stops when no alert
+    is left
+
+run alert [force]
+    start the alerts process that checks
+    every alert (add alert starts it too);
+    it keeps running when the shell is
+    closed; force takes the background
+    tasks over from the other device, see
+    'help run ladder'
+
+stop alert
+    stop the alerts process, the alerts
+    stay saved
 ```
 
 ## mail-broker

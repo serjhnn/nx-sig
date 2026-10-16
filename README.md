@@ -22,6 +22,8 @@ width you set, see `width` below).
   written atomically and locked, so the shell and the mail broker can run together
 - **Ladders**: background price-step alerts on Telegram, e.g. at 90, 80, 70, ...
   when a stock falls from 100
+- **Alerts**: a Telegram message each time a basetrade's stock crosses e.g.
+  10% below its buying price
 - **Notifications** through [ntfy](https://ntfy.sh) and Telegram
 
 ## Requirements
@@ -89,10 +91,9 @@ your bot.
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
 | `gain_alert` | `xtop` sends a Telegram message when a stock's gain reaches this amount (default `100`) |
 | `gain_alert_pct` | ... or when its gain reaches this % (default `10`) |
-| `ladder_interval` | how often a ladder checks the price, in seconds (default `30`) |
+| `ladder_interval` | how often a ladder and the alerts check the prices, in seconds (default `30`) |
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
 | `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` for the terminal's width, read anew for every command; `NX_WIDTH` in `.env` sets it for one device only |
-
 | `bars_feed` | the feed of the past prices for `chart` (default: `feed`, with `delayed_sip` read as `sip` and the newest 15 minutes left out); set `"iex"` if your plan refuses `sip` |
 | `theme` | `"colored"` (default) or `"plain"` for no colors; `NX_THEME` in `.env` sets it for one device only |
 
@@ -131,6 +132,7 @@ else: `ls ladders`, but `rm ladder 1`.
 | `ladder` | `ls`, `add`, `rm`, `run`, `stop` | `add ladder SOXL down 10 from 100 run` |
 | `rule` | `ls`, `add`, `rm` | `add rule never buy on a gap up` |
 | `basetrade` | `ls`, `add`, `rm` | `add basetrade MRVU price 100 count 10` |
+| `alert` | `ls`, `add`, `rm`, `run`, `stop` | `add alert basetrades down 10 percent` |
 | `mail-broker` | `run`, `stop` | `run mail-broker` |
 | `tasks` | `ls` | `ls tasks`: running background tasks |
 
@@ -239,6 +241,42 @@ several levels between two checks, one message names the farthest one.
 - In Termux a wake lock is held while a ladder or the mail broker runs.
 - Logs are in `data/logs/ladder_<id>.log`.
 
+### Alerts
+
+```
+nX-sig> add alert basetrades down 10 percent
+alert 1 saved: basetrades down 10%
+alerts started (pid 412)
+```
+
+An alert is a change from the buying price of every basetrade: `down 10
+percent` is 90 for a basetrade bought at 100, and 18 for one bought at 20.
+One process (`scripts/alerts.py`) checks all alerts every `ladder_interval`
+seconds and sends a Telegram message each time a stock crosses the level,
+like `SOXL -10.5% at 17.90, bought at 20 (alert 1: down 10%)`. `up` works the
+same way above the buying price.
+
+- It is sent again each time the price comes back over the level and crosses
+  it once more. The price must first go back 1% of the buying price past the
+  level, so a price that wobbles around it doesn't send a message every check.
+- A stock already past the level when the alert is added is sent at once.
+- A new basetrade (a new buying price) starts the stock over.
+- The stocks past each alert are saved, so a restart sends nothing twice.
+- `add alert` starts the process if it isn't running, `rm alert` of the last
+  alert stops it; `run alert [force]` and `stop alert` start and stop it, and
+  `ls tasks` shows it.
+- `ls basetrades` shows each alert's price per stock below the table, with a
+  `!` where the price is past it:
+
+```
+alert 1 down 10%: MUU 45.45, SOXL 18.00!
+! past now: SOXL (1)
+alerts: running, last check 14:30
+```
+
+- Like the ladders, it needs Telegram and runs only on the device that runs
+  the background tasks. Logs are in `data/logs/alerts.log`.
+
 ### Syncing the phone and the PC
 
 `./syncnx` keeps `data/` the same on the phone (Termux) and the PC
@@ -261,8 +299,8 @@ one with the other's ID. Before the first sync, only one device should have
 data in `data/`. Otherwise, the files that differ end up as
 `*.sync-conflict-*` copies.
 
-- Only one device runs the background tasks (the mail broker and the
-  ladders), or every order would be recorded twice. See below.
+- Only one device runs the background tasks (the mail broker, the
+  ladders and the alerts), or every order would be recorded twice. See below.
 - Don't record trades on both devices before they have synced.
 - These stay on each device and are never synced: `.lock`, `logs/`,
   `mtsig.pid` and the `*_status.json` heartbeats (see `data/.stignore`).
@@ -273,16 +311,17 @@ data in `data/`. Otherwise, the files that differ end up as
 
 #### One device runs the background tasks
 
-`data/tasks_owner.json` (synced) names the device that runs the mail broker
-and the ladders, shown by `status` and `ls tasks`
+`data/tasks_owner.json` (synced) names the device that runs the mail broker,
+the ladders and the alerts, shown by `status` and `ls tasks`
 (`background tasks run on pc (since 16.10 14:30)`).
 
-- `run ladder`, `run mail-broker` and `./mtsig start` refuse to start when the
+- `run ladder`, `run alert`, `run mail-broker` and `./mtsig start` refuse to start when the
   other device runs them: stop them there first.
 - When the last background task on a device stops, it releases them, so the
   other device can start them after the next sync.
 - If the other device is off or crashed and can't stop them, take them over
-  with `force`: `run ladder 1 force`, `run mail-broker force`,
+  with `force`: `run ladder 1 force`, `run alert force`,
+  `run mail-broker force`,
   `./mtsig start force`. When the other device syncs again, its tasks see that
   and stop by themselves, without recording or sending anything.
 - The devices only sync when they reach each other. Tasks started on both while
@@ -305,8 +344,10 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `mtsig.pid` | the process id of the running `./mtsig` |
 | `ladders.csv` | the saved ladders: Id, Stock, Direction, Step, From, Last (the last level sent), Created |
 | `ladders_status.json` | the ladder processes' heartbeats, shown by `ls tasks` |
+| `alerts.csv` | the alerts: Id, For (`basetrades`), Direction, Percent, Created |
+| `alerts_status.json` | the alerts process's heartbeat and the stocks past each alert |
 | `tasks_owner.json` | the device that runs the background tasks |
-| `logs/` | the mail broker's and the ladders' logs (`mtsig.log`, `ladder_<id>.log`) |
+| `logs/` | the background tasks' logs (`mtsig.log`, `ladder_<id>.log`, `alerts.log`) |
 
 The count and average buy price of a stock are computed from its trades
 file each time, so editing or syncing a trades file can't leave them out of
@@ -342,6 +383,7 @@ nx-sig/
     │   ├── stocks_cmd.py     ls stocks
     │   ├── rule_cmd.py       rules
     │   ├── base_trade_cmd.py basetrades
+    │   ├── alert_cmd.py      alerts (the shell side)
     │   ├── ladder_cmd.py     ladders (the shell side)
     │   ├── mail_cmd.py       mail broker (./mtsig)
     │   ├── tasks_cmd.py      ls tasks
@@ -356,6 +398,7 @@ nx-sig/
     ├── storage.py        trades, totals, rules and mail broker state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
     ├── ladder.py         price-step alerts, one process each
+    ├── alerts.py         basetrade alerts, one process for all
     ├── chart.py          the price chart of 'chart'
     ├── tasks_owner.py    one device runs the background tasks
     ├── sync.py           syncs data/ between phone and PC (Syncthing)
@@ -374,6 +417,7 @@ nx-sig/
 python scripts/storage.py        # trades, totals, rules, locking
 python scripts/mtsig/order_parser.py  # order email parsing
 python scripts/ladder.py         # ladder levels
+python scripts/alerts.py         # alert levels and crossings
 python scripts/tasks_owner.py    # which device runs the tasks
 python scripts/chart.py          # the price chart layout
 python scripts/shell_test.py     # every shell command, faked prices

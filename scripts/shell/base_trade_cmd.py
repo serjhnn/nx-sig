@@ -14,6 +14,7 @@ from storage import (
     basetrade_set,
     basetrades_get_all,
 )
+from shell.alert_cmd import print_basetrade_alerts
 from shell.interface import Commands
 from shell.ui import (
     BOLD,
@@ -53,7 +54,9 @@ class BaseTradeCommands(Commands):
         ls basetrades
             the basetrades in config order, with
             the current price of each stock and its
-            change % from the buying price
+            change % from the buying price; below
+            it each alert's price per stock, a !
+            when the price is past it
         """
         if arg.split():
             print_wrapped("usage: ls basetrades")
@@ -223,4 +226,6 @@ class BaseTradeCommands(Commands):
                     [name, qty, buy, price, change]
                 )
             )
+        print()
+        print_basetrade_alerts(basetrades, prices)
         print()

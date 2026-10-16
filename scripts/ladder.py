@@ -35,9 +35,13 @@
 #       the level math
 #   process_runs(pid, script, arg=None)
 #       True if pid is a live process running script
-#   release_if_idle(ending_id=None, watcher_ending=False)
+#   release_if_idle(ending_id=None, watcher_ending=False,
+#                   alerts_ending=False)
 #       release the wake lock and the background tasks
 #       when none runs any more
+#   spawn(args, out_path), wake_lock(command),
+#   last_line(paths), setup_logging(path)
+#       the process helpers, also of alerts.py
 #   run(ladder_id)
 #       the process: check the price and notify
 
@@ -59,6 +63,7 @@ import storage
 import tasks_owner
 from storage import (
     ROOT_DIR,
+    alerts_status_get,
     ladder_add,
     ladder_delete,
     ladder_get,
@@ -159,21 +164,9 @@ def start(ladder_id, force=False):
         tasks_owner.claim(force)
     except tasks_owner.OwnerError as e:
         raise LadderError(str(e)) from None
-    out_path = _out_path(ladder_id)
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    _wake_lock("termux-wake-lock")
-    with open(out_path, "w") as out:
-        process = subprocess.Popen(
-            [sys.executable, SCRIPT, str(ladder_id)],
-            cwd=ROOT_DIR,
-            stdin=subprocess.DEVNULL,
-            stdout=out,
-            stderr=subprocess.STDOUT,
-            env={**os.environ, "LOG_CONSOLE": "0"},
-            # its own session, so Ctrl+C or closing the
-            # shell doesn't reach it
-            start_new_session=True,
-        )
+    process = spawn(
+        [SCRIPT, str(ladder_id)], _out_path(ladder_id)
+    )
     # so running_pid() knows it before the process writes
     # its first heartbeat
     ladder_status_set(
@@ -192,7 +185,13 @@ def start(ladder_id, force=False):
             release_if_idle()
             raise LadderError(
                 f"ladder {ladder_id} stopped right after "
-                f"starting: {_crash_reason(ladder_id)}"
+                "starting: "
+                + last_line(
+                    [
+                        _out_path(ladder_id),
+                        _log_path(ladder_id),
+                    ]
+                )
             )
         time.sleep(0.2)
     return process.pid
@@ -281,17 +280,41 @@ def process_runs(pid, script, arg=None):
     return arg is None or args[-1] == str(arg)
 
 
-def _wake_lock(command):
+def spawn(args, out_path):
+    """start python <args> as a background process
+    with its output in out_path, holding the Termux wake
+    lock; return the Popen"""
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    wake_lock("termux-wake-lock")
+    with open(out_path, "w") as out:
+        return subprocess.Popen(
+            [sys.executable, *args],
+            cwd=ROOT_DIR,
+            stdin=subprocess.DEVNULL,
+            stdout=out,
+            stderr=subprocess.STDOUT,
+            env={**os.environ, "LOG_CONSOLE": "0"},
+            # its own session, so Ctrl+C or closing the
+            # shell doesn't reach it
+            start_new_session=True,
+        )
+
+
+def wake_lock(command):
     # Termux only: keeps Android from pausing the process
     if shutil.which(command):
         subprocess.run([command], check=False)
 
 
-def release_if_idle(ending_id=None, watcher_ending=False):
+def release_if_idle(
+    ending_id=None,
+    watcher_ending=False,
+    alerts_ending=False,
+):
     """release the Termux wake lock and the background
     tasks (tasks_owner.release) when no ladder but
-    ending_id and no mail broker (unless it is the one
-    ending) runs any more"""
+    ending_id, no mail broker and no alerts process
+    (unless it is the one ending) runs any more"""
     others = [
         l["Id"]
         for l in ladders_get_all()
@@ -306,16 +329,21 @@ def release_if_idle(ending_id=None, watcher_ending=False):
         and process_runs(pid, "order_watcher.py")
     ):
         return
-    _wake_lock("termux-wake-unlock")
+    alerts = (alerts_status_get() or {}).get("pid")
+    if (
+        not alerts_ending
+        and alerts
+        and process_runs(alerts, "alerts.py", "run")
+    ):
+        return
+    wake_lock("termux-wake-unlock")
     tasks_owner.release()
 
 
-def _crash_reason(ladder_id):
-    """the last line of the process output or its log"""
-    for path in (
-        _out_path(ladder_id),
-        _log_path(ladder_id),
-    ):
+def last_line(paths):
+    """the last line of the first of paths (a process
+    output, its log) that has one"""
+    for path in paths:
         try:
             with open(path) as f:
                 lines = [l for l in f if l.strip()]
@@ -350,7 +378,7 @@ def run(ladder_id):
     each level passed, until SIGTERM or Ctrl+C"""
     signal.signal(signal.SIGTERM, _stop_on_signal)
     signal.signal(signal.SIGINT, signal.default_int_handler)
-    _setup_logging(ladder_id)
+    setup_logging(_log_path(ladder_id))
     ladder = ladder_get(ladder_id)
     if ladder is None:
         log.error("no ladder %s in ladders.csv", ladder_id)
@@ -472,12 +500,11 @@ def _stop_on_signal(signum, frame):
     raise KeyboardInterrupt
 
 
-def _setup_logging(ladder_id):
-    """log to {storage_dir}/logs/ladder_<id>.log and to
-    the console unless LOG_CONSOLE=0"""
+def setup_logging(path):
+    """log to path ({storage_dir}/logs/...) and to the
+    console unless LOG_CONSOLE=0"""
     level_name = os.getenv("LOG_LEVEL", "INFO").upper()
     level = getattr(logging, level_name, logging.INFO)
-    path = _log_path(ladder_id)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     handlers = [
         logging.handlers.RotatingFileHandler(

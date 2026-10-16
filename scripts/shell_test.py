@@ -4,10 +4,10 @@
 #
 # every test runs commands through NxSigShell.onecmd()
 # against a temporary data folder, so the real data is
-# not touched. the prices, Telegram, the ladder
-# processes and ./mtsig are faked: nothing is started
-# and nothing is sent. every printed line is also
-# checked to fit width().
+# not touched. the prices, Telegram, the ladder and
+# alerts processes and ./mtsig are faked: nothing is
+# started and nothing is sent. every printed line is
+# also checked to fit width().
 #
 # the fakes replace the engines (trade_engine, ladder,
 # subprocess, the .env keys), not names inside the
@@ -28,6 +28,7 @@ from unittest import mock
 # plain output without color codes
 os.environ["NO_COLOR"] = "1"
 
+import alerts
 import ladder
 import requests
 import shell.terminal_cmd
@@ -66,6 +67,10 @@ class ShellTest(unittest.TestCase):
         self.bars_calls = []
         # the force of each ladder.start
         self.forced = []
+        # the alerts process "runs", and the force of
+        # each alerts.start
+        self.alerts_running = False
+        self.alerts_forced = []
         self._patches = [
             # 'terminal set' writes this .env
             mock.patch.object(
@@ -110,6 +115,21 @@ class ShellTest(unittest.TestCase):
                 ),
             ),
             mock.patch.object(
+                alerts, "start", self._fake_alerts_start
+            ),
+            mock.patch.object(
+                alerts, "stop", self._fake_alerts_stop
+            ),
+            mock.patch.object(
+                alerts,
+                "running_pid",
+                lambda: (
+                    FAKE_PID
+                    if self.alerts_running
+                    else None
+                ),
+            ),
+            mock.patch.object(
                 subprocess, "run", self._fake_run
             ),
         ]
@@ -143,6 +163,30 @@ class ShellTest(unittest.TestCase):
         if isinstance(self.bars, Exception):
             raise self.bars
         return list(self.bars)
+
+    def _fake_alerts_start(self, force=False):
+        self.alerts_forced.append(force)
+        # the real checks before the process starts
+        if not alerts.alerts_get_all():
+            raise alerts.AlertError(
+                "no alerts, see 'help add alert'"
+            )
+        if self.alerts_running:
+            raise alerts.AlertError(
+                "the alerts are already checked (pid "
+                f"{FAKE_PID})"
+            )
+        try:
+            tasks_owner.claim(force)
+        except tasks_owner.OwnerError as e:
+            raise alerts.AlertError(str(e)) from None
+        self.alerts_running = True
+        return FAKE_PID
+
+    def _fake_alerts_stop(self):
+        was_running = self.alerts_running
+        self.alerts_running = False
+        return was_running
 
     def _fake_stop(self, ladder_id):
         was_running = ladder_id in self.running
@@ -615,6 +659,7 @@ class ShellTest(unittest.TestCase):
                 "           -",
                 "SOXL       5       18.00       19.80"
                 "     +10.00%",
+                "no alerts, see 'help add alert'",
             ],
         )
 
@@ -691,6 +736,260 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.lines("rm basetrade"),
             ["usage: rm basetrade <stock>"],
+        )
+
+    # ---------------- alerts ----------------
+
+    def test_alerts(self):
+        self.assertEqual(
+            self.lines("ls alerts"),
+            ["no alerts yet, see 'help add alert'"],
+        )
+        # the first alert starts the alerts process
+        self.assertEqual(
+            self.lines(
+                "add alert basetrades down 10 percent"
+            ),
+            [
+                "alert 1 saved: basetrades down 10%",
+                f"alerts started (pid {FAKE_PID})",
+            ],
+        )
+        self.assertEqual(
+            self.lines("add alert BASETRADES up 20 %"),
+            ["alert 2 saved: basetrades up 20%"],
+        )
+        self.assertEqual(self.alerts_forced, [False])
+        created = [
+            a["Created"] for a in alerts.alerts_get_all()
+        ]
+        self.assertEqual(
+            self.lines("ls alerts"),
+            [
+                "Id  For         Alert       Created",
+                "-" * width(),
+                " 1  basetrades  down 10%    "
+                f"{created[0]}",
+                " 2  basetrades  up 20%      "
+                f"{created[1]}",
+                "alerts: running",
+            ],
+        )
+        self.assertEqual(
+            self.lines("ls alerts all"),
+            ["usage: ls alerts"],
+        )
+
+    def test_basetrades_with_alerts(self):
+        self.run_cmd("add basetrade SOXL price 20 count 10")
+        self.run_cmd("add basetrade MUU price 50.5 count 2")
+        self.run_cmd("add alert basetrades down 10 percent")
+        self.run_cmd("add alert basetrades up 20 percent")
+        self.prices = {"SOXL": 17.9, "MUU": 61}
+        now = datetime.now()
+        storage.alerts_status_set(
+            {"pid": FAKE_PID, "updated": now.isoformat()}
+        )
+        # a ! marks the levels the price is past
+        self.assertEqual(
+            self.lines("ls basetrades")[4:],
+            [
+                "alert 1 down 10%: MUU 45.45, SOXL 18.00!",
+                "alert 2 up 20%: MUU 60.60!, SOXL 24.00",
+                "! past now: SOXL (1), MUU (2)",
+                f"alerts: running, last check {now:%H:%M}",
+            ],
+        )
+        self.prices = {"SOXL": 19}
+        self.run_cmd("stop alert")
+        self.assertEqual(
+            self.lines("ls basetrades")[4:],
+            [
+                "alert 1 down 10%: MUU 45.45, SOXL 18.00",
+                "alert 2 up 20%: MUU 60.60, SOXL 24.00",
+                "alerts: not running, see 'run alert'",
+            ],
+        )
+        storage.tasks_owner_set(OTHER_OWNER)
+        self.assertEqual(
+            self.lines("ls basetrades")[-2:],
+            [
+                "alerts: not running here, the background "
+                "tasks",
+                "  run on pc (since 16.10 14:30)",
+            ],
+        )
+
+    def test_alert_errors(self):
+        usage = [
+            "usage: add alert basetrades <down|up> <n>",
+            "  percent",
+        ]
+        for line in (
+            "add alert",
+            "add alert basetrades down 10",
+            "add alert basetrades down 10 times",
+        ):
+            self.assertEqual(self.lines(line), usage, line)
+        for line, error in (
+            (
+                "add alert stocks down 10 percent",
+                ["error: alerts are for basetrades"],
+            ),
+            (
+                "add alert basetrades left 10 percent",
+                [
+                    "error: unknown direction 'left', "
+                    "expected",
+                    "  down/up",
+                ],
+            ),
+            (
+                "add alert basetrades down x percent",
+                ["error: <n> must be a number"],
+            ),
+            (
+                "add alert basetrades down 100 percent",
+                [
+                    "error: a price can't go down 100 "
+                    "percent or more"
+                ],
+            ),
+            (
+                "add alert basetrades up 0 percent",
+                ["error: percent must be positive"],
+            ),
+        ):
+            self.assertEqual(self.lines(line), error, line)
+        with mock.patch.dict(os.environ, {"TOKEN": ""}):
+            self.assertEqual(
+                self.lines(
+                    "add alert basetrades down 5 percent"
+                ),
+                [
+                    "error: Telegram isn't set up, add "
+                    "TOKEN and",
+                    "  CHAT_ID to .env",
+                ],
+            )
+        self.assertEqual(alerts.alerts_get_all(), [])
+        self.assertFalse(self.alerts_running)
+
+    def test_rm_alert(self):
+        self.run_cmd("add alert basetrades down 10 percent")
+        self.run_cmd("add alert basetrades up 20 percent")
+        self.assertEqual(
+            self.lines("rm alert 1", "n"),
+            [
+                "delete alert 1: basetrades down 10%? "
+                "[y/N] n",
+                "cancelled",
+            ],
+        )
+        self.assertEqual(
+            self.lines("rm alert 1", "y")[-1],
+            "deleted alert 1",
+        )
+        self.assertTrue(self.alerts_running)
+        # the last one stops the alerts process
+        self.assertEqual(
+            self.lines("rm alert 2", "y")[-1],
+            "deleted alert 2, no alerts left: alerts "
+            "stopped",
+        )
+        self.assertFalse(self.alerts_running)
+        self.assertEqual(
+            self.lines("rm alert 2"),
+            ["error: no alert 2, see 'ls alerts'"],
+        )
+        for line in (
+            "rm alert",
+            "rm alert x",
+            "rm alert 1 2",
+        ):
+            self.assertEqual(
+                self.lines(line),
+                ["usage: rm alert <id>"],
+                line,
+            )
+
+    def test_run_and_stop_alert(self):
+        self.assertEqual(
+            self.lines("run alert"),
+            ["error: no alerts, see 'help add alert'"],
+        )
+        self.assertEqual(
+            self.lines("stop alert"),
+            ["the alerts aren't running"],
+        )
+        # saved, but another device runs the tasks
+        storage.tasks_owner_set(OTHER_OWNER)
+        self.assertEqual(
+            self.lines(
+                "add alert basetrades down 10 percent"
+            ),
+            [
+                "alert 1 saved: basetrades down 10%",
+                "error: pc (since 16.10 14:30) runs the",
+                "  background tasks: stop them there, or "
+                "add",
+                "  'force' if it is off",
+            ],
+        )
+        self.assertEqual(
+            self.lines("run alert force"),
+            [
+                "taking over the background tasks from pc "
+                "(since",
+                "  16.10 14:30)",
+                f"alerts started (pid {FAKE_PID})",
+            ],
+        )
+        self.assertEqual(
+            self.lines("run alert"),
+            [
+                "error: the alerts are already checked "
+                f"(pid {FAKE_PID})"
+            ],
+        )
+        self.assertEqual(
+            self.lines("stop alert"), ["alerts stopped"]
+        )
+        for line, usage in (
+            ("run alert x", "usage: run alert [force]"),
+            ("stop alert 1", "usage: stop alert"),
+        ):
+            self.assertEqual(self.lines(line), [usage])
+
+    def test_alerts_task(self):
+        self.run_cmd("add alert basetrades down 10 percent")
+        now = datetime.now()
+        storage.alerts_status_set(
+            {
+                "pid": FAKE_PID,
+                "started": now.isoformat(),
+                "updated": now.isoformat(),
+                "state": "waiting",
+            }
+        )
+        self.assertEqual(
+            self.lines("ls tasks")[2],
+            f" -  alerts          {FAKE_PID}  "
+            f"{now:%d.%m %H:%M}  waiting",
+        )
+        storage.alerts_status_set(
+            {
+                "pid": FAKE_PID,
+                "updated": (
+                    now - timedelta(hours=1)
+                ).isoformat(),
+                "state": "waiting",
+            }
+        )
+        self.assertEqual(
+            self.lines("ls tasks")[2],
+            f" -  alerts          {FAKE_PID}  -"
+            "            no reply",
         )
 
     # ---------------- ladders ----------------
@@ -1036,23 +1335,24 @@ class ShellTest(unittest.TestCase):
             [
                 "ls: stocks, trades, ladders, rules, "
                 "basetrades,",
-                "  tasks",
+                "  alerts, tasks",
             ],
         )
         self.assertEqual(
             self.lines("add"),
-            ["add: trade, ladder, rule, basetrade"],
+            ["add: trade, ladder, rule, basetrade, alert"],
         )
         self.assertEqual(
             self.lines("rm"),
-            ["rm: trade, ladder, rule, basetrade"],
+            ["rm: trade, ladder, rule, basetrade, alert"],
         )
         self.assertEqual(
-            self.lines("run"), ["run: ladder, mail-broker"]
+            self.lines("run"),
+            ["run: ladder, alert, mail-broker"],
         )
         self.assertEqual(
             self.lines("stop"),
-            ["stop: ladder, mail-broker"],
+            ["stop: ladder, alert, mail-broker"],
         )
 
     def test_action_errors(self):
@@ -1060,7 +1360,7 @@ class ShellTest(unittest.TestCase):
             self.lines("rm x 1"),
             [
                 "unknown object 'x' for rm, expected",
-                "  trade/ladder/rule/basetrade",
+                "  trade/ladder/rule/basetrade/alert",
             ],
         )
         self.assertEqual(
@@ -1625,6 +1925,7 @@ class ShellTest(unittest.TestCase):
         import ast
 
         clean = [
+            "alert_cmd.py",
             "chart_cmd.py",
             "stocks_cmd.py",
             "tasks_cmd.py",
@@ -1660,12 +1961,19 @@ class ShellTest(unittest.TestCase):
                 "ladder",
                 "rule",
                 "basetrade",
+                "alert",
                 "mail-broker",
                 "task",
             ],
         )
-        data = ["trade", "ladder", "rule", "basetrade"]
-        tasks = ["ladder", "mail-broker"]
+        data = [
+            "trade",
+            "ladder",
+            "rule",
+            "basetrade",
+            "alert",
+        ]
+        tasks = ["ladder", "alert", "mail-broker"]
         self.assertEqual(
             self.shell.actions,
             {
@@ -1694,6 +2002,7 @@ class ShellTest(unittest.TestCase):
                 "ladders",
                 "rules",
                 "basetrades",
+                "alerts",
                 "tasks",
             ],
         )
@@ -1705,7 +2014,13 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.complete("add "),
-            ["trade", "ladder", "rule", "basetrade"],
+            [
+                "trade",
+                "ladder",
+                "rule",
+                "basetrade",
+                "alert",
+            ],
         )
         self.assertEqual(
             self.complete("add trade SOXL "),
@@ -1738,13 +2053,30 @@ class ShellTest(unittest.TestCase):
             ["run"],
         )
         self.assertEqual(
-            self.complete("run "), ["ladder", "mail-broker"]
+            self.complete("run "),
+            ["ladder", "alert", "mail-broker"],
+        )
+        self.assertEqual(
+            self.complete("add alert "), ["basetrades"]
+        )
+        self.assertEqual(
+            self.complete("add alert basetrades down 5 "),
+            ["percent"],
         )
         self.assertEqual(self.complete("run x "), [])
-        self.assertEqual(self.complete("help a"), ["add"])
+        self.assertEqual(self.complete("help ad"), ["add"])
+        self.assertEqual(
+            self.complete("help al"), ["alert", "alerts"]
+        )
         self.assertEqual(
             self.complete("help add "),
-            ["trade", "ladder", "rule", "basetrade"],
+            [
+                "trade",
+                "ladder",
+                "rule",
+                "basetrade",
+                "alert",
+            ],
         )
         self.assertEqual(
             self.complete("strategy "),

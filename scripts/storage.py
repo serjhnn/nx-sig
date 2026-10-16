@@ -49,6 +49,13 @@
 #   ladder_status_set(ladder_id, status)
 #       heartbeat of a ladder process (dict), kept in
 #       ladders_status.json
+#   alerts_get_all()
+#   alert_add(target, direction, percent)
+#   alert_delete(alert_id)
+#       the price alerts of alerts.csv (see alerts.py)
+#   alerts_status_get(), alerts_status_set(status)
+#       heartbeat of the alerts process (dict), with the
+#       stocks past each alert, in alerts_status.json
 #   tasks_owner_get(), tasks_owner_set(owner)
 #       the device that runs the background tasks
 #       (dict, None clears it), kept in
@@ -107,6 +114,13 @@ LADDER_FIELDNAMES = [
     "Step",
     "From",
     "Last",
+    "Created",
+]
+ALERT_FIELDNAMES = [
+    "Id",
+    "For",
+    "Direction",
+    "Percent",
     "Created",
 ]
 
@@ -647,6 +661,95 @@ def ladder_status_set(ladder_id, status):
     _json_set(_ladders_status_path(), statuses)
 
 
+def alerts_get_all():
+    """
+    return the alerts of alerts.csv as dicts: Id (int),
+    For ("basetrades"), Direction ("down"/"up"), Percent
+    (float), Created (text)
+    """
+    path = _alerts_path()
+    if not os.path.exists(path):
+        return []
+    with open(path, newline="") as f:
+        rows = list(csv.DictReader(f))
+    for row in rows:
+        row["Id"] = int(row["Id"])
+        row["Percent"] = float(row["Percent"])
+    return rows
+
+
+@_locked
+def alert_add(target, direction, percent):
+    """
+    save a new alert to alerts.csv and return its Id,
+    the one after the highest saved Id
+    """
+    rows = alerts_get_all()
+    alert_id = max((r["Id"] for r in rows), default=0) + 1
+    rows.append(
+        {
+            "Id": alert_id,
+            "For": target,
+            "Direction": direction,
+            "Percent": percent,
+            "Created": datetime.now().strftime(
+                "%d.%m.%Y %H:%M"
+            ),
+        }
+    )
+    _alerts_save(rows)
+    return alert_id
+
+
+@_locked
+def alert_delete(alert_id):
+    """
+    delete alert <alert_id> from alerts.csv and its
+    stocks from alerts_status.json, return the deleted
+    alert or None if there is no such alert
+    """
+    rows = alerts_get_all()
+    deleted = next(
+        (r for r in rows if r["Id"] == alert_id), None
+    )
+    if deleted is None:
+        return None
+    _alerts_save([r for r in rows if r["Id"] != alert_id])
+    status = _json_get(_alerts_status_path()) or {}
+    past = status.get("past") or {}
+    if past.pop(str(alert_id), None) is not None:
+        _json_set(_alerts_status_path(), status)
+    return deleted
+
+
+def alerts_status_get():
+    """
+    return the last heartbeat dict of the alerts
+    process, or None
+    """
+    return _json_get(_alerts_status_path())
+
+
+@_locked
+def alerts_status_set(status):
+    _json_set(_alerts_status_path(), status)
+
+
+def _alerts_save(rows):
+    os.makedirs(DB_DIR, exist_ok=True)
+    _write_csv_atomic(
+        _alerts_path(), ALERT_FIELDNAMES, rows
+    )
+
+
+def _alerts_path():
+    return os.path.join(DB_DIR, "alerts.csv")
+
+
+def _alerts_status_path():
+    return os.path.join(DB_DIR, "alerts_status.json")
+
+
 def tasks_owner_get():
     return _json_get(_tasks_owner_path())
 
@@ -1026,6 +1129,38 @@ if __name__ == "__main__":
             self.assertEqual(
                 [b["Stock"] for b in basetrades_get_all()],
                 ["SOXL"],
+            )
+
+        def test_alerts(self):
+            self.assertEqual(alerts_get_all(), [])
+            self.assertEqual(
+                alert_add("basetrades", "down", 10.0), 1
+            )
+            self.assertEqual(
+                alert_add("basetrades", "up", 2.5), 2
+            )
+            first = alerts_get_all()[0]
+            self.assertEqual(
+                {k: first[k] for k in ALERT_FIELDNAMES[:4]},
+                {
+                    "Id": 1,
+                    "For": "basetrades",
+                    "Direction": "down",
+                    "Percent": 10.0,
+                },
+            )
+            alerts_status_set(
+                {"state": "waiting", "past": {"1": {}}}
+            )
+            self.assertEqual(alert_delete(1)["Id"], 1)
+            self.assertIsNone(alert_delete(1))
+            self.assertEqual(
+                alerts_status_get(),
+                {"state": "waiting", "past": {}},
+            )
+            # the next Id follows the highest one
+            self.assertEqual(
+                alert_add("basetrades", "down", 5.0), 3
             )
 
         def test_ladders(self):
