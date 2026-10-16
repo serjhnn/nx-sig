@@ -4,7 +4,7 @@
 # MailBrokerCommands implements run [force] and stop
 # (./mtsig start [force]/stop); its tasks() are its row
 # in 'ls tasks'.
-# _print_watcher_status() is its line in 'status'
+# print_watcher_status() is its line in 'status'
 
 import os
 import subprocess
@@ -18,8 +18,8 @@ from storage import (
 )
 from shell.interface import Commands
 from shell.ui import (
-    _print_error,
-    _print_wrapped,
+    print_error,
+    print_wrapped,
 )
 
 # order_watcher.py writes a heartbeat at least every 9
@@ -30,17 +30,17 @@ WATCHER_STALE_SECONDS = 15 * 60
 WATCHER_ERROR_DAYS = 7
 
 
-def _print_watcher_status():
+def print_watcher_status():
     """print one line about order_watcher.py from its
     heartbeat file"""
     status = watcher_status_get()
     if not status or not status.get("updated"):
-        _print_wrapped("mail watcher: not started")
+        print_wrapped("mail watcher: not started")
         return
     try:
         updated = datetime.fromisoformat(status["updated"])
     except ValueError:
-        _print_wrapped("mail watcher: unknown state")
+        print_wrapped("mail watcher: unknown state")
         return
 
     state = status.get("state", "")
@@ -63,7 +63,7 @@ def _print_watcher_status():
         line = f"mail watcher: {state}, {updated:%H:%M}"
     if status.get("last_order"):
         line += f", last order {status['last_order']}"
-    _print_wrapped(line)
+    print_wrapped(line)
 
     error = status.get("last_error") or {}
     try:
@@ -80,7 +80,7 @@ def _print_watcher_status():
         < WATCHER_ERROR_DAYS
     )
     if recent_error:
-        _print_error(
+        print_error(
             "mail watcher error "
             f"{error_time:%d.%m %H:%M}: "
             f"{error.get('text', '')}"
@@ -90,7 +90,7 @@ def _print_watcher_status():
         or state.startswith("crashed")
         or age > WATCHER_STALE_SECONDS
     ):
-        _print_wrapped(
+        print_wrapped(
             f"log: {os.path.relpath(status['log'])}"
         )
 
@@ -137,10 +137,10 @@ def _mtsig(*args):
     action = args[0]
     if action == "start":
         # it waits 3s to catch a crash at start
-        _print_wrapped("starting the mail broker...")
+        print_wrapped("starting the mail broker...")
     elif action == "stop":
         # it waits up to 20s for a clean logout
-        _print_wrapped("stopping the mail broker...")
+        print_wrapped("stopping the mail broker...")
     try:
         result = subprocess.run(
             [os.path.join(ROOT_DIR, "mtsig"), *args],
@@ -151,12 +151,12 @@ def _mtsig(*args):
             start_new_session=True,
         )
     except OSError as e:
-        _print_error(f"error: can't run ./mtsig: {e}")
+        print_error(f"error: can't run ./mtsig: {e}")
         return
     for line in result.stdout.splitlines():
-        _print_wrapped(line)
+        print_wrapped(line)
     for line in result.stderr.splitlines():
-        _print_error(line)
+        print_error(line)
 
 
 class MailBrokerCommands(Commands):
@@ -175,7 +175,7 @@ class MailBrokerCommands(Commands):
         """
         args = [a.lower() for a in arg.split()]
         if args not in ([], ["force"]):
-            _print_wrapped("usage: run mail-broker [force]")
+            print_wrapped("usage: run mail-broker [force]")
             return
         _mtsig("start", *args)
 
@@ -185,7 +185,7 @@ class MailBrokerCommands(Commands):
             stop the mail watcher (./mtsig stop)
         """
         if arg.split():
-            _print_wrapped("usage: stop mail-broker")
+            print_wrapped("usage: stop mail-broker")
             return
         _mtsig("stop")
 

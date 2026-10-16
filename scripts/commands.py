@@ -41,11 +41,11 @@ from shell.ui import (
     DIM,
     PROMPT_COLOR,
     RESET,
-    _complete,
-    _print_dim,
-    _print_error,
-    _print_wrapped,
-    _supports_color,
+    complete_options,
+    print_dim,
+    print_error,
+    print_wrapped,
+    supports_color,
 )
 
 LOGO = r"""
@@ -62,7 +62,7 @@ SUBTITLE = (
 
 
 def _banner():
-    if not _supports_color():
+    if not supports_color():
         return f"{LOGO}\n{SUBTITLE}\n"
     lines = LOGO.strip("\n").split("\n")
     last = len(LOGO_COLORS) - 1
@@ -130,7 +130,7 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
     # zero-width so line editing stays aligned
     prompt = (
         f"\001{PROMPT_COLOR}\002nX-sig>\001{RESET}\002 "
-        if _supports_color()
+        if supports_color()
         else "nX-sig> "
     )
 
@@ -208,21 +208,21 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
         words = arg.split(maxsplit=1)
         expected = self._object_words(action)
         if not words:
-            _print_wrapped(
+            print_wrapped(
                 f"{action}: {', '.join(expected)}"
             )
             return
         rest = words[1] if len(words) > 1 else ""
         module = self._find_object(words[0])
         if module is None:
-            _print_error(
+            print_error(
                 f"unknown object '{words[0]}' for "
                 f"{action}, "
                 f"expected {'/'.join(expected)}"
             )
             return
         if not module.supports(action):
-            _print_error(
+            print_error(
                 f"{module.name} has no {action}, it has "
                 f"{'/'.join(module.actions())}"
             )
@@ -230,7 +230,7 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
         # plural after ls, singular everywhere else
         right = self._object_word(module, action)
         if words[0].lower() != right:
-            _print_error(
+            print_error(
                 "use '"
                 + " ".join([action, right, rest]).strip()
                 + "'"
@@ -269,7 +269,7 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
         )
         if module and module.supports(action):
             options += module.complete(action, args[2:])
-        return _complete(text, line, options)
+        return complete_options(text, line, options)
 
     # ---------------- strategy ----------------
 
@@ -280,24 +280,24 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
         """
         args = arg.split()
         if not args:
-            _print_wrapped(
+            print_wrapped(
                 "usage: strategy [run/stop/list/get]"
             )
             return
 
         sub = args[0].lower()
         if sub in ("run", "stop", "list", "get"):
-            _print_wrapped(
+            print_wrapped(
                 f"strategy {sub}: not implemented yet"
             )
         else:
-            _print_error(
+            print_error(
                 f"unknown subcommand '{sub}', expected "
                 "run/stop/list/get"
             )
 
     def complete_strategy(self, text, line, begidx, endidx):
-        return _complete(
+        return complete_options(
             text, line, [["run", "stop", "list", "get"]]
         )
 
@@ -330,9 +330,9 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
             return
         texts = self._help_texts(words)
         if not texts:
-            _print_error(f"no help on '{' '.join(words)}'")
+            print_error(f"no help on '{' '.join(words)}'")
             return
-        _print_dim("\n".join(texts))
+        print_dim("\n".join(texts))
 
     def _help_texts(self, words):
         """the help texts for 'help <words>': an action,
@@ -385,7 +385,7 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
             "e.g. 'help ladder'",
             "",
         ]
-        _print_dim("\n".join(lines))
+        print_dim("\n".join(lines))
 
     def complete_help(self, text, line, begidx, endidx):
         args = line.split()
@@ -402,7 +402,7 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
             options.append(
                 self._object_words(args[1].lower())
             )
-        return _complete(text, line, options)
+        return complete_options(text, line, options)
 
     def precmd(self, line):
         # Windows consoles/pipes may prefix input with a
@@ -414,7 +414,7 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
         pass
 
     def default(self, line):
-        _print_error(
+        print_error(
             f"unknown command: {line.split()[0]}. Type "
             "'help' for commands."
         )

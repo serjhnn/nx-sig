@@ -14,12 +14,12 @@ from shell.ui import (
     RESET,
     RULE_COLOR,
     WIDTH,
-    _column_sep,
-    _confirm,
-    _parse_id,
-    _print_error,
-    _print_wrapped,
-    _supports_color,
+    column_separator,
+    confirm,
+    parse_id,
+    print_error,
+    print_wrapped,
+    supports_color,
 )
 
 
@@ -34,11 +34,11 @@ class RuleCommands(Commands):
             your personal rules with their ids
         """
         if arg.split():
-            _print_wrapped("usage: ls rules")
+            print_wrapped("usage: ls rules")
             return
         rules = rules_get_all()
         if not rules:
-            _print_wrapped(
+            print_wrapped(
                 "no rules yet, add one with 'add rule "
                 "<rule>'"
             )
@@ -53,10 +53,10 @@ class RuleCommands(Commands):
         """
         rule = arg.strip()
         if not rule:
-            _print_wrapped("usage: add rule <rule>")
+            print_wrapped("usage: add rule <rule>")
             return
         rule_id = rules_add(rule)
-        _print_wrapped(f"added rule {rule_id}")
+        print_wrapped(f"added rule {rule_id}")
 
     def rm(self, arg):
         """
@@ -66,10 +66,10 @@ class RuleCommands(Commands):
         """
         args = arg.split()
         rule_id = (
-            _parse_id(args[0]) if len(args) == 1 else None
+            parse_id(args[0]) if len(args) == 1 else None
         )
         if rule_id is None:
-            _print_wrapped("usage: rm rule <id>")
+            print_wrapped("usage: rm rule <id>")
             return
         rule = next(
             (
@@ -80,16 +80,16 @@ class RuleCommands(Commands):
             None,
         )
         if rule is None:
-            _print_error(
+            print_error(
                 f"error: no rule {rule_id}, see 'ls rules'"
             )
             return
         _print_rules([rule])
-        if not _confirm(f"delete rule {rule_id}? [y/N] "):
-            _print_wrapped("cancelled")
+        if not confirm(f"delete rule {rule_id}? [y/N] "):
+            print_wrapped("cancelled")
             return
         rules_delete(rule_id)
-        _print_wrapped(f"deleted rule {rule_id}")
+        print_wrapped(f"deleted rule {rule_id}")
 
     def complete(self, action, args):
         if action == "rm":
@@ -100,8 +100,8 @@ class RuleCommands(Commands):
 def _print_rules(rules):
     """the rules table: Id and Rule, long rules wrap
     inside the Rule column"""
-    color = _supports_color()
-    column_sep = _column_sep(color)
+    color = supports_color()
+    column_sep = column_separator(color)
     header_cols = [f"{'Id':>4}", "Rule"]
     if color:
         header_cols = [

@@ -34,13 +34,13 @@ from shell.ui import (
     SELL_COLOR,
     TOTAL_STOCK_COLOR,
     WIDTH,
-    _confirm,
-    _parse_direction,
-    _parse_id,
-    _parse_stock,
-    _print_error,
-    _print_wrapped,
-    _supports_color,
+    confirm,
+    parse_direction,
+    parse_id,
+    parse_stock,
+    print_error,
+    print_wrapped,
+    supports_color,
 )
 
 ADD_USAGE = (
@@ -62,11 +62,11 @@ class LadderCommands(Commands):
             they run
         """
         if arg.split():
-            _print_wrapped("usage: ls ladders")
+            print_wrapped("usage: ls ladders")
             return
         ladders = ladders_get_all()
         if not ladders:
-            _print_wrapped(
+            print_wrapped(
                 "no ladders yet, see 'help add ladder'"
             )
             return
@@ -87,10 +87,10 @@ class LadderCommands(Commands):
         if len(args) not in (5, 6) or (
             len(args) == 6 and not start
         ):
-            _print_wrapped(ADD_USAGE)
+            print_wrapped(ADD_USAGE)
             return
         if args[3].lower() != "from":
-            _print_wrapped(ADD_USAGE)
+            print_wrapped(ADD_USAGE)
             return
         ladder_id = self._save(args[:3] + args[4:5])
         if ladder_id is None:
@@ -98,7 +98,7 @@ class LadderCommands(Commands):
         if start:
             self._start_ladder(ladder_id)
         else:
-            _print_wrapped(
+            print_wrapped(
                 f"start it with 'run ladder {ladder_id}'"
             )
 
@@ -116,12 +116,12 @@ class LadderCommands(Commands):
             args[1].lower() == "force"
         )
         ladder_id = (
-            _parse_id(args[0])
+            parse_id(args[0])
             if len(args) == 1 or force
             else None
         )
         if ladder_id is None:
-            _print_wrapped("usage: run ladder <id> [force]")
+            print_wrapped("usage: run ladder <id> [force]")
             return
         self._start_ladder(ladder_id, force)
 
@@ -132,17 +132,17 @@ class LadderCommands(Commands):
         """
         args = arg.split()
         ladder_id = (
-            _parse_id(args[0]) if len(args) == 1 else None
+            parse_id(args[0]) if len(args) == 1 else None
         )
         if ladder_id is None:
-            _print_wrapped("usage: stop ladder <id>")
+            print_wrapped("usage: stop ladder <id>")
             return
         try:
             stopped = ladder.stop(ladder_id)
         except ladder.LadderError as e:
-            _print_error(f"error: {e}")
+            print_error(f"error: {e}")
             return
-        _print_wrapped(
+        print_wrapped(
             f"ladder {ladder_id} stopped"
             if stopped
             else f"ladder {ladder_id} is not running"
@@ -157,14 +157,14 @@ class LadderCommands(Commands):
         """
         args = arg.split()
         ladder_id = (
-            _parse_id(args[0]) if len(args) == 1 else None
+            parse_id(args[0]) if len(args) == 1 else None
         )
         if ladder_id is None:
-            _print_wrapped("usage: rm ladder <id>")
+            print_wrapped("usage: rm ladder <id>")
             return
         saved = ladder_get(ladder_id)
         if saved is None:
-            _print_error(
+            print_error(
                 f"error: no ladder {ladder_id}, "
                 "see 'ls ladders'"
             )
@@ -176,15 +176,15 @@ class LadderCommands(Commands):
             if running
             else f"delete ladder {ladder_id}? [y/N] "
         )
-        if not _confirm(question):
-            _print_wrapped("cancelled")
+        if not confirm(question):
+            print_wrapped("cancelled")
             return
         try:
             was_running = ladder.remove(ladder_id)
         except (ladder.LadderError, OSError) as e:
-            _print_error(f"error: {e}")
+            print_error(f"error: {e}")
             return
-        _print_wrapped(
+        print_wrapped(
             f"ladder {ladder_id} "
             + ("stopped and " if was_running else "")
             + "deleted"
@@ -222,21 +222,21 @@ class LadderCommands(Commands):
         direction, step and price, return its Id or
         None"""
         try:
-            stock = _parse_stock(args[0])
-            direction = _parse_direction(args[1])
+            stock = parse_stock(args[0])
+            direction = parse_direction(args[1])
         except ValueError as e:
-            _print_error(f"error: {e}")
+            print_error(f"error: {e}")
             return None
         try:
             step = float(args[2])
             price = float(args[3])
         except ValueError:
-            _print_error(
+            print_error(
                 "error: step and price must be numbers"
             )
             return None
         if not telegram_configured():
-            _print_error(
+            print_error(
                 "error: Telegram isn't set up, add TOKEN "
                 "and CHAT_ID to .env"
             )
@@ -246,9 +246,9 @@ class LadderCommands(Commands):
                 stock.name, direction, step, price
             )
         except ladder.LadderError as e:
-            _print_error(f"error: {e}")
+            print_error(f"error: {e}")
             return None
-        _print_wrapped(
+        print_wrapped(
             f"ladder {ladder_id} saved: {stock.name} "
             f"{direction} every {step:g} from {price:g}"
         )
@@ -256,18 +256,18 @@ class LadderCommands(Commands):
 
     def _start_ladder(self, ladder_id, force=False):
         if force and tasks_owner.lost():
-            _print_wrapped(
+            print_wrapped(
                 "taking over the background tasks from "
                 + tasks_owner.describe(tasks_owner.owner())
             )
-        _print_wrapped(f"starting ladder {ladder_id}...")
+        print_wrapped(f"starting ladder {ladder_id}...")
         try:
             pid = ladder.start(ladder_id, force)
         except ladder.LadderError as e:
-            _print_error(f"error: {e}")
+            print_error(f"error: {e}")
             return
         saved = ladder_get(ladder_id)
-        _print_wrapped(
+        print_wrapped(
             f"ladder {ladder_id} started (pid {pid}), "
             f"next alert at {ladder.next_level(saved):g}"
         )
@@ -317,7 +317,7 @@ def _print_ladders(ladders):
     """the ls ladders table: Id, Stock, Ladder
     (direction and step), From, Next (the next alert),
     State"""
-    color = _supports_color()
+    color = supports_color()
     sep = "  "
     header = sep.join(
         [

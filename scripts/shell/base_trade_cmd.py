@@ -24,14 +24,14 @@ from shell.ui import (
     TOTAL_STOCK_COLOR,
     WIDTH,
     XTOP_SEP,
-    _confirm,
-    _fetch_prices,
-    _gain_color,
-    _parse_keywords,
-    _parse_stock,
-    _print_error,
-    _print_wrapped,
-    _supports_color,
+    confirm,
+    fetch_prices,
+    color_for_gain,
+    parse_keywords,
+    parse_stock,
+    print_error,
+    print_wrapped,
+    supports_color,
 )
 
 ADD_USAGE = (
@@ -56,7 +56,7 @@ class BaseTradeCommands(Commands):
             change % from the buying price
         """
         if arg.split():
-            _print_wrapped("usage: ls basetrades")
+            print_wrapped("usage: ls basetrades")
             return
         self._basetrades_show()
 
@@ -70,33 +70,33 @@ class BaseTradeCommands(Commands):
             stock's older basetrade
         """
         args = arg.split()
-        values = _parse_keywords(
+        values = parse_keywords(
             args[1:], ["price", "count"]
         )
         if not args or values is None:
-            _print_wrapped(ADD_USAGE)
+            print_wrapped(ADD_USAGE)
             return
         try:
-            stock = _parse_stock(args[0])
+            stock = parse_stock(args[0])
         except ValueError as e:
-            _print_error(f"error: {e}")
+            print_error(f"error: {e}")
             return
         try:
             price = float(values["price"])
             count = int(values["count"])
         except ValueError:
-            _print_error(
+            print_error(
                 "error: price must be a number and "
                 "count a whole number"
             )
             return
         if price <= 0 or count <= 0:
-            _print_error(
+            print_error(
                 "error: price and count must be positive"
             )
             return
         replaced = basetrade_set(stock.name, price, count)
-        _print_wrapped(
+        print_wrapped(
             f"{'replaced' if replaced else 'added'} "
             f"basetrade of {stock.name}: {count} at "
             f"{price:g}"
@@ -110,7 +110,7 @@ class BaseTradeCommands(Commands):
         """
         args = arg.split()
         if len(args) != 1:
-            _print_wrapped("usage: rm basetrade <stock>")
+            print_wrapped("usage: rm basetrade <stock>")
             return
         name = args[0].upper()
         found = next(
@@ -122,20 +122,20 @@ class BaseTradeCommands(Commands):
             None,
         )
         if found is None:
-            _print_error(
+            print_error(
                 f"error: no basetrade of {name}, "
                 "see 'ls basetrades'"
             )
             return
-        if not _confirm(
+        if not confirm(
             f"delete basetrade of {name}: "
             f"{found['Count']} at "
             f"{found['Price']:g}? [y/N] "
         ):
-            _print_wrapped("cancelled")
+            print_wrapped("cancelled")
             return
         basetrade_delete(name)
-        _print_wrapped(f"deleted basetrade of {name}")
+        print_wrapped(f"deleted basetrade of {name}")
 
     def complete(self, action, args):
         if action == "add":
@@ -155,14 +155,14 @@ class BaseTradeCommands(Commands):
     def _basetrades_show(self):
         basetrades = basetrades_get_all()
         if not basetrades:
-            _print_wrapped(
+            print_wrapped(
                 "no basetrades yet, see 'help add "
                 "basetrade'"
             )
             return
-        prices = _fetch_prices()
+        prices = fetch_prices()
 
-        color = _supports_color()
+        color = supports_color()
         # laid out like the xtop table, the columns
         # widened to fill WIDTH
         column_sep = XTOP_SEP
@@ -206,7 +206,7 @@ class BaseTradeCommands(Commands):
                 # the current price is green above the
                 # buying price and red below it
                 price_color = (
-                    _gain_color(current - b["Price"])
+                    color_for_gain(current - b["Price"])
                     if current is not None
                     else DIM
                 )

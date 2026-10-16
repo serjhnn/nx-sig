@@ -5,7 +5,7 @@
 #
 # TaskCommands joins the tasks() rows of every module
 # (the ladders, the mail broker), so a new feature with
-# background tasks adds itself here. _print_owner() is
+# background tasks adds itself here. print_owner() is
 # the line about the device that runs them
 # (tasks_owner.py), also in 'status'
 
@@ -21,8 +21,8 @@ from shell.ui import (
     SELL_COLOR,
     TOTAL_STOCK_COLOR,
     WIDTH,
-    _print_wrapped,
-    _supports_color,
+    print_wrapped,
+    supports_color,
 )
 
 
@@ -40,7 +40,7 @@ class TaskCommands(Commands):
             that runs them
         """
         if arg.split():
-            _print_wrapped("usage: ls tasks")
+            print_wrapped("usage: ls tasks")
             return
         tasks = [
             task
@@ -49,13 +49,13 @@ class TaskCommands(Commands):
             for task in module.tasks()
         ]
         if not tasks:
-            _print_wrapped("no background tasks running")
+            print_wrapped("no background tasks running")
         else:
             _print_tasks(tasks)
-        _print_owner()
+        print_owner()
 
 
-def _print_owner():
+def print_owner():
     """the device that runs the background tasks, if
     one does"""
     current = tasks_owner.owner()
@@ -65,13 +65,13 @@ def _print_owner():
         where = f"here ({current['name']})"
     else:
         where = f"on {tasks_owner.describe(current)}"
-    _print_wrapped(f"background tasks run {where}")
+    print_wrapped(f"background tasks run {where}")
 
 
 def _print_tasks(tasks):
     """the ls tasks table: Id, Task, PID, Started,
     State"""
-    color = _supports_color()
+    color = supports_color()
     sep = "  "
     header = sep.join(
         [

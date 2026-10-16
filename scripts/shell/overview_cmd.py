@@ -29,16 +29,16 @@ from shell.ui import (
     TOTAL_STOCK_COLOR,
     WIDTH,
     XTOP_SEP,
-    _column_sep,
-    _fetch_prices,
-    _gain_color,
-    _held_positions,
-    _print_error,
-    _print_wrapped,
-    _supports_color,
+    column_separator,
+    fetch_prices,
+    color_for_gain,
+    held_positions,
+    print_error,
+    print_wrapped,
+    supports_color,
 )
-from shell.mail_cmd import _print_watcher_status
-from shell.tasks_cmd import _print_owner
+from shell.mail_cmd import print_watcher_status
+from shell.tasks_cmd import print_owner
 
 
 class OverviewCmd:
@@ -56,20 +56,20 @@ class OverviewCmd:
             tasks
         """
         if arg.strip():
-            _print_wrapped("usage: status")
+            print_wrapped("usage: status")
             return
 
-        positions = _held_positions()
+        positions = held_positions()
         if not positions:
-            _print_wrapped("no stocks held")
-            _print_watcher_status()
-            _print_owner()
+            print_wrapped("no stocks held")
+            print_watcher_status()
+            print_owner()
             return
 
-        prices = _fetch_prices()
+        prices = fetch_prices()
 
-        color = _supports_color()
-        column_sep = _column_sep(color)
+        color = supports_color()
+        column_sep = column_separator(color)
         header_cols = [
             f"{'Name':<5}",
             f"{'Count':>5}",
@@ -128,8 +128,8 @@ class OverviewCmd:
             if color
             else separator
         )
-        _print_watcher_status()
-        _print_owner()
+        print_watcher_status()
+        print_owner()
         print()
 
     # ---------------- xtop ----------------
@@ -146,7 +146,7 @@ class OverviewCmd:
         """
         args = arg.split()
         if len(args) > 1:
-            _print_wrapped("usage: xtop [sec]")
+            print_wrapped("usage: xtop [sec]")
             return
         interval = 5.0
         if args:
@@ -155,14 +155,14 @@ class OverviewCmd:
             except ValueError:
                 interval = 0
             if interval < 1:
-                _print_error(
+                print_error(
                     "error: seconds must be a number >= "
                     f"1, got '{args[0]}'"
                 )
                 return
 
-        if not _held_positions():
-            _print_wrapped("no stocks held")
+        if not held_positions():
+            print_wrapped("no stocks held")
             return
 
         # the polling thread only queues results, all
@@ -181,7 +181,7 @@ class OverviewCmd:
             report=lambda text: updates.put(("note", text)),
         )
 
-        color = _supports_color()
+        color = supports_color()
         prices, error, updated = {}, None, None
         drawn = 0
         if color:
@@ -252,7 +252,7 @@ def _xtop_rows(prices):
     rows = []
     # re-read every time: the order watcher may record
     # a trade while xtop runs
-    for stock, count, avg_price in _held_positions():
+    for stock, count, avg_price in held_positions():
         row = {
             "stock": stock,
             "count": count,
@@ -383,7 +383,7 @@ def _xtop_lines(
             gain = f"{row['gain']:>+9.2f}"
             if row["pct"] is not None:
                 gain_pct = f"{row['pct']:>+7.2f}%"
-            gain_color = _gain_color(row["gain"])
+            gain_color = color_for_gain(row["gain"])
             total_gain += row["gain"]
             total_cost += row["cost"]
         if color:
@@ -441,7 +441,7 @@ def _xtop_total_line(total_gain, total_cost, color):
     pct = total_gain / total_cost * 100
     gain_pct = f"{pct:>+7.2f}%"
     if color:
-        gain_color = _gain_color(total_gain)
+        gain_color = color_for_gain(total_gain)
         label = f"{DIM}{label}{RESET}"
         gain = f"{BOLD}{gain_color}{gain}{RESET}"
         gain_pct = f"{BOLD}{gain_color}{gain_pct}{RESET}"

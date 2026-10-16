@@ -7,17 +7,17 @@
 # prices
 #
 # shared helpers:
-#   _supports_color(), _column_sep(color)
-#   _print_dim(text), _print_wrapped(text),
-#   _print_error(text), _wrap(text)
-#   _confirm(question)  True if answered y/yes
-#   _parse_stock(name), _parse_id(text),
-#   _parse_direction(name), _parse_trade_type(name)
-#   _parse_keywords(args, keywords)
+#   supports_color(), column_separator(color)
+#   print_dim(text), print_wrapped(text),
+#   print_error(text)
+#   confirm(question)  True if answered y/yes
+#   parse_stock(name), parse_id(text),
+#   parse_direction(name), parse_trade_type(name)
+#   parse_keywords(args, keywords)
 #                       {keyword: value} of 'count 10 ...'
-#   _short_date(value)
-#   _complete(text, line, options_per_position)
-#   _fetch_prices(), _held_positions(), _gain_color(gain)
+#   short_date(value)
+#   complete_options(text, line, options_per_position)
+#   fetch_prices(), held_positions(), color_for_gain(gain)
 
 import os
 import sys
@@ -55,7 +55,7 @@ RULE_COLOR = LOGO_COLORS[
 ]  # dark green, the last color of the logo gradient
 
 
-def _supports_color():
+def supports_color():
     if not sys.stdout.isatty() or os.environ.get(
         "NO_COLOR"
     ):
@@ -66,22 +66,22 @@ def _supports_color():
     return True
 
 
-def _column_sep(color):
+def column_separator(color):
     return f"{DIM} | {RESET}" if color else " | "
 
 
-def _print_dim(text):
+def print_dim(text):
     print(
-        f"{DIM}{text}{RESET}" if _supports_color() else text
+        f"{DIM}{text}{RESET}" if supports_color() else text
     )
 
 
-def _print_wrapped(text):
+def print_wrapped(text):
     """print plain text wrapped to WIDTH, dimmed"""
-    _print_dim(_wrap(text))
+    print_dim(_wrap(text))
 
 
-def _print_error(text):
+def print_error(text):
     """print an error wrapped to WIDTH, not dimmed so it
     stands out"""
     print(_wrap(text))
@@ -96,7 +96,7 @@ def _wrap(text):
     )
 
 
-def _confirm(question):
+def confirm(question):
     """ask a y/N question, True if answered y or yes"""
     try:
         answer = input(question)
@@ -108,7 +108,7 @@ def _confirm(question):
     return answer.strip().lower() in ("y", "yes")
 
 
-def _parse_stock(name):
+def parse_stock(name):
     try:
         return Stock[name.upper()]
     except KeyError:
@@ -118,7 +118,7 @@ def _parse_stock(name):
         )
 
 
-def _short_date(value):
+def short_date(value):
     """Display stored dd.mm.yyyy dates as dd.mm.yy."""
     return (
         f"{value[:6]}{value[-2:]}"
@@ -127,14 +127,14 @@ def _short_date(value):
     )
 
 
-def _parse_id(text):
+def parse_id(text):
     """a positive whole number, or None"""
     if text.isdigit() and int(text) > 0:
         return int(text)
     return None
 
 
-def _parse_direction(name):
+def parse_direction(name):
     if name.lower() not in ("down", "up"):
         raise ValueError(
             f"unknown direction '{name}', expected down/up"
@@ -142,7 +142,7 @@ def _parse_direction(name):
     return name.lower()
 
 
-def _parse_trade_type(name):
+def parse_trade_type(name):
     try:
         return TradeType[name.upper()]
     except KeyError:
@@ -152,7 +152,7 @@ def _parse_trade_type(name):
         )
 
 
-def _parse_keywords(args, keywords):
+def parse_keywords(args, keywords):
     """{keyword: value} of words like 'count 10 price
     20', the keywords in any order; None unless each of
     keywords comes once with a value"""
@@ -167,7 +167,7 @@ def _parse_keywords(args, keywords):
     return values
 
 
-def _complete(text, line, options_per_position):
+def complete_options(text, line, options_per_position):
     """complete the argument at the current position from
     options_per_position"""
     position = len(line.split()) - (1 if text else 0) - 1
@@ -180,24 +180,22 @@ def _complete(text, line, options_per_position):
     return []
 
 
-def _fetch_prices():
+def fetch_prices():
     """{stock: current price} from the API, or {} after
     printing why the prices could not be fetched"""
     try:
         return get_latest_prices()
     except KeyError as e:
-        _print_error(
+        print_error(
             f"error: missing {e.args[0]} in .env, "
             "can't get current prices"
         )
     except Exception as e:  # network or API errors
-        _print_error(
-            f"error: can't get current prices: {e}"
-        )
+        print_error(f"error: can't get current prices: {e}")
     return {}
 
 
-def _held_positions():
+def held_positions():
     """(stock, count, average buy price) of every stock
     whose count is not 0"""
     positions = [
@@ -206,7 +204,7 @@ def _held_positions():
     return [p for p in positions if p[1] != 0]
 
 
-def _gain_color(gain):
+def color_for_gain(gain):
     if gain > 0:
         return BUY_COLOR
     if gain < 0:

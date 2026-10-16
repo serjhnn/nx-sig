@@ -29,16 +29,16 @@ from shell.ui import (
     TOTAL_COUNT_COLOR,
     TOTAL_STOCK_COLOR,
     WIDTH,
-    _column_sep,
-    _confirm,
-    _parse_id,
-    _parse_keywords,
-    _parse_stock,
-    _parse_trade_type,
-    _print_error,
-    _print_wrapped,
-    _short_date,
-    _supports_color,
+    column_separator,
+    confirm,
+    parse_id,
+    parse_keywords,
+    parse_stock,
+    parse_trade_type,
+    print_error,
+    print_wrapped,
+    short_date,
+    supports_color,
 )
 
 ADD_USAGE = (
@@ -64,20 +64,20 @@ class TradeCommands(Commands):
             self._stocks_with_trades()
             return
         if len(args) != 1:
-            _print_wrapped("usage: ls trades [<stock>]")
+            print_wrapped("usage: ls trades [<stock>]")
             return
         try:
-            stock = _parse_stock(args[0])
+            stock = parse_stock(args[0])
         except ValueError as e:
-            _print_error(f"error: {e}")
+            print_error(f"error: {e}")
             return
 
         trades = trades_get_all(stock)
         if not trades:
-            _print_wrapped(f"no trades for {stock.name}")
+            print_wrapped(f"no trades for {stock.name}")
             return
 
-        color = _supports_color()
+        color = supports_color()
         print()
         _print_trades_header(color)
         for t in trades:
@@ -99,35 +99,35 @@ class TradeCommands(Commands):
             buy count 10 price 20.5'
         """
         args = arg.split()
-        values = _parse_keywords(
+        values = parse_keywords(
             args[2:], ["count", "price"]
         )
         if len(args) < 2 or values is None:
-            _print_wrapped(ADD_USAGE)
+            print_wrapped(ADD_USAGE)
             return
         try:
-            stock = _parse_stock(args[0])
-            trade_type = _parse_trade_type(args[1])
+            stock = parse_stock(args[0])
+            trade_type = parse_trade_type(args[1])
         except ValueError as e:
-            _print_error(f"error: {e}")
+            print_error(f"error: {e}")
             return
         try:
             count = int(values["count"])
             price = float(values["price"])
         except ValueError:
-            _print_error(
+            print_error(
                 "error: count must be a whole number and "
                 "price a number"
             )
             return
         if count <= 0 or price <= 0:
-            _print_error(
+            print_error(
                 "error: count and price must be positive"
             )
             return
 
         trade_add(stock, trade_type, count, price)
-        _print_wrapped(
+        print_wrapped(
             f"added {trade_type.name} {count} "
             f"{stock.name} @ {price:g}"
         )
@@ -141,15 +141,15 @@ class TradeCommands(Commands):
         """
         args = arg.split()
         trade_id = (
-            _parse_id(args[1]) if len(args) == 2 else None
+            parse_id(args[1]) if len(args) == 2 else None
         )
         if trade_id is None:
-            _print_wrapped("usage: rm trade <stock> <id>")
+            print_wrapped("usage: rm trade <stock> <id>")
             return
         try:
-            stock = _parse_stock(args[0])
+            stock = parse_stock(args[0])
         except ValueError as e:
-            _print_error(f"error: {e}")
+            print_error(f"error: {e}")
             return
         trade = next(
             (
@@ -160,24 +160,24 @@ class TradeCommands(Commands):
             None,
         )
         if trade is None:
-            _print_error(
+            print_error(
                 f"error: no {stock.name} trade {trade_id}, "
                 f"see 'ls trades {stock.name}'"
             )
             return
 
-        color = _supports_color()
+        color = supports_color()
         print()
         _print_trades_header(color)
         _print_trade_row(trade, color)
         print()
-        if not _confirm(
+        if not confirm(
             f"delete {stock.name} trade {trade_id}? [y/N] "
         ):
-            _print_wrapped("cancelled")
+            print_wrapped("cancelled")
             return
         trade_delete(stock, trade_id)
-        _print_wrapped(
+        print_wrapped(
             f"deleted {stock.name} trade {trade_id}"
         )
 
@@ -200,12 +200,12 @@ class TradeCommands(Commands):
             if trades:
                 rows.append((stock, trades))
         if not rows:
-            _print_wrapped(
+            print_wrapped(
                 "no trades yet, see 'help add trade'"
             )
             return
-        color = _supports_color()
-        column_sep = _column_sep(color)
+        color = supports_color()
+        column_sep = column_separator(color)
         header_cols = [
             f"{'Name':<5}",
             f"{'Trades':>6}",
@@ -225,7 +225,7 @@ class TradeCommands(Commands):
         )
         for stock, trades in rows:
             last = trades[-1]
-            date = _short_date(last["Date"])
+            date = short_date(last["Date"])
             when = f"{date} {last['Time']}"
             cols = [
                 f"{stock.name:<5}",
@@ -247,7 +247,7 @@ def _trade_ids(args):
     """the trade ids of the stock named in args, for
     completion"""
     try:
-        stock = _parse_stock(args[0]) if args else None
+        stock = parse_stock(args[0]) if args else None
     except ValueError:
         stock = None
     if stock is None:
@@ -270,7 +270,7 @@ def _print_trades_header(color):
         header_cols = [
             f"{DIM}{col}{RESET}" for col in header_cols
         ]
-    print(_column_sep(color).join(header_cols))
+    print(column_separator(color).join(header_cols))
     separator = "-" * WIDTH
     print(
         f"{DIM}{separator}{RESET}" if color else separator
@@ -285,8 +285,8 @@ def _print_trade_row(t, color):
             BUY_COLOR if trade_type == "BUY" else SELL_COLOR
         )
         trade_type = f"{type_color}{trade_type:>4}{RESET}"
-        short_date = _short_date(t['Date'])
-        date = f"{DATE_COLOR}{short_date:>8}{RESET}"
+        day = short_date(t['Date'])
+        date = f"{DATE_COLOR}{day:>8}{RESET}"
         time = f"{DIM}{t['Time']:>5}{RESET}"
         count = f"{COUNT_COLOR}{t['Count']:>5}{RESET}"
         price = f"{PRICE_COLOR}{t['Price']:<7.2f}{RESET}"
@@ -294,12 +294,12 @@ def _print_trade_row(t, color):
     else:
         trade_id = f"{t['Id']:>4}"
         trade_type = f"{trade_type:>4}"
-        date = f"{_short_date(t['Date']):>8}"
+        date = f"{short_date(t['Date']):>8}"
         time = f"{t['Time']:>5}"
         count = f"{t['Count']:>5}"
         price = f"{t['Price']:<7.2f}"
     print(
-        _column_sep(color).join(
+        column_separator(color).join(
             [
                 trade_id,
                 date,

@@ -23,7 +23,7 @@ with 1, so it can run before each commit (see
 - **What the shell prints is at most 48 characters**
   (`WIDTH` in `scripts/shell/ui.py`), so tables and
   messages fit the screen without wrapping. Wrap long
-  messages with `_print_wrapped()` / `_print_error()`.
+  messages with `print_wrapped()` / `print_error()`.
 
 ## Wrapping long lines in Python
 
@@ -114,8 +114,9 @@ so fix what `check_style.py` still reports by hand.
 - `snake_case` for functions and variables,
   `UPPER_CASE` for constants, `CamelCase` for classes.
 - A leading `_` marks a helper used only inside its
-  module. The shell's shared helpers in `shell/ui.py`
-  keep it too: they are used only inside the shell.
+  module. A name other modules import has none, like
+  the shell's shared helpers in `shell/ui.py`
+  (`print_wrapped`, `parse_stock`, ...).
 
 ## Project rules
 

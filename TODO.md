@@ -48,8 +48,9 @@ In this order, before metrics and strategy add more:
    were running before (Termux:Boot), see Background
    tasks below.
 6. Small cleanups:
-   - the shared helpers in `shell/ui.py` still have a
-     leading `_` though several modules use them
+   - ~~the shared helpers in `shell/ui.py` still have a
+     leading `_` though several modules use them~~
+     (done)
    - `status` still says `order_watcher.py`, see the
      mtsig split above
 

@@ -14,13 +14,13 @@ from shell.ui import (
     RESET,
     TOTAL_STOCK_COLOR,
     WIDTH,
-    _column_sep,
-    _fetch_prices,
-    _gain_color,
-    _held_positions,
-    _parse_stock,
-    _print_wrapped,
-    _supports_color,
+    column_separator,
+    fetch_prices,
+    color_for_gain,
+    held_positions,
+    parse_stock,
+    print_wrapped,
+    supports_color,
 )
 
 
@@ -40,28 +40,28 @@ class StocksCommands(Commands):
         args = arg.split()
         if args:
             try:
-                stock = _parse_stock(args[0])
+                stock = parse_stock(args[0])
             except ValueError:
                 stock = None
             # one stock's details are its trades
             if len(args) == 1 and stock:
-                _print_wrapped(
+                print_wrapped(
                     f"use 'ls trades {stock.name}'"
                 )
             else:
-                _print_wrapped("usage: ls stocks")
+                print_wrapped("usage: ls stocks")
             return
         self._totals_all()
 
     def _totals_all(self):
-        totals = _held_positions()
+        totals = held_positions()
         if not totals:
-            _print_wrapped("no stocks held")
+            print_wrapped("no stocks held")
             return
-        prices = _fetch_prices()
+        prices = fetch_prices()
 
-        color = _supports_color()
-        column_sep = _column_sep(color)
+        color = supports_color()
+        column_sep = column_separator(color)
         header_cols = [
             f"{'Name':<5}",
             f"{'Count':>5}",
@@ -94,7 +94,7 @@ class StocksCommands(Commands):
                     (current - avg_price) / avg_price * 100
                 )
                 growth = f"{pct:>+7.2f}%"
-                growth_color = _gain_color(pct)
+                growth_color = color_for_gain(pct)
             if color:
                 name = (
                     f"{BOLD}{TOTAL_STOCK_COLOR}"
