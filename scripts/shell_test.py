@@ -1617,6 +1617,40 @@ class ShellTest(unittest.TestCase):
 
     # ---------------- the command modules ----------------
 
+    def test_cmd_files_use_engines(self):
+        # these *_cmd.py files reach the data and the
+        # prices only through engines, never storage or
+        # trade_engine; the others follow (TODO.md, "One
+        # engine per kind of data")
+        import ast
+
+        clean = [
+            "chart_cmd.py",
+            "stocks_cmd.py",
+            "tasks_cmd.py",
+        ]
+        folder = os.path.join(
+            storage.ROOT_DIR, "scripts", "shell"
+        )
+        for name in clean:
+            with open(os.path.join(folder, name)) as f:
+                tree = ast.parse(f.read())
+            imported = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    imported |= {
+                        a.name.split(".")[0]
+                        for a in node.names
+                    }
+                elif isinstance(node, ast.ImportFrom):
+                    imported.add(
+                        (node.module or "").split(".")[0]
+                    )
+            self.assertFalse(
+                imported & {"storage", "trade_engine"},
+                f"{name} imports {imported}",
+            )
+
     def test_collected_modules(self):
         self.assertEqual(
             list(self.shell.objects),

@@ -30,6 +30,7 @@
 #   print_dim(text), print_wrapped(text),
 #   print_error(text)
 #   confirm(question)  True if answered y/yes
+#   stock_names()      the config "indices"
 #   parse_stock(name), parse_id(text),
 #   parse_direction(name), parse_trade_type(name)
 #   parse_keywords(args, keywords)
@@ -257,6 +258,10 @@ def confirm(question):
         answer = ""
         print()
     return answer.strip().lower() in ("y", "yes")
+
+
+def stock_names():
+    return [s.name for s in Stock]
 
 
 def parse_stock(name):

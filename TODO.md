@@ -55,6 +55,41 @@ In this order, before metrics and strategy add more:
    - ~~`status` still says `order_watcher.py`, see the
      mtsig split above~~ (done: "mail broker" in
      everything the user sees)
+7. **One engine per kind of data**: a `*_cmd.py` file
+   only reads the command, calls one engine function
+   and prints the result; only engines import
+   `storage` and `trade_engine`, and `storage.py` stays
+   the only file that reads and writes the data files.
+   So a bot, a web page or the setup wizard can use the
+   same functions, and the shell tests fake one
+   function per command. `chart` is done
+   (`chart.stock_chart`); `test_cmd_files_use_engines`
+   in `shell_test.py` checks the files that are done,
+   add each file to its list. One step per file, the
+   shell tests proving the output stays the same:
+   - `trade_cmd.py`: a `trades.py` engine (add, delete,
+     list, total); the totals math (`_total_apply`)
+     moves there from `storage.py`
+   - `rule_cmd.py`: a `rules.py` engine (thin: list,
+     add, delete)
+   - `base_trade_cmd.py`: a `basetrades.py` engine
+     (thin)
+   - `ladder_cmd.py`: its reads (`ladder_get`,
+     `ladders_get_all`, `ladder_status_get`) through
+     `ladder.py`
+   - `mail_cmd.py`: `mtsig_pid_get` and
+     `watcher_status_get` through a small mail broker
+     function (e.g. in `mtsig/`)
+   - `overview_cmd.py`: `config` and `start_polling`
+     through the engines (the gain alert settings, the
+     xtop prices)
+   - `terminal_cmd.py`: the `.env` path from an engine
+     instead of `storage.ROOT_DIR`
+   - `ui.py`: `held_positions` and `fetch_prices` call
+     `trades.py` / `trade_engine` functions, not
+     `storage` directly
+   - last: the test checks every `*_cmd.py` and
+     `ui.py`
 
 ## Privacy
 

@@ -3,9 +3,10 @@
 #
 #   python scripts/chart.py      run the tests
 #
-# no network and no files: the shell passes the prices
-# (trade_engine.get_bars) and the trades, and prints the
-# lines this returns.
+# stock_chart() is what the shell calls: it gets the
+# bars (trade_engine.get_bars), the average buy price
+# and the trades (storage) and draws them. the drawing
+# itself, chart_lines(), has no network and no files.
 #
 #   TSMX 5 days, 15m bars   71.07  -14.86%
 #    83.47 |* *
@@ -34,12 +35,24 @@
 #   timeframe(days, columns)
 #       (Alpaca timeframe, label) of the bars for days
 #       that fill columns
+#   stock_chart(stock, period, width, colors=None)
+#       the lines of the chart of a Stock, [] when
+#       there are no prices in the period; KeyError for
+#       a key missing in .env, requests.RequestException
+#       when the prices can't be fetched
 #   chart_lines(stock, period, bars, width, avg=None,
 #               trades=(), colors=None)
-#       the lines of the chart
+#       the lines of the chart of bars
 
 import bisect
-from datetime import timedelta
+from datetime import datetime, timedelta
+
+import trade_engine
+from storage import (
+    TradeType,
+    trades_get_all,
+    trades_total_get,
+)
 
 DEFAULT_DAYS = 5
 MAX_DAYS = 5 * 365
@@ -108,6 +121,42 @@ def timeframe(days, columns):
         if days * per_day >= columns:
             return name, label
     return TIMEFRAMES[-1][:2]
+
+
+def stock_chart(stock, period, width, colors=None):
+    """the chart of stock over period, (days, text),
+    with its average buy price and trades"""
+    days, _ = period
+    tf, _ = timeframe(days, plot_columns(width))
+    bars = trade_engine.get_bars(stock.name, days, tf)
+    if not bars:
+        return []
+    count, avg = trades_total_get(stock)
+    return chart_lines(
+        stock.name,
+        period,
+        bars,
+        width,
+        avg=avg if count > 0 else None,
+        trades=_trades(stock),
+        colors=colors,
+    )
+
+
+def _trades(stock):
+    """[(time, 'B' or 'S', price)] of the stock's
+    trades"""
+    trades = []
+    for t in trades_get_all(stock):
+        try:
+            when = datetime.strptime(
+                f"{t['Date']} {t['Time']}", "%d.%m.%Y %H:%M"
+            )
+        except ValueError:
+            continue
+        side = "B" if t["Type"] == TradeType.BUY else "S"
+        trades.append((when, side, t["Price"]))
+    return trades
 
 
 def chart_lines(
@@ -304,7 +353,6 @@ def _painter(colors):
 
 if __name__ == "__main__":
     import unittest
-    from datetime import datetime
 
     START = datetime(2026, 10, 12, 9, 0)
 
