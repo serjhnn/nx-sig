@@ -57,9 +57,11 @@ IMAP_SENDER=address-your-broker-sends-orders-from@example.com
 # optional
 IMAP_MAILBOX=INBOX
 LOG_LEVEL=INFO
-# the shell's width on this device, instead of
-# config.json "width" (optional)
+# the shell's width and theme on this device, instead
+# of config.json "width" / "theme" (optional, written
+# by 'terminal set width|theme' in the shell)
 NX_WIDTH=auto
+NX_THEME=colored
 
 # notifications (optional)
 NTFY_TOPIC=your-ntfy-topic
@@ -91,8 +93,19 @@ your bot.
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
 | `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` for the terminal's width, read anew for every command; `NX_WIDTH` in `.env` sets it for one device only |
 
+| `theme` | `"colored"` (default) or `"plain"` for no colors; `NX_THEME` in `.env` sets it for one device only |
+
 On a screen wider than 48 the tables spread out (at most 4 more spaces between
 columns, so they don't get thin), and messages and help texts fill the width.
+
+In the shell, `terminal info` shows the terminal's size, the width and theme in
+use and where they come from (`.env`, `config.json` or the default), the
+colors the terminal supports, the encoding and this device's name.
+`terminal set width <auto|number|default>` and
+`terminal set theme <colored|plain|default>` save the setting for this device
+in `.env` and apply it right away; `default` removes it again. Without colors
+the output is the same, only plain; `NO_COLOR` or output that is not a terminal
+also turns them off.
 
 ## Running
 
@@ -122,7 +135,8 @@ else: `ls ladders`, but `rm ladder 1`.
 
 And the commands of their own: `status` (positions with gain/loss and the
 mail broker's state), `xtop [sec]` (live gain/loss with Telegram alerts at
-`gain_alert` / `gain_alert_pct`), `help [<command>]` and `exit`.
+`gain_alert` / `gain_alert_pct`), `terminal info` / `terminal set ...` (the
+terminal's size, width and theme), `help [<command>]` and `exit`.
 
 Every command with its arguments is in **[COMMANDS.md](COMMANDS.md)**, the same
 text as `help` in the shell (`help add trade`, `help rm`, `help ladder`).
@@ -300,7 +314,8 @@ nx-sig/
     │   ├── ladder_cmd.py     ladders (the shell side)
     │   ├── mail_cmd.py       mail broker (./mtsig)
     │   ├── tasks_cmd.py      ls tasks
-    │   └── overview_cmd.py   status, xtop
+    │   ├── overview_cmd.py   status, xtop
+    │   └── terminal_cmd.py   terminal info, terminal set
     ├── mtsig/            the mail broker (mail trades service)
     │   ├── order_watcher.py  email -> parsed order -> trade
     │   ├── mail_reader.py    IMAP IDLE watcher with reconnects

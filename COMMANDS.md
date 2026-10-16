@@ -166,6 +166,16 @@ xtop [sec]
     e.g. 'xtop 10'.
     Ctrl+C returns to the shell
 
+terminal info
+terminal set width <auto|number|default>
+terminal set theme <colored|plain|default>
+    info: the terminal's size, the width
+    and theme in use and where they come
+    from; set: save the width (auto or
+    48 or more) or the theme for this
+    device in .env, default goes back to
+    config.json
+
 strategy [run/stop/list/get]
     not implemented yet
 

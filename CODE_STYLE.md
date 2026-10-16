@@ -137,8 +137,9 @@ so fix what `check_style.py` still reports by hand.
   in the code or `config.json`.
 - Colors come from the constants in `shell/ui.py`
   (the logo gradient, `PRICE_COLOR`, `DIM`, ...), and
-  output must still work without color (`NO_COLOR`, or
-  output that is not a terminal).
+  output must still work without color (`NO_COLOR`, the
+  plain theme, or output that is not a terminal): check
+  `supports_color()` each time, not once at start.
 - Python 3.12+ for everything except
   `order_watcher.py` / `mail_reader.py`, which need 3.14+.
 - Tests live at the end of their module, under

@@ -11,11 +11,17 @@
 # terminal's width. the tables are made for
 # DEFAULT_WIDTH; on a wider screen the gaps between
 # their columns grow, by at most MAX_GAP_GROWTH each.
+# the theme is config.json "theme" (or NX_THEME in
+# .env): colored, or plain for no colors. 'terminal set'
+# writes NX_WIDTH / NX_THEME.
 #
 # shared helpers:
 #   width()            the output width now
-#   width_problem()    why the setting isn't used, or
-#                      None
+#   width_setting(), theme_setting()
+#                      (setting, where it comes from)
+#   theme()            colored or plain
+#   setting_problems() lines about settings that are
+#                      not used as they are
 #   supports_color()
 #   column_separator(color, columns=None)
 #                      ' | ' between the columns
@@ -53,6 +59,8 @@ DEFAULT_WIDTH = 48
 MIN_WIDTH = DEFAULT_WIDTH
 # so a table on a wide screen isn't spread thin
 MAX_GAP_GROWTH = 4
+THEMES = ("colored", "plain")
+DEFAULT_THEME = "colored"
 
 # 256-color gradient, one per logo line, top to bottom:
 # light blue -> dark green
@@ -75,17 +83,36 @@ RULE_COLOR = LOGO_COLORS[
 ]  # dark green, the last color of the logo gradient
 
 
-def _width_setting():
-    """the width setting and where it comes from"""
-    if os.environ.get("NX_WIDTH"):
-        return os.environ["NX_WIDTH"], "NX_WIDTH"
-    return config.get("width", DEFAULT_WIDTH), "width"
+def _setting(env_name, key, default):
+    """(setting, where it comes from): NX_... in .env
+    for this device, config.json for all of them, or the
+    default"""
+    if os.environ.get(env_name):
+        return os.environ[env_name], f"{env_name} in .env"
+    if key in config:
+        return config[key], "config.json"
+    return default, "default"
+
+
+def width_setting():
+    return _setting("NX_WIDTH", "width", DEFAULT_WIDTH)
+
+
+def theme_setting():
+    return _setting("NX_THEME", "theme", DEFAULT_THEME)
+
+
+def theme():
+    """colored or plain; an unknown setting is the
+    default"""
+    setting = str(theme_setting()[0]).strip().lower()
+    return setting if setting in THEMES else DEFAULT_THEME
 
 
 def _width_wanted():
     """the width the setting asks for, or None if it
     is neither a number nor auto"""
-    setting, _ = _width_setting()
+    setting, _ = width_setting()
     if str(setting).strip().lower() == "auto":
         # COLUMNS, the terminal, or DEFAULT_WIDTH when
         # the output isn't a terminal
@@ -107,10 +134,29 @@ def width():
     return max(MIN_WIDTH, wanted)
 
 
-def width_problem():
+def setting_problems():
+    """lines about a width or theme setting that isn't
+    used as it is"""
+    problems = []
+    width_line = _width_problem()
+    if width_line:
+        problems.append(width_line)
+    setting, source = theme_setting()
+    if str(setting).strip().lower() not in THEMES:
+        problems.append(
+            f"theme '{setting}' ({source}) is not "
+            f"{' or '.join(THEMES)}, using {DEFAULT_THEME}"
+        )
+    return problems
+
+
+def _width_problem():
     """a line about a width setting that isn't used as
     it is, or None"""
-    setting, name = _width_setting()
+    setting, source = width_setting()
+    name = source.split()[0]
+    if name == "config.json":
+        name = "width"
     wanted = _width_wanted()
     if wanted is None:
         return (
@@ -138,10 +184,20 @@ def _gap(columns, base):
     return base + max(0, min(growth, MAX_GAP_GROWTH))
 
 
+def color_off_reason():
+    """why the output has no colors, or None if it has
+    them"""
+    if os.environ.get("NO_COLOR"):
+        return "NO_COLOR is set"
+    if not sys.stdout.isatty():
+        return "the output is not a terminal"
+    if theme() == "plain":
+        return "the theme is plain"
+    return None
+
+
 def supports_color():
-    if not sys.stdout.isatty() or os.environ.get(
-        "NO_COLOR"
-    ):
+    if color_off_reason():
         return False
     if os.name == "nt":
         # enables ANSI escape codes in the Windows console

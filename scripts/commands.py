@@ -17,7 +17,8 @@
 #   run mail-broker, stop mail-broker
 #   ls tasks               running background tasks
 # and the commands of their own:
-#   status, xtop [sec], strategy (not implemented yet)
+#   status, xtop [sec], terminal info|set ...,
+#   strategy (not implemented yet)
 #   help [<command>], exit, quit, q
 #
 # the objects live in scripts/shell/: every *_cmd.py
@@ -37,6 +38,7 @@ import textwrap
 import shell
 from shell.interface import Commands
 from shell.overview_cmd import OverviewCmd
+from shell.terminal_cmd import TerminalCmd
 from shell.ui import (
     DEFAULT_WIDTH,
     LOGO_COLORS,
@@ -48,8 +50,8 @@ from shell.ui import (
     print_error,
     print_wrapped,
     supports_color,
+    setting_problems,
     width,
-    width_problem,
 )
 
 LOGO = r"""
@@ -67,18 +69,18 @@ SUBTITLE = (
 
 def _banner():
     """the logo and the subtitle, centered on a screen
-    wider than DEFAULT_WIDTH, and a line about a width
-    setting that isn't used"""
+    wider than DEFAULT_WIDTH, and the lines about
+    settings that aren't used"""
     indent = " " * ((width() - DEFAULT_WIDTH) // 2)
     lines = [
         indent + line if line else line
         for line in LOGO.split("\n")
     ]
     subtitle = indent + SUBTITLE
-    problem = width_problem()
+    problems = "".join(f"{p}\n" for p in setting_problems())
     if not supports_color():
         banner = "\n".join(lines) + f"\n{subtitle}\n"
-        return banner + (f"{problem}\n" if problem else "")
+        return banner + problems
     lines = "\n".join(lines).strip("\n").split("\n")
     last = len(LOGO_COLORS) - 1
     colored = [
@@ -90,7 +92,7 @@ def _banner():
         + "\n".join(colored)
         + f"\n\n{DIM}{subtitle}{RESET}\n"
     )
-    return banner + (f"{problem}\n" if problem else "")
+    return banner + problems
 
 
 # the commands that are not an action on an object, in
@@ -98,6 +100,7 @@ def _banner():
 OWN_COMMANDS = [
     "status",
     "xtop",
+    "terminal",
     "strategy",
     "help",
     "exit",
@@ -170,19 +173,12 @@ def _usage(method):
     return lines
 
 
-class NxSigShell(OverviewCmd, cmd.Cmd):
-    # \001/\002 tell readline the escape codes are
-    # zero-width so line editing stays aligned
-    prompt = (
-        f"\001{PROMPT_COLOR}\002nX-sig>\001{RESET}\002 "
-        if supports_color()
-        else "nX-sig> "
-    )
-
+class NxSigShell(OverviewCmd, TerminalCmd, cmd.Cmd):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # at start, for the width then
         self.intro = _banner()
+        self.set_prompt()
         # object name -> its module, e.g. "ladder"
         self.objects = {
             c.name: c(self) for c in collect_commands()
@@ -197,6 +193,16 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
             ]
             for action in Commands.ACTIONS
         }
+
+    def set_prompt(self):
+        """the prompt in the theme now"""
+        # \001/\002 tell readline the escape codes are
+        # zero-width so line editing stays aligned
+        self.prompt = (
+            f"\001{PROMPT_COLOR}\002nX-sig>\001{RESET}\002 "
+            if supports_color()
+            else "nX-sig> "
+        )
 
     def preloop(self):
         # keep '-' inside words so 'mail-broker' completes
