@@ -22,11 +22,12 @@ and the docs.
 
 In this order, before metrics and strategy add more:
 
-1. **CI**: a GitHub Actions workflow that runs every
+1. ~~**CI**: a GitHub Actions workflow that runs every
    test (`storage.py`, `order_parser.py`, `ladder.py`,
    `shell_test.py`, `sync.py`) and `check_style.py` on
    each push, so a change from the phone that breaks
-   something shows up right away.
+   something shows up right away.~~ (done,
+   `.github/workflows/tests.yml`, Python 3.12 and 3.14)
 2. **Totals check**: `trades_total.csv` is a cache of
    the trade files. Add a check that rebuilds each
    stock's total from its trades and reports (or

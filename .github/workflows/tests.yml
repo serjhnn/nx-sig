@@ -1,0 +1,49 @@
+# runs the tests and the style check on every push and
+# pull request, see README.md "Tests". no secrets: the
+# tests fake the prices, the .env keys and the
+# background tasks
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.12: the oldest for the shell
+        # 3.14: the order watcher (imaplib IDLE)
+        python: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: install packages
+        run: pip install -r requirements.txt
+      - name: storage
+        run: python scripts/storage.py
+      - name: order_parser
+        run: python scripts/order_parser.py
+      - name: ladder
+        run: python scripts/ladder.py
+      - name: shell_test
+        run: python scripts/shell_test.py
+      - name: sync
+        run: python scripts/sync.py
+      - name: check_style
+        run: python scripts/check_style.py
+      # no tests yet, so at least check that they
+      # compile (TODO.md "Tests for the mail watcher")
+      - name: compile mail watcher
+        run: >-
+          python -m py_compile
+          scripts/order_watcher.py scripts/mail_reader.py
+      - name: shell scripts syntax
+        run: |
+          for f in nxshell mtsig syncnx migrate_data; do
+            bash -n "$f"
+          done

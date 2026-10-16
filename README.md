@@ -2,6 +2,8 @@
   <img src="assets/logo.svg" alt="nX-sig" width="520">
 </p>
 
+[![tests](https://github.com/serjhnn/nx-sig/actions/workflows/tests.yml/badge.svg)](https://github.com/serjhnn/nx-sig/actions/workflows/tests.yml)
+
 **nX-sig** is a small terminal tool for tracking stock positions. It records
 your buy and sell trades, keeps the count and average buy price of every
 stock, shows live prices and your gain or loss, and can record broker orders
@@ -34,7 +36,7 @@ automatically from the confirmation emails. It is made to run on a phone in
 ```bash
 git clone https://github.com/serjhnn/nx-sig.git
 cd nx-sig
-pip install requests python-dotenv rich
+pip install -r requirements.txt
 ```
 
 In Termux, install Python and git first: `pkg install python git`.
@@ -247,6 +249,9 @@ nx-sig/
 ├── syncnx                sync data/ between phone and PC
 ├── migrate_data          renames old data files once (temporary)
 ├── config.json           stocks, data folder, price API
+├── requirements.txt      the Python packages
+├── .github/workflows/tests.yml
+│                         CI: the tests on every push
 ├── CODE_STYLE.md         code style rules
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg
@@ -291,6 +296,12 @@ python scripts/sync.py           # device IDs, .stignore
 python scripts/check_style.py    # code style (line width), COMMANDS.md
 ```
 
+GitHub Actions runs all of these on every push and pull request,
+on Python 3.12 and 3.14 ([tests.yml](.github/workflows/tests.yml)),
+and also checks that `order_watcher.py` and `mail_reader.py` compile
+and that the shell scripts have no syntax errors. A red mark on the
+commit (or the badge at the top) means something broke.
+
 ## Code style
 
 The code is written to be read on a phone: lines are at most
@@ -302,8 +313,6 @@ The code is written to be read on a phone: lines are at most
 See [TODO.md](TODO.md).
 
 ## Python virtual environment 
-
-pip freeze > requirements.txt
 
 git clone <repo-url>
 
