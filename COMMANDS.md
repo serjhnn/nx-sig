@@ -166,6 +166,15 @@ xtop [sec]
     e.g. 'xtop 10'.
     Ctrl+C returns to the shell
 
+chart <stock> [period <n> <unit>]
+    the price of <stock> over the period
+    (5 days by default) as a chart, one *
+    per price, with your average buy
+    price as a . line and your trades as
+    B / S; <unit> is days, weeks or
+    months, e.g. 'chart TSMX period 3
+    months'
+
 terminal info
 terminal set width <auto|number|default>
 terminal set theme <colored|plain|default>

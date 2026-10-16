@@ -158,21 +158,8 @@ for your own use first. In this order:
   enough, without a watch app
   (see `scripts/watch_notify.py`)
 - Send a notification when the watcher records an order
-- **Price chart in the terminal**: `draw TSMX period 5
-  days` (a command of its own, like `xtop`) draws how
-  the price moved:
-  - the prices: Alpaca's bars endpoint
-    (`/v2/stocks/bars`, `timeframe` 1Hour for days,
-    1Day for weeks and months), with the same keys and
-    `feed` as the latest prices
-  - drawn as a line with box-drawing characters
-    (`╭╮╰╯─│`), the price axis on the left, dates
-    under it; 7 hourly bars a day fill 35 of the 48
-    columns for 5 days
-  - your average buy price as a dotted line (`┈`) and
-    your trades in the period as `B` / `S` marks, so
-    the chart shows where you bought against the price
-  - fits `width()`: more columns on a wider screen,
-    plain without colors (`terminal set theme plain`)
-  - maybe a one-line sparkline (`▁▂▃▄▅▆▇█`) per stock
-    in `ls stocks` or `status` later
+- ~~**Price chart in the terminal**~~ (done: `chart
+  <stock> [period <n> <unit>]`, one `*` per price, the
+  avg buy line and B / S trades). Still open: maybe a
+  one-line sparkline (`▁▂▃▄▅▆▇█`) per stock in
+  `ls stocks` or `status`

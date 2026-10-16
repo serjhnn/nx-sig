@@ -93,6 +93,7 @@ your bot.
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
 | `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` for the terminal's width, read anew for every command; `NX_WIDTH` in `.env` sets it for one device only |
 
+| `bars_feed` | the feed of the past prices for `chart` (default: `feed`, with `delayed_sip` read as `sip` and the newest 15 minutes left out); set `"iex"` if your plan refuses `sip` |
 | `theme` | `"colored"` (default) or `"plain"` for no colors; `NX_THEME` in `.env` sets it for one device only |
 
 On a screen wider than 48 the tables spread out (at most 4 more spaces between
@@ -135,7 +136,8 @@ else: `ls ladders`, but `rm ladder 1`.
 
 And the commands of their own: `status` (positions with gain/loss and the
 mail broker's state), `xtop [sec]` (live gain/loss with Telegram alerts at
-`gain_alert` / `gain_alert_pct`), `terminal info` / `terminal set ...` (the
+`gain_alert` / `gain_alert_pct`), `chart <stock> [period <n> <unit>]` (a
+price chart, see below), `terminal info` / `terminal set ...` (the
 terminal's size, width and theme), `help [<command>]` and `exit`.
 
 Every command with its arguments is in **[COMMANDS.md](COMMANDS.md)**, the same
@@ -182,6 +184,32 @@ Status *FILLED*
   `LOG_LEVEL=DEBUG` in `.env` logs more detail.
 - If an order is found but can't be saved, the log and `status` in the shell
   show `ORDER NOT RECORDED` with the `add trade` command to add it by hand.
+
+### Price chart
+
+```
+nX-sig> chart TSMX period 5 days
+
+TSMX 5 days, 1h bars   80.00  +0.00%
+88.00 |       *
+87.00 |      * *        *        *        *
+86.00 |     *        * *        *        *
+85.00 |               *        *        *
+84.00 |    *    *   *    *   **   *    *   *
+83.00 |...*......B.*........*............... avg
+82.00 |  *        *        *        * *
+81.00 | *        *        *        * *
+80.00 |*
+      +-------------------------------------
+       12.10   13.10  14.10   15.10  16.10
+* price  B buy  . avg buy 83.00
+```
+
+`chart <stock> [period <n> <days|weeks|months>]` (5 days by default, up to 5
+years) draws the price from Alpaca's bars: hourly bars up to 10 days, daily up
+to half a year, weekly beyond. One `*` per price; more prices than columns are
+averaged, so the chart always fits the width. Your average buy price is the `.`
+line and your trades in the period are `B` / `S`, at their time and price.
 
 ### Ladders
 
@@ -315,6 +343,7 @@ nx-sig/
     │   ├── mail_cmd.py       mail broker (./mtsig)
     │   ├── tasks_cmd.py      ls tasks
     │   ├── overview_cmd.py   status, xtop
+    │   ├── chart_cmd.py      chart
     │   └── terminal_cmd.py   terminal info, terminal set
     ├── mtsig/            the mail broker (mail trades service)
     │   ├── order_watcher.py  email -> parsed order -> trade
@@ -324,6 +353,7 @@ nx-sig/
     ├── storage.py        trades, totals, rules and mail broker state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
     ├── ladder.py         price-step alerts, one process each
+    ├── chart.py          the price chart of 'chart'
     ├── tasks_owner.py    one device runs the background tasks
     ├── sync.py           syncs data/ between phone and PC (Syncthing)
     ├── metrics.py        metrics engine: statistics of your actions (planned)
@@ -342,6 +372,7 @@ python scripts/storage.py        # trades, totals, rules, locking
 python scripts/mtsig/order_parser.py  # order email parsing
 python scripts/ladder.py         # ladder levels
 python scripts/tasks_owner.py    # which device runs the tasks
+python scripts/chart.py          # the price chart layout
 python scripts/shell_test.py     # every shell command, faked prices
 python scripts/sync.py           # device IDs, .stignore
 python scripts/check_style.py    # code style (line width), COMMANDS.md

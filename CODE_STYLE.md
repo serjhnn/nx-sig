@@ -153,6 +153,7 @@ so fix what `check_style.py` still reports by hand.
   python scripts/mtsig/order_parser.py
   python scripts/ladder.py
   python scripts/tasks_owner.py
+  python scripts/chart.py
   python scripts/shell_test.py
   ```
 

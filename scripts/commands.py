@@ -17,7 +17,8 @@
 #   run mail-broker, stop mail-broker
 #   ls tasks               running background tasks
 # and the commands of their own:
-#   status, xtop [sec], terminal info|set ...,
+#   status, xtop [sec], chart <stock> [period ...],
+#   terminal info|set ...,
 #   strategy (not implemented yet)
 #   help [<command>], exit, quit, q
 #
@@ -37,6 +38,7 @@ import textwrap
 
 import shell
 from shell.interface import Commands
+from shell.chart_cmd import ChartCmd
 from shell.overview_cmd import OverviewCmd
 from shell.terminal_cmd import TerminalCmd
 from shell.ui import (
@@ -100,6 +102,7 @@ def _banner():
 OWN_COMMANDS = [
     "status",
     "xtop",
+    "chart",
     "terminal",
     "strategy",
     "help",
@@ -173,7 +176,9 @@ def _usage(method):
     return lines
 
 
-class NxSigShell(OverviewCmd, TerminalCmd, cmd.Cmd):
+class NxSigShell(
+    OverviewCmd, ChartCmd, TerminalCmd, cmd.Cmd
+):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # at start, for the width then

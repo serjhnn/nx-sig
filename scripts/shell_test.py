@@ -22,13 +22,14 @@ import subprocess
 import tempfile
 import unittest
 from contextlib import redirect_stdout
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 # plain output without color codes
 os.environ["NO_COLOR"] = "1"
 
 import ladder
+import requests
 import shell.terminal_cmd
 import storage
 import tasks_owner
@@ -38,6 +39,8 @@ from shell.overview_cmd import _xtop_lines
 from shell.ui import width
 
 FAKE_PID = 4242
+# the real bars request, setUp fakes it
+REAL_BARS = trade_engine._bars
 # another device that runs the background tasks
 OTHER_OWNER = {
     "id": "other",
@@ -57,6 +60,10 @@ class ShellTest(unittest.TestCase):
         self.running = set()
         # what ./mtsig was called with
         self.mtsig_calls = []
+        # [(time, price)] the fake bars request returns,
+        # and the requests made
+        self.bars = []
+        self.bars_calls = []
         # the force of each ladder.start
         self.forced = []
         self._patches = [
@@ -80,6 +87,9 @@ class ShellTest(unittest.TestCase):
                 trade_engine,
                 "_latest_prices",
                 lambda headers: dict(self.prices),
+            ),
+            mock.patch.object(
+                trade_engine, "_bars", self._fake_bars
             ),
             # Telegram is set up, but never called
             mock.patch.dict(
@@ -127,6 +137,12 @@ class ShellTest(unittest.TestCase):
             )
         self.running.add(ladder_id)
         return FAKE_PID
+
+    def _fake_bars(self, headers, symbol, days, timeframe):
+        self.bars_calls.append((symbol, days, timeframe))
+        if isinstance(self.bars, Exception):
+            raise self.bars
+        return list(self.bars)
 
     def _fake_stop(self, ladder_id):
         was_running = ladder_id in self.running
@@ -1266,6 +1282,179 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             xtop[4],
             "total" + " " * 43 + "+50.00      +24.39%",
+        )
+
+    # ---------------- chart ----------------
+
+    def test_chart(self):
+        start = datetime(2026, 10, 12, 9, 0)
+        self.bars = [
+            (start + timedelta(hours=i), p)
+            for i, p in enumerate(
+                [10, 12, 14, 16, 18, 16, 14]
+            )
+        ]
+        # a buy at 10:00, written with a fixed date
+        with open(
+            os.path.join(storage.DB_DIR, "soxl_trades.csv"),
+            "w",
+        ) as f:
+            f.write(
+                "Id,Date,Time,Type,Count,Price\n"
+                "1,12.10.2026,10:00,BUY,2,12.0\n"
+            )
+        self.assertEqual(
+            self.lines("chart soxl"),
+            [
+                "SOXL 5 days, 1h bars   14.00  +40.00%",
+                "18.00 |                        *",
+                "17.00 |",
+                "16.00 |                  *           *",
+                "15.00 |",
+                "14.00 |            *"
+                "                       *",
+                "13.00 |",
+                "12.00 |......B...................."
+                ".......... avg",
+                "11.00 |",
+                "10.00 |*",
+                "      +" + "-" * 37,
+                "       12.10",
+                "* price  B buy  . avg buy 12.00",
+            ],
+        )
+        self.run_cmd("chart SOXL period 3 months")
+        self.assertEqual(
+            self.bars_calls,
+            [("SOXL", 5, "1Hour"), ("SOXL", 90, "1Day")],
+        )
+
+    def test_chart_errors(self):
+        self.assertEqual(
+            self.lines("chart"),
+            [
+                "usage: chart <stock> [period <n>",
+                "  <days|weeks|months>]",
+            ],
+        )
+        self.assertEqual(
+            self.lines("chart ABC")[0],
+            "error: unknown stock 'ABC', expected one of:",
+        )
+        self.assertEqual(
+            self.lines("chart SOXL period 5 years"),
+            [
+                "error: the period is 'period <n>",
+                "  <days|weeks|months>', e.g. 'period 3 "
+                "months'",
+            ],
+        )
+        self.assertEqual(
+            self.lines("chart SOXL"),
+            ["no prices for SOXL in the last 5 days"],
+        )
+        self.bars = requests.ConnectionError("no network")
+        self.assertEqual(
+            self.lines("chart SOXL period 1 week"),
+            ["error: can't get the prices: no network"],
+        )
+
+        def missing_key():
+            raise KeyError("APCA_API_KEY_ID")
+
+        with mock.patch.object(
+            trade_engine, "_headers", missing_key
+        ):
+            self.assertEqual(
+                self.lines("chart SOXL"),
+                [
+                    "error: missing APCA_API_KEY_ID in "
+                    ".env, "
+                    "can't",
+                    "  get the prices",
+                ],
+            )
+        # no request for a wrong command
+        self.assertEqual(
+            self.bars_calls,
+            [("SOXL", 5, "1Hour"), ("SOXL", 7, "1Hour")],
+        )
+
+    def test_bars_request(self):
+        pages = [
+            {
+                "bars": {
+                    "SOXL": [
+                        {
+                            "t": "2026-10-12T13:00:00Z",
+                            "c": 10.5,
+                        }
+                    ]
+                },
+                "next_page_token": "abc",
+            },
+            {
+                "bars": {
+                    "SOXL": [
+                        {
+                            "t": "2026-10-12T14:00:00Z",
+                            "c": 11,
+                        }
+                    ]
+                },
+                "next_page_token": None,
+            },
+        ]
+        calls = []
+
+        def fake_get(url, params, headers, timeout):
+            calls.append(dict(params))
+            response = mock.Mock()
+            response.json.return_value = pages[
+                len(calls) - 1
+            ]
+            return response
+
+        with mock.patch.object(
+            trade_engine.requests, "get", fake_get
+        ):
+            bars = REAL_BARS({}, "SOXL", 5, "1Hour")
+        first = datetime(
+            2026, 10, 12, 13, tzinfo=timezone.utc
+        )
+        local = first.astimezone().replace(tzinfo=None)
+        self.assertEqual(
+            bars,
+            [
+                (local, 10.5),
+                (local + timedelta(hours=1), 11.0),
+            ],
+        )
+        self.assertEqual(calls[0]["feed"], "sip")
+        self.assertEqual(calls[0]["timeframe"], "1Hour")
+        self.assertNotIn("page_token", calls[0])
+        self.assertEqual(calls[1]["page_token"], "abc")
+        start = datetime.strptime(
+            calls[0]["start"], "%Y-%m-%dT%H:%M:%SZ"
+        )
+        end = datetime.strptime(
+            calls[0]["end"], "%Y-%m-%dT%H:%M:%SZ"
+        )
+        self.assertEqual(end - start, timedelta(days=5))
+        # the newest 15 minutes are left out
+        now = datetime.now(timezone.utc).replace(
+            tzinfo=None
+        )
+        self.assertGreater(now - end, timedelta(minutes=15))
+
+    def test_complete_chart(self):
+        self.assertIn("SOXL", self.complete("chart "))
+        self.assertEqual(
+            self.complete("chart SOXL "), ["period"]
+        )
+        self.assertEqual(
+            self.complete("chart SOXL period 3 m"),
+            ["months"],
         )
 
     # ---------------- terminal ----------------

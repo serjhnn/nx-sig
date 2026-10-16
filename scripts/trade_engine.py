@@ -13,10 +13,16 @@
 #       request config["url"] once and return {index: price}
 #       for config["indices"], raises
 #       requests.RequestException if the request fails
+#   get_bars(symbol, days, timeframe)
+#       [(local time, close price)] of symbol's bars of
+#       the last days, oldest first, from Alpaca's bars
+#       endpoint (config "bars_url"); timeframe is e.g.
+#       1Hour or 1Day
 
 import json
 import os
 import threading
+from datetime import datetime, timedelta, timezone
 
 import requests
 from dotenv import load_dotenv
@@ -30,6 +36,15 @@ ROOT_DIR = os.path.dirname(
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
 with open(os.path.join(ROOT_DIR, "config.json")) as f:
     config = json.load(f)
+
+
+BARS_URL = config.get(
+    "bars_url", "https://data.alpaca.markets/v2/stocks/bars"
+)
+# the free plan's historical bars: the sip feed without
+# its newest 15 minutes (there is no delayed_sip feed for
+# bars); config "bars_feed" (e.g. iex) chooses another
+BARS_DELAY = timedelta(minutes=16)
 
 
 def _print_error(e):
@@ -96,6 +111,49 @@ def _latest_prices(headers):
         for index in config["indices"]
         if index in trades
     }
+
+
+def get_bars(symbol, days, timeframe):
+    return _bars(_headers(), symbol, days, timeframe)
+
+
+def _bars(headers, symbol, days, timeframe):
+    feed = config.get("bars_feed") or config["feed"]
+    if feed == "delayed_sip":
+        feed = "sip"
+    end = datetime.now(timezone.utc) - BARS_DELAY
+    params = {
+        "symbols": symbol,
+        "timeframe": timeframe,
+        "start": _iso(end - timedelta(days=days)),
+        "end": _iso(end),
+        "feed": feed,
+        "adjustment": "split",
+        "limit": 10000,
+    }
+    bars = []
+    while True:
+        response = requests.get(
+            BARS_URL,
+            params=params,
+            headers=headers,
+            timeout=15,
+        )
+        response.raise_for_status()
+        data = response.json()
+        for bar in (data.get("bars") or {}).get(symbol, []):
+            when = datetime.fromisoformat(bar["t"])
+            # local time without a zone, like the trades
+            local = when.astimezone().replace(tzinfo=None)
+            bars.append((local, float(bar["c"])))
+        token = data.get("next_page_token")
+        if not token:
+            return bars
+        params["page_token"] = token
+
+
+def _iso(when):
+    return when.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 if __name__ == "__main__":
