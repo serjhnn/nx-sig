@@ -49,6 +49,10 @@
 #   ladder_status_set(ladder_id, status)
 #       heartbeat of a ladder process (dict), kept in
 #       ladders_status.json
+#   tasks_owner_get(), tasks_owner_set(owner)
+#       the device that runs the background tasks
+#       (dict, None clears it), kept in
+#       tasks_owner.json, see tasks_owner.py
 #
 # all writes take an exclusive lock on {storage_dir}/.lock,
 # so the CLI and order_watcher.py running at the same time
@@ -641,6 +645,25 @@ def ladder_status_set(ladder_id, status):
     statuses = _json_get(_ladders_status_path()) or {}
     statuses[str(ladder_id)] = status
     _json_set(_ladders_status_path(), statuses)
+
+
+def tasks_owner_get():
+    return _json_get(_tasks_owner_path())
+
+
+@_locked
+def tasks_owner_set(owner):
+    if owner is None:
+        try:
+            os.remove(_tasks_owner_path())
+        except FileNotFoundError:
+            pass
+        return
+    _json_set(_tasks_owner_path(), owner)
+
+
+def _tasks_owner_path():
+    return os.path.join(DB_DIR, "tasks_owner.json")
 
 
 def _ladders_save(rows):

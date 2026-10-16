@@ -131,6 +131,7 @@ and keep the average. Gain/loss in `status` is `count × price − count × avg`
 
 ```bash
 ./mtsig start      # run it in the background
+./mtsig start force  # also when the other device runs the tasks
 ./mtsig status     # running or not, last order, last log lines
 ./mtsig stop       # stop it cleanly
 ./mtsig restart
@@ -207,8 +208,8 @@ one with the other's ID. Before the first sync, only one device should have
 data in `data/`. Otherwise, the files that differ end up as
 `*.sync-conflict-*` copies.
 
-- Run the mail watcher and the ladders on one device only, or the alerts come
-  twice.
+- Only one device runs the background tasks (the mail watcher and the
+  ladders), or every order would be recorded twice. See below.
 - Don't record trades on both devices before they have synced.
 - These stay on each device and are never synced: `.lock`, `logs/`,
   `mtsig.pid` and the `*_status.json` heartbeats (see `data/.stignore`).
@@ -216,6 +217,26 @@ data in `data/`. Otherwise, the files that differ end up as
 - Syncthing runs with its own config in `~/.config/nx-sig-sync`, so it doesn't
   touch another Syncthing on the same device. After a phone restart, run
   `setup` again to start it.
+
+#### One device runs the background tasks
+
+`data/tasks_owner.json` (synced) names the device that runs the mail watcher
+and the ladders, shown by `status` and `ls tasks`
+(`background tasks run on pc (since 16.10 14:30)`).
+
+- `run ladder`, `run mail-broker` and `./mtsig start` refuse to start when the
+  other device runs them: stop them there first.
+- When the last background task on a device stops, it releases them, so the
+  other device can start them after the next sync.
+- If the other device is off or crashed and can't stop them, take them over
+  with `force`: `run ladder 1 force`, `run mail-broker force`,
+  `./mtsig start force`. When the other device syncs again, its tasks see that
+  and stop by themselves, without recording or sending anything.
+- The devices only sync when they reach each other. Tasks started on both while
+  they are apart both run until the next sync; then the later start wins and
+  the other device's tasks stop.
+- Each device keeps its own id in `.device` in the repo folder (not synced,
+  not in git).
 
 ## Data
 
@@ -231,6 +252,7 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `mtsig.pid` | the process id of the running `./mtsig` |
 | `ladders.csv` | the saved ladders: Id, Stock, Direction, Step, From, Last (the last level sent), Created |
 | `ladders_status.json` | the ladder processes' heartbeats, shown by `ls tasks` |
+| `tasks_owner.json` | the device that runs the background tasks |
 | `logs/` | the watcher's and the ladders' logs (`mtsig.log`, `ladder_<id>.log`) |
 
 The count and average buy price of a stock are computed from its trades
@@ -278,6 +300,7 @@ nx-sig/
     ├── mail_reader.py    IMAP IDLE watcher with reconnects
     ├── order_parser.py   reads an order from a broker email
     ├── ladder.py         price-step alerts, one process each
+    ├── tasks_owner.py    one device runs the background tasks
     ├── sync.py           syncs data/ between phone and PC (Syncthing)
     ├── metrics.py        metrics engine: statistics of your actions (planned)
     ├── latest_trade.py   prints the latest prices once
@@ -294,6 +317,7 @@ nx-sig/
 python scripts/storage.py        # trades, totals, rules, locking
 python scripts/order_parser.py   # order email parsing
 python scripts/ladder.py         # ladder levels
+python scripts/tasks_owner.py    # which device runs the tasks
 python scripts/shell_test.py     # every shell command, faked prices
 python scripts/sync.py           # device IDs, .stignore
 python scripts/check_style.py    # code style (line width), COMMANDS.md

@@ -3,7 +3,8 @@
 #
 #   add ladder <stock> <down|up> <step> from <price>
 #       [run]
-#   run ladder <id>, stop ladder <id>, rm ladder <id>
+#   run ladder <id> [force], stop ladder <id>,
+#   rm ladder <id>
 #   ls ladders
 #
 # LadderCommands implements them for the verb commands
@@ -13,6 +14,7 @@
 from datetime import datetime
 
 import ladder
+import tasks_owner
 from storage import (
     Stock,
     ladder_get,
@@ -102,19 +104,26 @@ class LadderCommands(Commands):
 
     def run(self, arg):
         """
-        run ladder <id>
+        run ladder <id> [force]
             start a saved ladder as a background
             process, it keeps running when the
-            shell is closed
+            shell is closed; only one device runs
+            the background tasks, force takes them
+            over from the other one (when it is off)
         """
         args = arg.split()
+        force = len(args) == 2 and (
+            args[1].lower() == "force"
+        )
         ladder_id = (
-            _parse_id(args[0]) if len(args) == 1 else None
+            _parse_id(args[0])
+            if len(args) == 1 or force
+            else None
         )
         if ladder_id is None:
-            _print_wrapped("usage: run ladder <id>")
+            _print_wrapped("usage: run ladder <id> [force]")
             return
-        self._start_ladder(ladder_id)
+        self._start_ladder(ladder_id, force)
 
     def stop(self, arg):
         """
@@ -193,7 +202,10 @@ class LadderCommands(Commands):
             ]
         if action == "run":
             # the ids of the ladders that don't run
-            return [self._ladder_ids(running=False)]
+            return [
+                self._ladder_ids(running=False),
+                ["force"],
+            ]
         if action == "stop":
             # the ids of the running ladders
             return [self._ladder_ids(running=True)]
@@ -242,10 +254,15 @@ class LadderCommands(Commands):
         )
         return ladder_id
 
-    def _start_ladder(self, ladder_id):
+    def _start_ladder(self, ladder_id, force=False):
+        if force and tasks_owner.lost():
+            _print_wrapped(
+                "taking over the background tasks from "
+                + tasks_owner.describe(tasks_owner.owner())
+            )
         _print_wrapped(f"starting ladder {ladder_id}...")
         try:
-            pid = ladder.start(ladder_id)
+            pid = ladder.start(ladder_id, force)
         except ladder.LadderError as e:
             _print_error(f"error: {e}")
             return

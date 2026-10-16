@@ -4,6 +4,9 @@
 #
 #   ./mtsig start    start it (does nothing if it is
 #                    already running)
+#   ./mtsig start force
+#                    also when another device runs
+#                    the background tasks
 #   ./mtsig stop     stop it cleanly (SIGTERM), force
 #                    it after 20s
 #   ./mtsig status   running or not, its heartbeat and
@@ -13,11 +16,14 @@
 # the Python used is $WATCHER_PYTHON, or the first of
 # python3.14, python3, python that is 3.14 or newer.
 # in Termux a wake lock is taken while it runs, so
-# Android doesn't pause it.
+# Android doesn't pause it. only one device runs the
+# background tasks (scripts/tasks_owner.py): start
+# refuses when another device runs them.
 
 set -u
 cd "$(dirname "$0")" || exit 1
 WATCHER_SCRIPT=scripts/order_watcher.py
+OWNER_SCRIPT=scripts/tasks_owner.py
 NEEDS_314='import sys; sys.exit(sys.version_info < (3, 14))'
 
 find_python() {
@@ -80,7 +86,17 @@ wake_lock() {
     command -v "$1" >/dev/null 2>&1 && "$1"
 }
 
+release_if_idle() {
+    # no ladder runs either: release the wake lock and
+    # the background tasks, so the other device may run
+    # them
+    ladder_running && return 0
+    wake_lock termux-wake-unlock
+    "$CONFIG_PYTHON" "$OWNER_SCRIPT" release
+}
+
 start() {
+    # $1: force or empty
     local pid
     if pid=$(running_pid); then
         echo "watcher is already running (pid $pid)"
@@ -93,6 +109,9 @@ start() {
             "WATCHER_PYTHON=/path/to/python3.14" >&2
         return 1
     fi
+    # prints why it refuses
+    "$CONFIG_PYTHON" "$OWNER_SCRIPT" claim ${1:+"$1"} ||
+        return 1
     mkdir -p "$LOG_DIR"
     wake_lock termux-wake-lock
 
@@ -112,6 +131,7 @@ start() {
         return 0
     fi
     rm -f "$PID_FILE"
+    release_if_idle
     echo "error: watcher stopped right after" \
         "starting:" >&2
     if [ -s "$OUT_FILE" ]; then
@@ -146,7 +166,7 @@ stop() {
         kill -KILL "$pid" 2>/dev/null
     fi
     rm -f "$PID_FILE"
-    ladder_running || wake_lock termux-wake-unlock
+    release_if_idle
     echo "watcher stopped"
 }
 
@@ -184,14 +204,15 @@ PY
     [ -n "$pid" ]
 }
 
-case "${1:-}" in
-    start) start ;;
-    stop) stop ;;
-    status) status ;;
-    restart) stop && start ;;
+case "${1:-} ${2:-}" in
+    "start " | "start force") start "${2:-}" ;;
+    "stop ") stop ;;
+    "status ") status ;;
+    "restart ") stop && start ;;
     *)
         echo "usage:" \
-            "./mtsig start|stop|status|restart" >&2
+            "./mtsig start [force]|stop|status|restart" \
+            >&2
         exit 2
         ;;
 esac

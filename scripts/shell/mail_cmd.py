@@ -1,8 +1,9 @@
 # mail_cmd: the shell side of the mail broker
 # (order_watcher.py, started by ./mtsig)
 #
-# MailBrokerCommands implements run and stop (./mtsig
-# start/stop); its tasks() are its row in 'ls tasks'.
+# MailBrokerCommands implements run [force] and stop
+# (./mtsig start [force]/stop); its tasks() are its row
+# in 'ls tasks'.
 # _print_watcher_status() is its line in 'status'
 
 import os
@@ -131,8 +132,9 @@ def _mail_broker_task():
     }
 
 
-def _mtsig(action):
-    """run ./mtsig <action> and print what it says"""
+def _mtsig(*args):
+    """run ./mtsig <args> and print what it says"""
+    action = args[0]
     if action == "start":
         # it waits 3s to catch a crash at start
         _print_wrapped("starting the mail broker...")
@@ -141,7 +143,7 @@ def _mtsig(action):
         _print_wrapped("stopping the mail broker...")
     try:
         result = subprocess.run(
-            [os.path.join(ROOT_DIR, "mtsig"), action],
+            [os.path.join(ROOT_DIR, "mtsig"), *args],
             capture_output=True,
             text=True,
             # its own session, so Ctrl+C or closing the
@@ -163,16 +165,19 @@ class MailBrokerCommands(Commands):
 
     def run(self, arg):
         """
-        run mail-broker
+        run mail-broker [force]
             start the mail watcher (./mtsig start)
             that records broker order emails as
             trades; it keeps running when the shell
-            is closed
+            is closed; force takes the background
+            tasks over from the other device, see
+            'help run ladder'
         """
-        if arg.split():
-            _print_wrapped("usage: run mail-broker")
+        args = [a.lower() for a in arg.split()]
+        if args not in ([], ["force"]):
+            _print_wrapped("usage: run mail-broker [force]")
             return
-        _mtsig("start")
+        _mtsig("start", *args)
 
     def stop(self, arg):
         """
@@ -183,6 +188,9 @@ class MailBrokerCommands(Commands):
             _print_wrapped("usage: stop mail-broker")
             return
         _mtsig("stop")
+
+    def complete(self, action, args):
+        return [["force"]] if action == "run" else []
 
     def tasks(self):
         task = _mail_broker_task()

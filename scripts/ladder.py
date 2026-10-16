@@ -21,8 +21,10 @@
 # public functions:
 #   create(stock_name, direction, step, from_price)
 #       check and save a new ladder, return its Id
-#   start(ladder_id)
-#       start the ladder's process, return its pid
+#   start(ladder_id, force=False)
+#       start the ladder's process, return its pid;
+#       only on the device that runs the background
+#       tasks (tasks_owner.py), force takes them over
 #   stop(ladder_id)
 #       stop it, True if it was running
 #   remove(ladder_id)
@@ -33,6 +35,9 @@
 #       the level math
 #   process_runs(pid, script, arg=None)
 #       True if pid is a live process running script
+#   release_if_idle(ending_id=None, watcher_ending=False)
+#       release the wake lock and the background tasks
+#       when none runs any more
 #   run(ladder_id)
 #       the process: check the price and notify
 
@@ -51,6 +56,7 @@ from datetime import datetime
 import requests
 
 import storage
+import tasks_owner
 from storage import (
     ROOT_DIR,
     ladder_add,
@@ -131,11 +137,13 @@ def running_pid(ladder_id):
     return None
 
 
-def start(ladder_id):
+def start(ladder_id, force=False):
     """
     start ladder <ladder_id> as its own process and
     return its pid; raise LadderError if it doesn't
-    exist, already runs or stops right away
+    exist, already runs, another device runs the
+    background tasks (unless force) or it stops right
+    away
     """
     if ladder_get(ladder_id) is None:
         raise LadderError(
@@ -147,6 +155,10 @@ def start(ladder_id):
             f"ladder {ladder_id} is already running "
             f"(pid {pid})"
         )
+    try:
+        tasks_owner.claim(force)
+    except tasks_owner.OwnerError as e:
+        raise LadderError(str(e)) from None
     out_path = _out_path(ladder_id)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     _wake_lock("termux-wake-lock")
@@ -177,6 +189,7 @@ def start(ladder_id):
     deadline = time.monotonic() + START_CHECK_SECONDS
     while time.monotonic() < deadline:
         if process.poll() is not None:
+            release_if_idle()
             raise LadderError(
                 f"ladder {ladder_id} stopped right after "
                 f"starting: {_crash_reason(ladder_id)}"
@@ -208,7 +221,7 @@ def stop(ladder_id):
     else:
         os.kill(pid, signal.SIGKILL)
         _status(ladder_id, pid, None, "stopped")
-    _release_wake_lock()
+    release_if_idle()
     return True
 
 
@@ -274,10 +287,11 @@ def _wake_lock(command):
         subprocess.run([command], check=False)
 
 
-def _release_wake_lock(ending_id=None):
-    """release the Termux wake lock when no ladder (but
-    ending_id, the one that is ending) and no mail
-    broker needs it any more"""
+def release_if_idle(ending_id=None, watcher_ending=False):
+    """release the Termux wake lock and the background
+    tasks (tasks_owner.release) when no ladder but
+    ending_id and no mail broker (unless it is the one
+    ending) runs any more"""
     others = [
         l["Id"]
         for l in ladders_get_all()
@@ -286,9 +300,14 @@ def _release_wake_lock(ending_id=None):
     if any(running_pid(i) for i in others):
         return
     pid = mtsig_pid_get()
-    if pid and process_runs(pid, "order_watcher.py"):
+    if (
+        not watcher_ending
+        and pid
+        and process_runs(pid, "order_watcher.py")
+    ):
         return
     _wake_lock("termux-wake-unlock")
+    tasks_owner.release()
 
 
 def _crash_reason(ladder_id):
@@ -352,6 +371,19 @@ def run(ladder_id):
     _status(ladder_id, pid, started, "starting")
     try:
         while True:
+            if tasks_owner.lost():
+                log.warning(
+                    "%s took over the background "
+                    "tasks, ladder %s stops",
+                    tasks_owner.describe(
+                        tasks_owner.owner()
+                    ),
+                    ladder_id,
+                )
+                _status(
+                    ladder_id, pid, started, "taken over"
+                )
+                break
             if next_level(ladder) <= 0:
                 log.info("no levels left, ladder ends")
                 _status(ladder_id, pid, started, "done")
@@ -369,7 +401,7 @@ def run(ladder_id):
         _status(ladder_id, pid, started, "crashed")
         sys.exit(1)
     finally:
-        _release_wake_lock(ending_id=ladder_id)
+        release_if_idle(ending_id=ladder_id)
 
 
 def _check(ladder):

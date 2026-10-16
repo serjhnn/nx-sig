@@ -17,6 +17,11 @@
 # order twice. a heartbeat for the CLI 'status' is kept
 # in {storage_dir}/mtsig_status.json.
 #
+# only one device runs the background tasks
+# (tasks_owner.py): it doesn't start when another device
+# runs them, and stops without recording anything when
+# another device took them over.
+#
 # logs: {storage_dir}/logs/mtsig.log (and the
 # console), rotated at 1 MB, the last 5 files are kept.
 # LOG_LEVEL=DEBUG in .env adds every IDLE round, ignored
@@ -32,7 +37,9 @@ import signal
 import sys
 from datetime import datetime
 
+import ladder
 import storage
+import tasks_owner
 
 from mail_reader import message_text, watch_sender_emails
 from storage import (
@@ -58,12 +65,17 @@ _last_order = None
 # {"time": iso time, "text": ...} of the last order that
 # could not be recorded
 _last_error = None
+# the owner, when another device took the background
+# tasks over
+_taken_over = None
 
 
 def handle_email(message):
     """record the order in the email if it is a FILLED
     order of a known stock"""
     global _last_order, _last_error
+    # the other device records it
+    _stop_if_taken_over()
     subject = message.get("Subject", "")
     text = _to_text(message_text(message))
     order = parse_order(text)
@@ -192,11 +204,32 @@ def _status(state):
         log.exception("could not write the watcher status")
 
 
+def _on_status(state):
+    """the heartbeat at least every IMAP IDLE round, and
+    the check whether this device still runs the
+    background tasks"""
+    _stop_if_taken_over()
+    _status(state)
+
+
+def _stop_if_taken_over():
+    """stop the watcher (like Ctrl+C) when another
+    device runs the background tasks now"""
+    global _taken_over
+    if not tasks_owner.lost():
+        return
+    _taken_over = tasks_owner.owner()
+    log.warning(
+        "%s took over the background tasks, "
+        "the watcher stops",
+        tasks_owner.describe(_taken_over),
+    )
+    raise KeyboardInterrupt
+
+
 def _log_path():
     return os.path.abspath(
-        os.path.join(
-            storage.DB_DIR, "logs", "mtsig.log"
-        )
+        os.path.join(storage.DB_DIR, "logs", "mtsig.log")
     )
 
 
@@ -256,19 +289,28 @@ def main():
     _last_error = previous.get("last_error")
     _status("starting")
     try:
+        # ./mtsig start claims them first, with force
+        # if asked
+        tasks_owner.claim()
         watch_sender_emails(
             handle_email,
             load_position=mail_position_get,
             save_position=mail_position_set,
-            on_status=_status,
+            on_status=_on_status,
         )
     except Exception:
         # e.g. wrong password, missing .env settings,
-        # old Python
+        # old Python, another device runs the tasks
         log.critical("order watcher crashed", exc_info=True)
         _status("crashed, see log")
+        ladder.release_if_idle(watcher_ending=True)
         sys.exit(1)
-    _status("stopped")
+    if _taken_over:
+        name = _taken_over.get("name", "?")
+        _status(f"taken over by {name}")
+        ladder.release_if_idle(watcher_ending=True)
+    else:
+        _status("stopped")
     log.info("order watcher stopped")
 
 

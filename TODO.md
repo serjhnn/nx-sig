@@ -39,12 +39,11 @@ In this order, before metrics and strategy add more:
    tests yet. Run them in CI with 3.14 and test
    `handle_email` with fake emails (recorded, skipped,
    not a FILLED order, unknown stock, failed write).
-4. **One device runs the background tasks**: the mail
+4. ~~**One device runs the background tasks**: the mail
    watcher or a ladder on both the phone and the PC
-   records orders or sends alerts twice. Refuse to
-   start them when another device already runs them
-   (e.g. a synced owner file), not only warn in the
-   README.
+   records orders or sends alerts twice.~~ (done,
+   `tasks_owner.py`: a synced owner file, `force` to
+   take over)
 5. **Start the ladders after a phone restart** that
    were running before (Termux:Boot), see Background
    tasks below.

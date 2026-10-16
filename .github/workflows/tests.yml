@@ -34,6 +34,8 @@ jobs:
         run: python scripts/shell_test.py
       - name: sync
         run: python scripts/sync.py
+      - name: tasks_owner
+        run: python scripts/tasks_owner.py
       - name: check_style
         run: python scripts/check_style.py
       # no tests yet, so at least check that they

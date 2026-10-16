@@ -5,8 +5,11 @@
 #
 # TaskCommands joins the tasks() rows of every module
 # (the ladders, the mail broker), so a new feature with
-# background tasks adds itself here
+# background tasks adds itself here. _print_owner() is
+# the line about the device that runs them
+# (tasks_owner.py), also in 'status'
 
+import tasks_owner
 from shell.interface import Commands
 from shell.ui import (
     BOLD,
@@ -33,7 +36,8 @@ class TaskCommands(Commands):
         ls tasks
             the background tasks that are running
             as their own process, with their pid,
-            start time and state
+            start time and state, and the device
+            that runs them
         """
         if arg.split():
             _print_wrapped("usage: ls tasks")
@@ -46,8 +50,22 @@ class TaskCommands(Commands):
         ]
         if not tasks:
             _print_wrapped("no background tasks running")
-            return
-        _print_tasks(tasks)
+        else:
+            _print_tasks(tasks)
+        _print_owner()
+
+
+def _print_owner():
+    """the device that runs the background tasks, if
+    one does"""
+    current = tasks_owner.owner()
+    if current is None:
+        return
+    if current["id"] == tasks_owner.this_device()["id"]:
+        where = f"here ({current['name']})"
+    else:
+        where = f"on {tasks_owner.describe(current)}"
+    _print_wrapped(f"background tasks run {where}")
 
 
 def _print_tasks(tasks):

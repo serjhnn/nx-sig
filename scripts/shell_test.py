@@ -30,12 +30,19 @@ os.environ["NO_COLOR"] = "1"
 
 import ladder
 import storage
+import tasks_owner
 import trade_engine
 from commands import NxSigShell
 from shell.overview_cmd import _xtop_lines
 from shell.ui import WIDTH
 
 FAKE_PID = 4242
+# another device that runs the background tasks
+OTHER_OWNER = {
+    "id": "other",
+    "name": "pc",
+    "since": "2026-10-16T14:30:00",
+}
 
 
 class ShellTest(unittest.TestCase):
@@ -49,7 +56,15 @@ class ShellTest(unittest.TestCase):
         self.running = set()
         # what ./mtsig was called with
         self.mtsig_calls = []
+        # the force of each ladder.start
+        self.forced = []
         self._patches = [
+            # this device's id, not in the repo folder
+            mock.patch.object(
+                tasks_owner,
+                "DEVICE_PATH",
+                os.path.join(self._tmp.name, ".device"),
+            ),
             # the API keys and the request
             mock.patch.object(
                 trade_engine, "_headers", lambda: {}
@@ -93,7 +108,8 @@ class ShellTest(unittest.TestCase):
 
     # ---------------- fakes ----------------
 
-    def _fake_start(self, ladder_id):
+    def _fake_start(self, ladder_id, force=False):
+        self.forced.append(force)
         if storage.ladder_get(ladder_id) is None:
             raise ladder.LadderError(
                 f"no ladder {ladder_id}, see 'ls ladders'"
@@ -747,9 +763,14 @@ class ShellTest(unittest.TestCase):
             self.lines("stop ladder 1"),
             ["ladder 1 is not running"],
         )
-        for line in ("run ladder", "run ladder SOXL down"):
+        for line in (
+            "run ladder",
+            "run ladder SOXL down",
+            "run ladder 1 now",
+        ):
             self.assertEqual(
-                self.lines(line), ["usage: run ladder <id>"]
+                self.lines(line),
+                ["usage: run ladder <id> [force]"],
             )
         self.assertEqual(
             self.lines("run ladder 3"),
@@ -762,6 +783,29 @@ class ShellTest(unittest.TestCase):
             self.lines("stop ladder"),
             ["usage: stop ladder <id>"],
         )
+
+    def test_run_ladder_force(self):
+        self.run_cmd("add ladder SOXL down 10 from 100")
+        storage.tasks_owner_set(OTHER_OWNER)
+        self.assertEqual(
+            self.lines("run ladder 1 force"),
+            [
+                "taking over the background tasks from "
+                "pc (since",
+                "  16.10 14:30)",
+                "starting ladder 1...",
+                f"ladder 1 started (pid {FAKE_PID}), next "
+                "alert at 90",
+            ],
+        )
+        self.run_cmd("stop ladder 1")
+        # this device owns them: no take-over line
+        tasks_owner.claim(force=True)
+        self.assertEqual(
+            self.lines("run ladder 1 FORCE")[0],
+            "starting ladder 1...",
+        )
+        self.assertEqual(self.forced, [True, True])
 
     def test_ls_ladders(self):
         self.assertEqual(
@@ -858,13 +902,18 @@ class ShellTest(unittest.TestCase):
             ],
         )
         mtsig = os.path.join(storage.ROOT_DIR, "mtsig")
+        self.run_cmd("run mail-broker force")
         self.assertEqual(
             self.mtsig_calls,
-            [[mtsig, "start"], [mtsig, "stop"]],
+            [
+                [mtsig, "start"],
+                [mtsig, "stop"],
+                [mtsig, "start", "force"],
+            ],
         )
         self.assertEqual(
             self.lines("run mail-broker now"),
-            ["usage: run mail-broker"],
+            ["usage: run mail-broker [force]"],
         )
         self.assertEqual(
             self.lines("stop mail-broker now"),
@@ -919,6 +968,37 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.lines("ls tasks -a"), ["usage: ls tasks"]
+        )
+
+    def test_tasks_owner(self):
+        storage.tasks_owner_set(OTHER_OWNER)
+        self.assertEqual(
+            self.lines("ls tasks"),
+            [
+                "no background tasks running",
+                "background tasks run on pc (since 16.10 "
+                "14:30)",
+            ],
+        )
+        self.assertEqual(
+            self.lines("status"),
+            [
+                "no stocks held",
+                "mail watcher: not started",
+                "background tasks run on pc (since 16.10 "
+                "14:30)",
+            ],
+        )
+        tasks_owner.claim(force=True)
+        name = tasks_owner.this_device()["name"]
+        self.assertEqual(
+            self.lines("ls tasks")[-1],
+            f"background tasks run here ({name})",
+        )
+        tasks_owner.release()
+        self.assertEqual(
+            self.lines("ls tasks"),
+            ["no background tasks running"],
         )
 
     # ---------------- the action commands ----------------

@@ -1,7 +1,8 @@
 # overview_cmd: the commands that span the features
 #
-#   status      held positions with gain/loss and the
-#               mail watcher
+#   status      held positions with gain/loss, the
+#               mail watcher and the device of the
+#               background tasks
 #   xtop [sec]  live gain/loss with Telegram alerts
 #
 # OverviewCmd is mixed into NxSigShell: these are
@@ -37,6 +38,7 @@ from shell.ui import (
     _supports_color,
 )
 from shell.mail_cmd import _print_watcher_status
+from shell.tasks_cmd import _print_owner
 
 
 class OverviewCmd:
@@ -50,6 +52,8 @@ class OverviewCmd:
             state: gain/loss in money,
             count * (price - avg price),
             and whether order_watcher.py is running
+            and which device runs the background
+            tasks
         """
         if arg.strip():
             _print_wrapped("usage: status")
@@ -59,6 +63,7 @@ class OverviewCmd:
         if not positions:
             _print_wrapped("no stocks held")
             _print_watcher_status()
+            _print_owner()
             return
 
         prices = _fetch_prices()
@@ -124,6 +129,7 @@ class OverviewCmd:
             else separator
         )
         _print_watcher_status()
+        _print_owner()
         print()
 
     # ---------------- xtop ----------------

@@ -75,10 +75,12 @@ rm ladder <id>
     confirmation; a running ladder is
     stopped first
 
-run ladder <id>
+run ladder <id> [force]
     start a saved ladder as a background
     process, it keeps running when the
-    shell is closed
+    shell is closed; only one device runs
+    the background tasks, force takes them
+    over from the other one (when it is off)
 
 stop ladder <id>
     stop a running ladder, it stays saved
@@ -122,11 +124,13 @@ rm basetrade <stock>
 ## mail-broker
 
 ```
-run mail-broker
+run mail-broker [force]
     start the mail watcher (./mtsig start)
     that records broker order emails as
     trades; it keeps running when the shell
-    is closed
+    is closed; force takes the background
+    tasks over from the other device, see
+    'help run ladder'
 
 stop mail-broker
     stop the mail watcher (./mtsig stop)
@@ -138,7 +142,8 @@ stop mail-broker
 ls tasks
     the background tasks that are running
     as their own process, with their pid,
-    start time and state
+    start time and state, and the device
+    that runs them
 ```
 
 ## other commands
@@ -150,6 +155,8 @@ status
     state: gain/loss in money,
     count * (price - avg price),
     and whether order_watcher.py is running
+    and which device runs the background
+    tasks
 
 xtop [sec]
     live gain/loss of the stocks you hold:

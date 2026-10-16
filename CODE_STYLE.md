@@ -144,6 +144,7 @@ so fix what `check_style.py` still reports by hand.
   python scripts/storage.py
   python scripts/order_parser.py
   python scripts/ladder.py
+  python scripts/tasks_owner.py
   python scripts/shell_test.py
   ```
 
