@@ -28,7 +28,7 @@ from shell.ui import (
     SELL_COLOR,
     TOTAL_COUNT_COLOR,
     TOTAL_STOCK_COLOR,
-    WIDTH,
+    width,
     column_separator,
     confirm,
     parse_id,
@@ -82,7 +82,7 @@ class TradeCommands(Commands):
         _print_trades_header(color)
         for t in trades:
             _print_trade_row(t, color)
-        separator = "-" * WIDTH
+        separator = "-" * width()
         print(
             f"{DIM}{separator}{RESET}"
             if color
@@ -205,7 +205,7 @@ class TradeCommands(Commands):
             )
             return
         color = supports_color()
-        column_sep = column_separator(color)
+        column_sep = column_separator(color, 3)
         header_cols = [
             f"{'Name':<5}",
             f"{'Trades':>6}",
@@ -215,7 +215,7 @@ class TradeCommands(Commands):
             header_cols = [
                 f"{DIM}{col}{RESET}" for col in header_cols
             ]
-        separator = "-" * WIDTH
+        separator = "-" * width()
         print()
         print(column_sep.join(header_cols))
         print(
@@ -270,8 +270,8 @@ def _print_trades_header(color):
         header_cols = [
             f"{DIM}{col}{RESET}" for col in header_cols
         ]
-    print(column_separator(color).join(header_cols))
-    separator = "-" * WIDTH
+    print(column_separator(color, 6).join(header_cols))
+    separator = "-" * width()
     print(
         f"{DIM}{separator}{RESET}" if color else separator
     )
@@ -299,7 +299,7 @@ def _print_trade_row(t, color):
         count = f"{t['Count']:>5}"
         price = f"{t['Price']:<7.2f}"
     print(
-        column_separator(color).join(
+        column_separator(color, 6).join(
             [
                 trade_id,
                 date,

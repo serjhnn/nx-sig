@@ -22,8 +22,8 @@ from shell.ui import (
     PRICE_COLOR,
     RESET,
     TOTAL_STOCK_COLOR,
-    WIDTH,
-    XTOP_SEP,
+    width,
+    space_separator,
     confirm,
     fetch_prices,
     color_for_gain,
@@ -164,8 +164,8 @@ class BaseTradeCommands(Commands):
 
         color = supports_color()
         # laid out like the xtop table, the columns
-        # widened to fill WIDTH
-        column_sep = XTOP_SEP
+        # widened to fill DEFAULT_WIDTH
+        column_sep = space_separator(5, 1)
         header_cols = [
             f"{'Name':<5}",
             f"{'Qty':>6}",
@@ -177,7 +177,7 @@ class BaseTradeCommands(Commands):
             header_cols = [
                 f"{DIM}{col}{RESET}" for col in header_cols
             ]
-        separator = "-" * WIDTH
+        separator = "-" * width()
         print()
         print(column_sep.join(header_cols))
         print(

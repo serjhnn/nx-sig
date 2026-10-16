@@ -27,8 +27,8 @@ from shell.ui import (
     RESET,
     SELL_COLOR,
     TOTAL_STOCK_COLOR,
-    WIDTH,
-    XTOP_SEP,
+    width,
+    space_separator,
     column_separator,
     fetch_prices,
     color_for_gain,
@@ -69,7 +69,7 @@ class OverviewCmd:
         prices = fetch_prices()
 
         color = supports_color()
-        column_sep = column_separator(color)
+        column_sep = column_separator(color, 5)
         header_cols = [
             f"{'Name':<5}",
             f"{'Count':>5}",
@@ -81,7 +81,7 @@ class OverviewCmd:
             header_cols = [
                 f"{DIM}{col}{RESET}" for col in header_cols
             ]
-        separator = "-" * WIDTH
+        separator = "-" * width()
         print()
         print(column_sep.join(header_cols))
         print(
@@ -350,7 +350,8 @@ def _xtop_lines(
     each held stock at its current price"""
     # six columns don't fit 48 characters with ' | '
     # between them, so they are separated by a space
-    column_sep = XTOP_SEP
+    # (more on a wider screen)
+    column_sep = space_separator(6, 1)
     header_cols = [
         f"{'Name':<5}",
         f"{'Qty':>4}",
@@ -363,7 +364,7 @@ def _xtop_lines(
         header_cols = [
             f"{DIM}{col}{RESET}" for col in header_cols
         ]
-    separator = "-" * WIDTH
+    separator = "-" * width()
     separator = (
         f"{DIM}{separator}{RESET}" if color else separator
     )
@@ -417,14 +418,14 @@ def _xtop_lines(
         f"{DIM}{status}{RESET}" if color else status
     )
     for note in notes:
-        note = note[:WIDTH]
+        note = note[: width()]
         lines.append(
             f"{DIM}{note}{RESET}" if color else note
         )
     if error is not None:
         # keep the error on one line so the redraw line
         # count stays stable
-        lines.append(f"error: {error}"[:WIDTH])
+        lines.append(f"error: {error}"[: width()])
     return lines
 
 
@@ -432,8 +433,9 @@ def _xtop_total_line(total_gain, total_cost, color):
     """'total' row under the table: the gain of all held
     stocks that have a price, and its % of their cost"""
     label = f"{'total':<5}"
+    sep = space_separator(6, 1)
     # the empty Qty, Avg and Price columns
-    blank = " " * (1 + 4 + 1 + 8 + 1 + 8 + 1)
+    blank = sep.join(["", " " * 4, " " * 8, " " * 8, ""])
     if not total_cost:
         line = label + blank + f"{'-':>9}"
         return f"{DIM}{line}{RESET}" if color else line
@@ -445,7 +447,7 @@ def _xtop_total_line(total_gain, total_cost, color):
         label = f"{DIM}{label}{RESET}"
         gain = f"{BOLD}{gain_color}{gain}{RESET}"
         gain_pct = f"{BOLD}{gain_color}{gain_pct}{RESET}"
-    return label + blank + gain + XTOP_SEP + gain_pct
+    return label + blank + gain + sep + gain_pct
 
 
 def _draw_xtop(lines, drawn, color):

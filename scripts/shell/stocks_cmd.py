@@ -13,7 +13,7 @@ from shell.ui import (
     PRICE_COLOR,
     RESET,
     TOTAL_STOCK_COLOR,
-    WIDTH,
+    width,
     column_separator,
     fetch_prices,
     color_for_gain,
@@ -61,7 +61,7 @@ class StocksCommands(Commands):
         prices = fetch_prices()
 
         color = supports_color()
-        column_sep = column_separator(color)
+        column_sep = column_separator(color, 5)
         header_cols = [
             f"{'Name':<5}",
             f"{'Count':>5}",
@@ -73,7 +73,7 @@ class StocksCommands(Commands):
             header_cols = [
                 f"{DIM}{col}{RESET}" for col in header_cols
             ]
-        separator = "-" * WIDTH
+        separator = "-" * width()
         print()
         print(column_sep.join(header_cols))
         print(

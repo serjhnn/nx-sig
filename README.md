@@ -8,7 +8,8 @@
 your buy and sell trades, keeps the count and average buy price of every
 stock, shows live prices and your gain or loss, and can record broker orders
 automatically from the confirmation emails. It is made to run on a phone in
-[Termux](https://termux.dev), so all output fits a 48-character screen.
+[Termux](https://termux.dev), so all output fits a 48-character screen (or the
+width you set, see `width` below).
 
 ## Features
 
@@ -56,6 +57,9 @@ IMAP_SENDER=address-your-broker-sends-orders-from@example.com
 # optional
 IMAP_MAILBOX=INBOX
 LOG_LEVEL=INFO
+# the shell's width on this device, instead of
+# config.json "width" (optional)
+NX_WIDTH=auto
 
 # notifications (optional)
 NTFY_TOPIC=your-ntfy-topic
@@ -85,6 +89,10 @@ your bot.
 | `gain_alert_pct` | ... or when its gain reaches this % (default `10`) |
 | `ladder_interval` | how often a ladder checks the price, in seconds (default `30`) |
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
+| `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` for the terminal's width, read anew for every command; `NX_WIDTH` in `.env` sets it for one device only |
+
+On a screen wider than 48 the tables spread out (at most 4 more spaces between
+columns, so they don't get thin), and messages and help texts fill the width.
 
 ## Running
 
@@ -284,7 +292,7 @@ nx-sig/
     ├── commands.py       the shell: actions, help, collects the modules
     ├── shell/            the shell's commands, one module per feature
     │   ├── interface.py      Commands: what every *_cmd.py implements
-    │   ├── ui.py             colors, WIDTH, printing, parsers
+    │   ├── ui.py             colors, width(), printing, parsers
     │   ├── trade_cmd.py      trades
     │   ├── stocks_cmd.py     ls stocks
     │   ├── rule_cmd.py       rules
@@ -333,7 +341,7 @@ commit (or the badge at the top) means something broke.
 ## Code style
 
 The code is written to be read on a phone: lines are at most
-60 characters and the shell's output at most 48. See
+60 characters and the shell's output at most 48 by default. See
 [CODE_STYLE.md](CODE_STYLE.md) for the rules and how to check them.
 
 ## Planned

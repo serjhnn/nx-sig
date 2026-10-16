@@ -33,7 +33,8 @@ from shell.ui import (
     RESET,
     SELL_COLOR,
     TOTAL_STOCK_COLOR,
-    WIDTH,
+    space_separator,
+    width,
     confirm,
     parse_direction,
     parse_id,
@@ -318,7 +319,7 @@ def _print_ladders(ladders):
     (direction and step), From, Next (the next alert),
     State"""
     color = supports_color()
-    sep = "  "
+    sep = space_separator(6, 2)
     header = sep.join(
         [
             f"{'Id':>2}",
@@ -329,7 +330,7 @@ def _print_ladders(ladders):
             f"{'State':<7}",
         ]
     )
-    separator = "-" * WIDTH
+    separator = "-" * width()
     print()
     if color:
         print(f"{DIM}{header}{RESET}")

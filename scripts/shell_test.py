@@ -7,7 +7,7 @@
 # not touched. the prices, Telegram, the ladder
 # processes and ./mtsig are faked: nothing is started
 # and nothing is sent. every printed line is also
-# checked to fit WIDTH.
+# checked to fit width().
 #
 # the fakes replace the engines (trade_engine, ladder,
 # subprocess, the .env keys), not names inside the
@@ -34,7 +34,7 @@ import tasks_owner
 import trade_engine
 from commands import NxSigShell
 from shell.overview_cmd import _xtop_lines
-from shell.ui import WIDTH
+from shell.ui import width
 
 FAKE_PID = 4242
 # another device that runs the background tasks
@@ -98,6 +98,9 @@ class ShellTest(unittest.TestCase):
         ]
         for p in self._patches:
             p.start()
+        # the tables are pinned at the default width,
+        # whatever .env says (test_width changes it)
+        os.environ.pop("NX_WIDTH", None)
         self.shell = NxSigShell()
 
     def tearDown(self):
@@ -158,7 +161,7 @@ class ShellTest(unittest.TestCase):
         for row in text.splitlines():
             self.assertLessEqual(
                 len(row),
-                WIDTH,
+                width(),
                 f"too wide in '{line}': {row!r}",
             )
         return text
@@ -257,14 +260,14 @@ class ShellTest(unittest.TestCase):
             "  Id |     Date |  Time | Type | Count "
             "| Price",
         )
-        self.assertEqual(out[1], "-" * WIDTH)
+        self.assertEqual(out[1], "-" * width())
         self.assertRegex(
             out[2],
             r"^   1 \| \d\d\.\d\d\.\d\d \| \d\d:\d\d \|"
             r"  BUY \|    10 \| 20.00$",
         )
         self.assertRegex(out[3], r"^   2 \| .* 30.00$")
-        self.assertEqual(out[4], "-" * WIDTH)
+        self.assertEqual(out[4], "-" * width())
         self.assertEqual(
             out[5],
             "total: 20 SOXL, avg buy 25.00, sum 500.00",
@@ -289,7 +292,7 @@ class ShellTest(unittest.TestCase):
         out = self.lines("ls trades")
         self.assertEqual(
             out[:2],
-            ["Name  | Trades | Last trade", "-" * WIDTH],
+            ["Name  | Trades | Last trade", "-" * width()],
         )
         # in config order
         self.assertRegex(
@@ -368,7 +371,7 @@ class ShellTest(unittest.TestCase):
             [
                 "Name  | Count | Avg Price |    Total | "
                 "Growth %",
-                "-" * WIDTH,
+                "-" * width(),
                 "MUU   |     2 |     50.00 |   100.00 | "
                 "       -",
                 "SOXL  |    10 |     20.00 |   200.00 | "
@@ -418,10 +421,10 @@ class ShellTest(unittest.TestCase):
             [
                 "Name  | Count | Avg Price |    Price | "
                 "    State",
-                "-" * WIDTH,
+                "-" * width(),
                 "SOXL  |    10 |     20.00 |    22.00 | "
                 "   +20.00",
-                "-" * WIDTH,
+                "-" * width(),
                 "mail broker: not started",
             ],
         )
@@ -479,12 +482,12 @@ class ShellTest(unittest.TestCase):
             [
                 "Name   Qty      Avg    Price      Gain"
                 "   Gain %",
-                "-" * WIDTH,
+                "-" * width(),
                 "MUU      2    50.00        -         -"
                 "        -",
                 "SOXL    10    20.00    22.00    +20.00"
                 "  +10.00%",
-                "-" * WIDTH,
+                "-" * width(),
                 "total                           +20.00"
                 "  +10.00%",
                 "updated 09:30:05, every 5s, "
@@ -521,7 +524,7 @@ class ShellTest(unittest.TestCase):
             self.lines("rm rule 1", "y"),
             [
                 "Id | Rule".rjust(11),
-                "-" * WIDTH,
+                "-" * width(),
                 "   1 | never buy on a gap up",
                 "delete rule 1? [y/N] y",
                 "deleted rule 1",
@@ -583,7 +586,7 @@ class ShellTest(unittest.TestCase):
             [
                 "Name     Qty         Buy       Price"
                 "    Change %",
-                "-" * WIDTH,
+                "-" * width(),
                 "MUU        2       50.50           -"
                 "           -",
                 "SOXL       5       18.00       19.80"
@@ -816,7 +819,7 @@ class ShellTest(unittest.TestCase):
         self.run_cmd("add ladder MRVU up 2.5 from 40")
         header = [
             "Id  Stock  Ladder        From     Next  State",
-            "-" * WIDTH,
+            "-" * width(),
         ]
         self.assertEqual(
             self.lines("ls ladders"),
@@ -959,7 +962,7 @@ class ShellTest(unittest.TestCase):
             [
                 "Id  Task             PID  Started      "
                 "State",
-                "-" * WIDTH,
+                "-" * width(),
                 f" 1  ladder SOXL     {FAKE_PID}  "
                 f"{started}  waiting",
                 f" -  mail-broker      777  {started}  "
@@ -1129,7 +1132,7 @@ class ShellTest(unittest.TestCase):
                 self.lines(f"help {topic}"),
                 [f"no help on '{topic}'"],
             )
-        # every command has a help text that fits WIDTH
+        # every command has a help text that fits width()
         for name in self.shell.get_names():
             if name.startswith("do_") and name != "do_EOF":
                 self.assertTrue(
@@ -1138,6 +1141,122 @@ class ShellTest(unittest.TestCase):
                     ).strip(),
                     name,
                 )
+
+    # ---------------- the width ----------------
+
+    def test_width_setting(self):
+        from shell import ui
+
+        self.assertEqual(width(), 48)
+        self.assertIsNone(ui.width_problem())
+        with mock.patch.dict(ui.config, {"width": 60}):
+            self.assertEqual(width(), 60)
+            # .env wins, it is per device
+            with mock.patch.dict(
+                os.environ, {"NX_WIDTH": "100"}
+            ):
+                self.assertEqual(width(), 100)
+        with mock.patch.dict(
+            os.environ,
+            {"NX_WIDTH": "auto", "COLUMNS": "90"},
+        ):
+            self.assertEqual(width(), 90)
+            self.assertIsNone(ui.width_problem())
+        with mock.patch.dict(
+            os.environ,
+            {"NX_WIDTH": "auto", "COLUMNS": "40"},
+        ):
+            self.assertEqual(width(), 48)
+            self.assertEqual(
+                ui.width_problem(),
+                "the terminal is 40 wide, using 48",
+            )
+        with mock.patch.dict(
+            os.environ, {"NX_WIDTH": "30"}
+        ):
+            self.assertEqual(width(), 48)
+            self.assertEqual(
+                ui.width_problem(),
+                "NX_WIDTH 30 is too narrow, using 48",
+            )
+            self.assertIn(
+                "NX_WIDTH 30 is too narrow",
+                NxSigShell().intro,
+            )
+        with mock.patch.dict(ui.config, {"width": "wide"}):
+            self.assertEqual(width(), 48)
+            self.assertEqual(
+                ui.width_problem(),
+                "width 'wide' is not a number or auto, "
+                "using 48",
+            )
+
+    def test_wide_screen(self):
+        self.prices = {"SOXL": 25.5}
+        self.run_cmd(
+            "add trade SOXL buy count 10 price 20.5"
+        )
+        self.run_cmd("add ladder SOXL down 10 from 100")
+        with mock.patch.dict(
+            os.environ, {"NX_WIDTH": "80"}
+        ):
+            # run_cmd checks that every line fits 80
+            status = self.lines("status")
+            self.assertEqual(
+                status[:3],
+                [
+                    "Name    |   Count   |   Avg Price   |"
+                    "      Price   |       State",
+                    "-" * 80,
+                    "SOXL    |      10   |       20.50   |"
+                    "      25.50   |      +50.00",
+                ],
+            )
+            # the gaps grow by at most 4
+            self.assertEqual(
+                self.lines("ls ladders")[0],
+                "Id      Stock      Ladder            From"
+                "         Next      State",
+            )
+            # the help fills the width
+            self.assertEqual(
+                self.lines("help stop ladder"),
+                [
+                    "stop ladder <id>",
+                    "    stop a running ladder, it stays "
+                    "saved",
+                ],
+            )
+            # the logo is centered
+            self.assertTrue(
+                NxSigShell().intro.startswith(
+                    "\n" + " " * 16 + "         __"
+                )
+            )
+            for line in (
+                "ls trades SOXL",
+                "ls trades",
+                "ls stocks",
+                "help",
+                "help ladder",
+                "ls tasks",
+            ):
+                self.run_cmd(line)
+        xtop = _xtop_lines(
+            self.prices, None, None, 5, False
+        )
+        self.assertEqual(xtop[1], "-" * 48)
+        with mock.patch.dict(
+            os.environ, {"NX_WIDTH": "80"}
+        ):
+            xtop = _xtop_lines(
+                self.prices, None, None, 5, False
+            )
+        self.assertTrue(all(len(l) <= 80 for l in xtop))
+        self.assertEqual(
+            xtop[4],
+            "total" + " " * 43 + "+50.00      +24.39%",
+        )
 
     def test_unknown_command(self):
         self.assertEqual(

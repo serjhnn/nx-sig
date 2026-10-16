@@ -21,9 +21,15 @@ with 1, so it can run before each commit (see
   docstrings included. Characters are counted, not bytes,
   so Armenian or other non-latin text is measured right.
 - **What the shell prints is at most 48 characters**
-  (`WIDTH` in `scripts/shell/ui.py`), so tables and
-  messages fit the screen without wrapping. Wrap long
-  messages with `print_wrapped()` / `print_error()`.
+  (`DEFAULT_WIDTH` in `scripts/shell/ui.py`), so tables
+  and messages fit the screen without wrapping. Wrap
+  long messages with `print_wrapped()` /
+  `print_error()`. The width can be set wider
+  (`width()`, config `width`), so use `width()` instead
+  of a number, and build table gaps with
+  `column_separator(color, columns)` or
+  `space_separator(columns, base)` so they grow with
+  it.
 
 ## Wrapping long lines in Python
 

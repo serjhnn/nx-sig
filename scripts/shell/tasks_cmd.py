@@ -20,7 +20,8 @@ from shell.ui import (
     RESET,
     SELL_COLOR,
     TOTAL_STOCK_COLOR,
-    WIDTH,
+    space_separator,
+    width,
     print_wrapped,
     supports_color,
 )
@@ -72,7 +73,7 @@ def _print_tasks(tasks):
     """the ls tasks table: Id, Task, PID, Started,
     State"""
     color = supports_color()
-    sep = "  "
+    sep = space_separator(5, 2)
     header = sep.join(
         [
             f"{'Id':>2}",
@@ -82,7 +83,7 @@ def _print_tasks(tasks):
             f"{'State':<9}",
         ]
     )
-    separator = "-" * WIDTH
+    separator = "-" * width()
     print()
     if color:
         print(f"{DIM}{header}{RESET}")

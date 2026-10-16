@@ -13,7 +13,7 @@ from shell.ui import (
     DIM,
     RESET,
     RULE_COLOR,
-    WIDTH,
+    width,
     column_separator,
     confirm,
     parse_id,
@@ -107,10 +107,10 @@ def _print_rules(rules):
         header_cols = [
             f"{DIM}{col}{RESET}" for col in header_cols
         ]
-    separator = "-" * WIDTH
+    separator = "-" * width()
     # long rules wrap inside the Rule column so the
-    # table stays WIDTH wide
-    rule_width = WIDTH - 4 - 3
+    # table stays width() wide
+    rule_width = width() - 4 - 3
     print()
     print(column_sep.join(header_cols))
     print(

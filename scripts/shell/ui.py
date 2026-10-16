@@ -1,13 +1,26 @@
 # ui: the look of the shell and the helpers every
 # command module shares
 #
-# WIDTH, the colors (the logo gradient, PRICE_COLOR,
-# DIM, ...), printing within WIDTH, the y/N question,
-# the argument parsers, tab completion and the current
-# prices
+# width(), the colors (the logo gradient, PRICE_COLOR,
+# DIM, ...), printing within the width, the y/N
+# question, the argument parsers, tab completion and the
+# current prices
+#
+# the width is config.json "width" (or NX_WIDTH in .env,
+# for one device): a number, or "auto" for the
+# terminal's width. the tables are made for
+# DEFAULT_WIDTH; on a wider screen the gaps between
+# their columns grow, by at most MAX_GAP_GROWTH each.
 #
 # shared helpers:
-#   supports_color(), column_separator(color)
+#   width()            the output width now
+#   width_problem()    why the setting isn't used, or
+#                      None
+#   supports_color()
+#   column_separator(color, columns=None)
+#                      ' | ' between the columns
+#   space_separator(columns, base)
+#                      spaces between the columns
 #   print_dim(text), print_wrapped(text),
 #   print_error(text)
 #   confirm(question)  True if answered y/yes
@@ -20,19 +33,26 @@
 #   fetch_prices(), held_positions(), color_for_gain(gain)
 
 import os
+import shutil
 import sys
 import textwrap
 
 from storage import (
     Stock,
     TradeType,
+    config,
     trades_total_get,
 )
 from trade_engine import get_latest_prices
 
-# all output is kept within the width of the
-# 'ls trades <stock>' table so it fits a mobile screen
-WIDTH = 48
+# the width the tables are made for, the width of the
+# 'ls trades <stock>' table, so it fits a phone screen;
+# it is also the narrowest: the xtop table has only one
+# space between its columns
+DEFAULT_WIDTH = 48
+MIN_WIDTH = DEFAULT_WIDTH
+# so a table on a wide screen isn't spread thin
+MAX_GAP_GROWTH = 4
 
 # 256-color gradient, one per logo line, top to bottom:
 # light blue -> dark green
@@ -55,6 +75,69 @@ RULE_COLOR = LOGO_COLORS[
 ]  # dark green, the last color of the logo gradient
 
 
+def _width_setting():
+    """the width setting and where it comes from"""
+    if os.environ.get("NX_WIDTH"):
+        return os.environ["NX_WIDTH"], "NX_WIDTH"
+    return config.get("width", DEFAULT_WIDTH), "width"
+
+
+def _width_wanted():
+    """the width the setting asks for, or None if it
+    is neither a number nor auto"""
+    setting, _ = _width_setting()
+    if str(setting).strip().lower() == "auto":
+        # COLUMNS, the terminal, or DEFAULT_WIDTH when
+        # the output isn't a terminal
+        size = shutil.get_terminal_size((DEFAULT_WIDTH, 24))
+        return size.columns
+    try:
+        return int(setting)
+    except (TypeError, ValueError):
+        return None
+
+
+def width():
+    """the output width now: the setting, at least
+    MIN_WIDTH; read every time, so 'auto' follows the
+    terminal when it is resized or the phone turned"""
+    wanted = _width_wanted()
+    if wanted is None:
+        return DEFAULT_WIDTH
+    return max(MIN_WIDTH, wanted)
+
+
+def width_problem():
+    """a line about a width setting that isn't used as
+    it is, or None"""
+    setting, name = _width_setting()
+    wanted = _width_wanted()
+    if wanted is None:
+        return (
+            f"{name} '{setting}' is not a number or "
+            f"auto, using {DEFAULT_WIDTH}"
+        )
+    if wanted < MIN_WIDTH:
+        auto = str(setting).strip().lower() == "auto"
+        what = (
+            f"the terminal is {wanted} wide"
+            if auto
+            else f"{name} {wanted} is too narrow"
+        )
+        return f"{what}, using {MIN_WIDTH}"
+    return None
+
+
+def _gap(columns, base):
+    """the gap between the columns of a table made for
+    DEFAULT_WIDTH: base, plus a share of the width beyond
+    DEFAULT_WIDTH"""
+    if not columns or columns < 2:
+        return base
+    growth = (width() - DEFAULT_WIDTH) // (columns - 1)
+    return base + max(0, min(growth, MAX_GAP_GROWTH))
+
+
 def supports_color():
     if not sys.stdout.isatty() or os.environ.get(
         "NO_COLOR"
@@ -66,8 +149,20 @@ def supports_color():
     return True
 
 
-def column_separator(color):
-    return f"{DIM} | {RESET}" if color else " | "
+def column_separator(color, columns=None):
+    """' | ' between the columns of a table of columns
+    columns, wider on a wider screen; without columns it
+    stays ' | '"""
+    extra = _gap(columns, 3) - 3
+    left = 1 + extra // 2
+    sep = " " * left + "|" + " " * (1 + extra - extra // 2)
+    return f"{DIM}{sep}{RESET}" if color else sep
+
+
+def space_separator(columns, base):
+    """base spaces between the columns of a table of
+    columns columns, more on a wider screen"""
+    return " " * _gap(columns, base)
 
 
 def print_dim(text):
@@ -77,20 +172,20 @@ def print_dim(text):
 
 
 def print_wrapped(text):
-    """print plain text wrapped to WIDTH, dimmed"""
+    """print plain text wrapped to width(), dimmed"""
     print_dim(_wrap(text))
 
 
 def print_error(text):
-    """print an error wrapped to WIDTH, not dimmed so it
-    stands out"""
+    """print an error wrapped to width(), not dimmed so
+    it stands out"""
     print(_wrap(text))
 
 
 def _wrap(text):
     return textwrap.fill(
         text,
-        WIDTH,
+        width(),
         subsequent_indent="  ",
         break_on_hyphens=False,
     )
@@ -210,6 +305,3 @@ def color_for_gain(gain):
     if gain < 0:
         return SELL_COLOR
     return DIM
-
-
-XTOP_SEP = " "

@@ -32,11 +32,13 @@ import glob
 import importlib
 import inspect
 import os
+import textwrap
 
 import shell
 from shell.interface import Commands
 from shell.overview_cmd import OverviewCmd
 from shell.ui import (
+    DEFAULT_WIDTH,
     LOGO_COLORS,
     DIM,
     PROMPT_COLOR,
@@ -46,6 +48,8 @@ from shell.ui import (
     print_error,
     print_wrapped,
     supports_color,
+    width,
+    width_problem,
 )
 
 LOGO = r"""
@@ -62,19 +66,31 @@ SUBTITLE = (
 
 
 def _banner():
+    """the logo and the subtitle, centered on a screen
+    wider than DEFAULT_WIDTH, and a line about a width
+    setting that isn't used"""
+    indent = " " * ((width() - DEFAULT_WIDTH) // 2)
+    lines = [
+        indent + line if line else line
+        for line in LOGO.split("\n")
+    ]
+    subtitle = indent + SUBTITLE
+    problem = width_problem()
     if not supports_color():
-        return f"{LOGO}\n{SUBTITLE}\n"
-    lines = LOGO.strip("\n").split("\n")
+        banner = "\n".join(lines) + f"\n{subtitle}\n"
+        return banner + (f"{problem}\n" if problem else "")
+    lines = "\n".join(lines).strip("\n").split("\n")
     last = len(LOGO_COLORS) - 1
     colored = [
         f"{LOGO_COLORS[min(i, last)]}{line}{RESET}"
         for i, line in enumerate(lines)
     ]
-    return (
+    banner = (
         "\n"
         + "\n".join(colored)
-        + f"\n\n{DIM}{SUBTITLE}{RESET}\n"
+        + f"\n\n{DIM}{subtitle}{RESET}\n"
     )
+    return banner + (f"{problem}\n" if problem else "")
 
 
 # the commands that are not an action on an object, in
@@ -113,6 +129,36 @@ def _doc(method):
     return inspect.cleandoc(method.__doc__ or "")
 
 
+def _fit(text):
+    """a help text for the screen: on one wider than
+    DEFAULT_WIDTH each description (the lines indented 4
+    spaces) is wrapped again to fill it"""
+    if width() <= DEFAULT_WIDTH:
+        return text
+    lines, paragraph = [], []
+
+    def flush():
+        lines.extend(
+            textwrap.wrap(
+                " ".join(paragraph),
+                width(),
+                initial_indent="    ",
+                subsequent_indent="    ",
+                break_on_hyphens=False,
+            )
+        )
+        paragraph.clear()
+
+    for line in text.split("\n"):
+        if line.startswith("    "):
+            paragraph.append(line.strip())
+            continue
+        flush()
+        lines.append(line)
+    flush()
+    return "\n".join(lines)
+
+
 def _usage(method):
     """the usage lines of a help text, the lines before
     the indented description"""
@@ -125,7 +171,6 @@ def _usage(method):
 
 
 class NxSigShell(OverviewCmd, cmd.Cmd):
-    intro = _banner()
     # \001/\002 tell readline the escape codes are
     # zero-width so line editing stays aligned
     prompt = (
@@ -136,6 +181,8 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # at start, for the width then
+        self.intro = _banner()
         # object name -> its module, e.g. "ladder"
         self.objects = {
             c.name: c(self) for c in collect_commands()
@@ -332,7 +379,7 @@ class NxSigShell(OverviewCmd, cmd.Cmd):
         if not texts:
             print_error(f"no help on '{' '.join(words)}'")
             return
-        print_dim("\n".join(texts))
+        print_dim("\n".join(_fit(t) for t in texts))
 
     def _help_texts(self, words):
         """the help texts for 'help <words>': an action,
