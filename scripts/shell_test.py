@@ -1306,18 +1306,18 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.lines("chart soxl"),
             [
-                "SOXL 5 days, 1h bars   14.00  +40.00%",
-                "18.00 |                        *",
-                "17.00 |",
-                "16.00 |                  *           *",
-                "15.00 |",
-                "14.00 |            *"
-                "                       *",
-                "13.00 |",
-                "12.00 |......B...................."
-                ".......... avg",
-                "11.00 |",
-                "10.00 |*",
+                "SOXL 5 days, 15m bars   14.00  +40.00%",
+                "18.00 |                       ***",
+                "17.00 |                    ***   ***",
+                "16.00 |                 ***         ***",
+                "15.00 |              ***"
+                "               ***",
+                "14.00 |           ***"
+                "                     **",
+                "13.00 |        ***",
+                "12.00 |.....*B*" + "." * 29 + " avg",
+                "11.00 |  ***",
+                "10.00 |**",
                 "      +" + "-" * 37,
                 "       12.10",
                 "* price  B buy  . avg buy 12.00",
@@ -1326,7 +1326,7 @@ class ShellTest(unittest.TestCase):
         self.run_cmd("chart SOXL period 3 months")
         self.assertEqual(
             self.bars_calls,
-            [("SOXL", 5, "1Hour"), ("SOXL", 90, "1Day")],
+            [("SOXL", 5, "15Min"), ("SOXL", 90, "1Day")],
         )
 
     def test_chart_errors(self):
@@ -1377,7 +1377,7 @@ class ShellTest(unittest.TestCase):
         # no request for a wrong command
         self.assertEqual(
             self.bars_calls,
-            [("SOXL", 5, "1Hour"), ("SOXL", 7, "1Hour")],
+            [("SOXL", 5, "15Min"), ("SOXL", 7, "15Min")],
         )
 
     def test_bars_request(self):

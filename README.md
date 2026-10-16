@@ -190,7 +190,7 @@ Status *FILLED*
 ```
 nX-sig> chart TSMX period 5 days
 
-TSMX 5 days, 1h bars   80.00  +0.00%
+TSMX 5 days, 15m bars   80.00  +0.00%
 88.00 |       *
 87.00 |      * *        *        *        *
 86.00 |     *        * *        *        *
@@ -206,9 +206,12 @@ TSMX 5 days, 1h bars   80.00  +0.00%
 ```
 
 `chart <stock> [period <n> <days|weeks|months>]` (5 days by default, up to 5
-years) draws the price from Alpaca's bars: hourly bars up to 10 days, daily up
-to half a year, weekly beyond. One `*` per price; more prices than columns are
-averaged, so the chart always fits the width. Your average buy price is the `.`
+years) draws the price from Alpaca's bars: the coarsest bars (daily, hourly or
+15 minutes) that still give a price for every column, so 20 days get hourly
+bars and a year daily ones. One `*` per price; more prices than columns are
+averaged, so the chart always fits the width, and where there are fewer (a
+short period, a holiday) the empty columns get points on the straight line
+between the two prices next to them. Your average buy price is the `.`
 line and your trades in the period are `B` / `S`, at their time and price.
 
 ### Ladders

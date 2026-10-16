@@ -61,7 +61,9 @@ class ChartCmd:
             print_error(f"error: {e}")
             return
         days, text = period
-        tf, _ = chart.timeframe(days)
+        tf, _ = chart.timeframe(
+            days, chart.plot_columns(width())
+        )
         try:
             bars = trade_engine.get_bars(
                 stock.name, days, tf

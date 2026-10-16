@@ -7,7 +7,7 @@
 # (trade_engine.get_bars) and the trades, and prints the
 # lines this returns.
 #
-#   TSMX 5 days, 1h bars   71.07  -14.86%
+#   TSMX 5 days, 15m bars   71.07  -14.86%
 #    83.47 |* *
 #    81.92 | * ***              * *
 #    77.27 |..........B..*..*.........*.** avg
@@ -16,17 +16,24 @@
 #           12.10    13.10    14.10    15.10
 #   * price  B buy  . avg buy 78.00
 #
-# more prices than columns are averaged, one point per
-# column; fewer are spread over the width. the price
-# range includes the average buy price and the trades,
-# so they are always on the chart.
+# the bars are the coarsest that still give a price
+# for every column (daily, hourly or 15 minutes); more
+# prices than columns are averaged, one point per
+# column. when there are fewer (a short period, a
+# holiday), the columns between two prices get a point
+# on the straight line between them. the price range
+# includes the average buy price and the trades, so
+# they are always on the chart.
 #
 # public functions:
 #   parse_period(args)
 #       (days, 'n days') of ['period', n, unit], or
 #       DEFAULT_DAYS without args; ValueError if wrong
-#   timeframe(days)
+#   plot_columns(width)
+#       about how many columns the prices get
+#   timeframe(days, columns)
 #       (Alpaca timeframe, label) of the bars for days
+#       that fill columns
 #   chart_lines(stock, period, bars, width, avg=None,
 #               trades=(), colors=None)
 #       the lines of the chart
@@ -50,6 +57,16 @@ HEIGHT = 8
 AVG_ROOM = 4
 # the room a date label takes, with a gap
 DATE_ROOM = 9
+# coarsest first: (Alpaca timeframe, label, about how
+# many bars a calendar day has: 5 trading days a week,
+# 7 hours of regular trading, 26 quarter hours)
+TIMEFRAMES = [
+    ("1Day", "1d", 5 / 7),
+    ("1Hour", "1h", 5),
+    ("15Min", "15m", 18),
+]
+# the price labels, e.g. '164.18', for plot_columns
+LABEL_ROOM = 6
 
 
 def parse_period(args):
@@ -77,14 +94,20 @@ def parse_period(args):
     return days, text
 
 
-def timeframe(days):
-    """(Alpaca timeframe, label): hourly bars up to 10
-    days, daily up to half a year, weekly beyond"""
-    if days <= 10:
-        return "1Hour", "1h"
-    if days <= 183:
-        return "1Day", "1d"
-    return "1Week", "1w"
+def plot_columns(width):
+    """about how many columns the prices get on a
+    screen width wide"""
+    return max(1, width - LABEL_ROOM - 2 - AVG_ROOM)
+
+
+def timeframe(days, columns):
+    """(Alpaca timeframe, label) of the coarsest bars
+    that give days at least one price per column; the
+    finest when none does"""
+    for name, label, per_day in TIMEFRAMES:
+        if days * per_day >= columns:
+            return name, label
+    return TIMEFRAMES[-1][:2]
 
 
 def chart_lines(
@@ -102,7 +125,7 @@ def chart_lines(
     {'*', 'B', 'S', '.', 'dim', 'reset': escape code},
     None for plain text"""
     days, text = period
-    _, bar_label = timeframe(days)
+    tf, bar_label = timeframe(days, plot_columns(width))
     prices = [p for _, p in bars]
     first, last = prices[0], prices[-1]
     change = (last - first) / first * 100 if first else 0
@@ -165,7 +188,7 @@ def chart_lines(
         paint("dim", " " * (label + 1) + "+" + "-" * used)
     )
     lines.append(
-        paint("dim", _dates(points, label + 2, days))
+        paint("dim", _dates(points, label + 2, days, tf))
     )
     lines.append(paint("dim", _legend(avg, trades)))
     return lines
@@ -173,16 +196,32 @@ def chart_lines(
 
 def _fit(bars, columns):
     """[(column, time, price)]: one point per column,
-    the average of the bars in it, or the bars spread
-    over the columns when there are fewer"""
+    the average of the bars in it; fewer bars are spread
+    over the columns, the ones between two bars on the
+    straight line between them"""
     n = len(bars)
     if n <= columns:
         if n == 1:
             return [(0, bars[0][0], bars[0][1])]
-        return [
+        spread = [
             (round(i * (columns - 1) / (n - 1)), t, p)
             for i, (t, p) in enumerate(bars)
         ]
+        points = []
+        for (c0, t0, p0), (c1, t1, p1) in zip(
+            spread, spread[1:]
+        ):
+            for c in range(c0, c1):
+                f = (c - c0) / (c1 - c0)
+                points.append(
+                    (
+                        c,
+                        t0 + (t1 - t0) * f,
+                        p0 + (p1 - p0) * f,
+                    )
+                )
+        points.append(spread[-1])
+        return points
     points = []
     for c in range(columns):
         part = bars[
@@ -194,13 +233,15 @@ def _fit(bars, columns):
     return points
 
 
-def _dates(points, offset, days):
+def _dates(points, offset, days, tf):
     """the date labels under the chart, as many as fit:
     where each day starts for hourly bars, evenly spread
-    for longer bars"""
+    for the others; times for 15 minute bars"""
     used = points[-1][0] + 1
     fmt = "%d.%m" if days <= 366 else "%m.%y"
-    if timeframe(days)[0] == "1Hour":
+    if tf == "15Min":
+        fmt = "%H:%M" if days <= 1 else "%d.%m"
+    if tf == "1Hour" or (tf == "15Min" and days > 1):
         candidates = [
             p
             for i, p in enumerate(points)
@@ -302,11 +343,27 @@ if __name__ == "__main__":
                     parse_period(bad)
 
         def test_timeframe(self):
-            self.assertEqual(timeframe(5), ("1Hour", "1h"))
-            self.assertEqual(timeframe(10), ("1Hour", "1h"))
-            self.assertEqual(timeframe(90), ("1Day", "1d"))
+            # the columns of a 48 wide screen
+            self.assertEqual(plot_columns(48), 36)
             self.assertEqual(
-                timeframe(365), ("1Week", "1w")
+                timeframe(1, 36), ("15Min", "15m")
+            )
+            self.assertEqual(
+                timeframe(5, 36), ("15Min", "15m")
+            )
+            # 20 days: 14 daily bars are too few
+            self.assertEqual(
+                timeframe(20, 40), ("1Hour", "1h")
+            )
+            self.assertEqual(
+                timeframe(90, 36), ("1Day", "1d")
+            )
+            # a wider screen needs more bars
+            self.assertEqual(
+                timeframe(90, 88), ("1Hour", "1h")
+            )
+            self.assertEqual(
+                timeframe(5 * 365, 200), ("1Day", "1d")
             )
 
         def test_chart(self):
@@ -314,21 +371,25 @@ if __name__ == "__main__":
             lines = chart_lines(
                 "SOXL", (5, "5 days"), bars, 48
             )
+            # the columns between two prices are on the
+            # line between them
             self.assertEqual(
                 lines,
                 [
-                    "SOXL 5 days, 1h bars   14.00  +40.00%",
-                    "18.00 |                        *",
-                    "17.00 |",
-                    "16.00 |                  *"
-                    "           *",
-                    "15.00 |",
-                    "14.00 |            *"
-                    "                       *",
-                    "13.00 |",
-                    "12.00 |      *",
-                    "11.00 |",
-                    "10.00 |*",
+                    "SOXL 5 days, 15m bars   14.00  "
+                    "+40.00%",
+                    "18.00 |                       ***",
+                    "17.00 |                    ***   ***",
+                    "16.00 |                 ***"
+                    "         ***",
+                    "15.00 |              ***"
+                    "               ***",
+                    "14.00 |           ***"
+                    "                     **",
+                    "13.00 |        ***",
+                    "12.00 |     ***",
+                    "11.00 |  ***",
+                    "10.00 |**",
                     "      +" + "-" * 37,
                     "       12.10",
                     "* price",
@@ -358,12 +419,13 @@ if __name__ == "__main__":
                 trades=trades,
             )
             self.assertEqual(
-                lines[1], "18.00 |                        S"
+                lines[1],
+                "18.00 |                       **S",
             )
-            self.assertEqual(lines[7], "12.00 |      B")
+            self.assertEqual(lines[7], "12.00 |     *B*")
             self.assertEqual(
                 lines[8],
-                "11.00 |" + "." * 37 + " avg",
+                "11.00 |..***" + "." * 32 + " avg",
             )
             self.assertEqual(
                 lines[-1],
