@@ -14,9 +14,9 @@ that run in the background, and show it in the names:
   - the service code: `order_watcher.py`,
     `mail_reader.py`, `order_parser.py`
 
-When doing it, also update the names that still point
+~~When doing it, also update the names that still point
 to the watcher: the `mail watcher:` line of `status`
-and the docs.
+and the docs.~~ (done, it is "mail broker" now)
 
 ## Next: protect what is built
 
@@ -51,8 +51,9 @@ In this order, before metrics and strategy add more:
    - ~~the shared helpers in `shell/ui.py` still have a
      leading `_` though several modules use them~~
      (done)
-   - `status` still says `order_watcher.py`, see the
-     mtsig split above
+   - ~~`status` still says `order_watcher.py`, see the
+     mtsig split above~~ (done: "mail broker" in
+     everything the user sees)
 
 ## Privacy
 

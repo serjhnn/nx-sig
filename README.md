@@ -18,18 +18,18 @@ automatically from the confirmation emails. It is made to run on a phone in
 - **Mail trades service** (`./mtsig`) that waits for broker emails over IMAP and
   records FILLED orders as trades, running in the background
 - **Plain files** for storage: CSV for trades, JSON for rules and state,
-  written atomically and locked, so the shell and the watcher can run together
+  written atomically and locked, so the shell and the mail broker can run together
 - **Ladders**: background price-step alerts on Telegram, e.g. at 90, 80, 70, ...
   when a stock falls from 100
 - **Notifications** through [ntfy](https://ntfy.sh) and Telegram
 
 ## Requirements
 
-- Python **3.12+** for the shell, **3.14+** for the order watcher
+- Python **3.12+** for the shell, **3.14+** for the mail broker
   (it uses IMAP IDLE, added to `imaplib` in 3.14)
 - Python packages: `requests`, `python-dotenv` (and `rich` for `latest_trade.py`)
 - An Alpaca account for prices, and an email account with IMAP access
-  (e.g. Gmail with an app password) for the order watcher
+  (e.g. Gmail with an app password) for the mail broker
 
 ## Setup
 
@@ -48,7 +48,7 @@ Create a `.env` file in the repo folder with your keys (it is in `.gitignore`):
 APCA_API_KEY_ID=your-key-id
 APCA_API_SECRET_KEY=your-secret-key
 
-# order watcher (IMAP)
+# mail broker (IMAP)
 IMAP_HOST=imap.gmail.com
 IMAP_USERNAME=you@gmail.com
 IMAP_APP_PASSWORD=your-16-char-app-password
@@ -79,7 +79,7 @@ your bot.
 
 | Key | Meaning |
 |---|---|
-| `indices` | the stocks you track; only these can be used in commands and are recorded by the watcher |
+| `indices` | the stocks you track; only these can be used in commands and are recorded by the mail broker |
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
 | `gain_alert` | `xtop` sends a Telegram message when a stock's gain reaches this amount (default `100`) |
 | `gain_alert_pct` | ... or when its gain reaches this % (default `10`) |
@@ -113,7 +113,7 @@ else: `ls ladders`, but `rm ladder 1`.
 | `tasks` | `ls` | `ls tasks`: running background tasks |
 
 And the commands of their own: `status` (positions with gain/loss and the
-mail watcher's state), `xtop [sec]` (live gain/loss with Telegram alerts at
+mail broker's state), `xtop [sec]` (live gain/loss with Telegram alerts at
 `gain_alert` / `gain_alert_pct`), `help [<command>]` and `exit`.
 
 Every command with its arguments is in **[COMMANDS.md](COMMANDS.md)**, the same
@@ -127,7 +127,7 @@ The average price is a weighted average of your buys:
 `avg = (avg × count + price × bought) / (count + bought)`. Sells lower the count
 and keep the average. Gain/loss in `status` is `count × price − count × avg`.
 
-### The mail trades service (mtsig)
+### The mail broker (mtsig, mail trades service)
 
 ```bash
 ./mtsig start      # run it in the background
@@ -183,7 +183,7 @@ several levels between two checks, one message names the farthest one.
 - If a message can't be sent, the level is not saved and is sent at the next
   check.
 - Telegram (`TOKEN`, `CHAT_ID` in `.env`) must be set up to start a ladder.
-- In Termux a wake lock is held while a ladder or the mail watcher runs.
+- In Termux a wake lock is held while a ladder or the mail broker runs.
 - Logs are in `data/logs/ladder_<id>.log`.
 
 ### Syncing the phone and the PC
@@ -208,7 +208,7 @@ one with the other's ID. Before the first sync, only one device should have
 data in `data/`. Otherwise, the files that differ end up as
 `*.sync-conflict-*` copies.
 
-- Only one device runs the background tasks (the mail watcher and the
+- Only one device runs the background tasks (the mail broker and the
   ladders), or every order would be recorded twice. See below.
 - Don't record trades on both devices before they have synced.
 - These stay on each device and are never synced: `.lock`, `logs/`,
@@ -220,7 +220,7 @@ data in `data/`. Otherwise, the files that differ end up as
 
 #### One device runs the background tasks
 
-`data/tasks_owner.json` (synced) names the device that runs the mail watcher
+`data/tasks_owner.json` (synced) names the device that runs the mail broker
 and the ladders, shown by `status` and `ls tasks`
 (`background tasks run on pc (since 16.10 14:30)`).
 
@@ -247,13 +247,13 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `<stock>_trades.csv` | the stock's trades: Id, Date, Time, Type, Count, Price |
 | `personal_rules.json` | your rules |
 | `base_trades.csv` | the basetrades (last buying prices), one per stock: Stock, Price, Count |
-| `mail_state.json` | the last email the watcher handled |
-| `mtsig_status.json` | the watcher's heartbeat, shown by `status` |
+| `mail_state.json` | the last email the mail broker handled |
+| `mtsig_status.json` | the mail broker's heartbeat, shown by `status` |
 | `mtsig.pid` | the process id of the running `./mtsig` |
 | `ladders.csv` | the saved ladders: Id, Stock, Direction, Step, From, Last (the last level sent), Created |
 | `ladders_status.json` | the ladder processes' heartbeats, shown by `ls tasks` |
 | `tasks_owner.json` | the device that runs the background tasks |
-| `logs/` | the watcher's and the ladders' logs (`mtsig.log`, `ladder_<id>.log`) |
+| `logs/` | the mail broker's and the ladders' logs (`mtsig.log`, `ladder_<id>.log`) |
 
 The count and average buy price of a stock are computed from its trades
 file each time, so editing or syncing a trades file can't leave them out of
@@ -269,7 +269,7 @@ shell. The script is temporary and will be removed later.
 ```
 nx-sig/
 ├── nxshell               start the shell
-├── mtsig                 start/stop/status of the order watcher
+├── mtsig                 start/stop/status of the mail broker
 │                         (mail trades service)
 ├── syncnx                sync data/ between phone and PC
 ├── migrate_data          renames old data files once (temporary)
@@ -294,7 +294,7 @@ nx-sig/
     │   ├── tasks_cmd.py      ls tasks
     │   └── overview_cmd.py   status, xtop
     ├── shell_test.py     tests of the shell commands
-    ├── storage.py        trades, totals, rules and watcher state on disk
+    ├── storage.py        trades, totals, rules and mail broker state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
     ├── order_watcher.py  email -> parsed order -> trade
     ├── mail_reader.py    IMAP IDLE watcher with reconnects

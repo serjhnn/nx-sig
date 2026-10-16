@@ -25,7 +25,7 @@ from shell.ui import (
 # order_watcher.py writes a heartbeat at least every 9
 # minutes (IMAP IDLE renewal)
 WATCHER_STALE_SECONDS = 15 * 60
-# an order the watcher could not record stays visible in
+# an order the mail broker could not record stays visible in
 # 'status' this long
 WATCHER_ERROR_DAYS = 7
 
@@ -35,32 +35,30 @@ def print_watcher_status():
     heartbeat file"""
     status = watcher_status_get()
     if not status or not status.get("updated"):
-        print_wrapped("mail watcher: not started")
+        print_wrapped("mail broker: not started")
         return
     try:
         updated = datetime.fromisoformat(status["updated"])
     except ValueError:
-        print_wrapped("mail watcher: unknown state")
+        print_wrapped("mail broker: unknown state")
         return
 
     state = status.get("state", "")
     age = (datetime.now() - updated).total_seconds()
     if state == "stopped":
-        line = (
-            f"mail watcher: stopped {updated:%d.%m %H:%M}"
-        )
+        line = f"mail broker: stopped {updated:%d.%m %H:%M}"
     elif age > WATCHER_STALE_SECONDS:
         line = (
-            "mail watcher: not responding, last seen "
+            "mail broker: not responding, last seen "
             f"{updated:%d.%m %H:%M}"
         )
     elif state in ("starting", "connected", "waiting"):
         line = (
-            "mail watcher: running, checked "
+            "mail broker: running, checked "
             f"{updated:%H:%M}"
         )
     else:
-        line = f"mail watcher: {state}, {updated:%H:%M}"
+        line = f"mail broker: {state}, {updated:%H:%M}"
     if status.get("last_order"):
         line += f", last order {status['last_order']}"
     print_wrapped(line)
@@ -81,7 +79,7 @@ def print_watcher_status():
     )
     if recent_error:
         print_error(
-            "mail watcher error "
+            "mail broker error "
             f"{error_time:%d.%m %H:%M}: "
             f"{error.get('text', '')}"
         )
@@ -147,7 +145,7 @@ def _mtsig(*args):
             capture_output=True,
             text=True,
             # its own session, so Ctrl+C or closing the
-            # shell doesn't reach the watcher
+            # shell doesn't reach the mail broker
             start_new_session=True,
         )
     except OSError as e:
@@ -166,7 +164,7 @@ class MailBrokerCommands(Commands):
     def run(self, arg):
         """
         run mail-broker [force]
-            start the mail watcher (./mtsig start)
+            start the mail broker (./mtsig start)
             that records broker order emails as
             trades; it keeps running when the shell
             is closed; force takes the background
@@ -182,7 +180,7 @@ class MailBrokerCommands(Commands):
     def stop(self, arg):
         """
         stop mail-broker
-            stop the mail watcher (./mtsig stop)
+            stop the mail broker (./mtsig stop)
         """
         if arg.split():
             print_wrapped("usage: stop mail-broker")

@@ -99,7 +99,7 @@ start() {
     # $1: force or empty
     local pid
     if pid=$(running_pid); then
-        echo "watcher is already running (pid $pid)"
+        echo "mail broker is already running (pid $pid)"
         return 0
     fi
     local python
@@ -126,13 +126,13 @@ start() {
     if running_pid >/dev/null; then
         local version
         version=$("$python" --version 2>&1)
-        echo "watcher started (pid $pid, $version)," \
+        echo "mail broker started (pid $pid, $version)," \
             "log: $LOG_FILE"
         return 0
     fi
     rm -f "$PID_FILE"
     release_if_idle
-    echo "error: watcher stopped right after" \
+    echo "error: mail broker stopped right after" \
         "starting:" >&2
     if [ -s "$OUT_FILE" ]; then
         tail -n 15 "$OUT_FILE" >&2
@@ -150,7 +150,7 @@ start() {
 stop() {
     local pid
     if ! pid=$(running_pid); then
-        echo "watcher is not running"
+        echo "mail broker is not running"
         rm -f "$PID_FILE"
         return 0
     fi
@@ -162,20 +162,20 @@ stop() {
         sleep 1
     done
     if running_pid >/dev/null; then
-        echo "watcher did not stop in 20s, killing it"
+        echo "mail broker did not stop in 20s, killing it"
         kill -KILL "$pid" 2>/dev/null
     fi
     rm -f "$PID_FILE"
     release_if_idle
-    echo "watcher stopped"
+    echo "mail broker stopped"
 }
 
 status() {
     local pid
     if pid=$(running_pid); then
-        echo "watcher is running (pid $pid)"
+        echo "mail broker is running (pid $pid)"
     else
-        echo "watcher is not running"
+        echo "mail broker is not running"
     fi
     # the heartbeat that order_watcher.py writes, also
     # shown by 'status' in ./nxshell

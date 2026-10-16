@@ -125,7 +125,7 @@ rm basetrade <stock>
 
 ```
 run mail-broker [force]
-    start the mail watcher (./mtsig start)
+    start the mail broker (./mtsig start)
     that records broker order emails as
     trades; it keeps running when the shell
     is closed; force takes the background
@@ -133,7 +133,7 @@ run mail-broker [force]
     'help run ladder'
 
 stop mail-broker
-    stop the mail watcher (./mtsig stop)
+    stop the mail broker (./mtsig stop)
 ```
 
 ## tasks
@@ -154,7 +154,7 @@ status
     average buy price, current price and
     state: gain/loss in money,
     count * (price - avg price),
-    and whether order_watcher.py is running
+    and whether the mail broker is running
     and which device runs the background
     tasks
 

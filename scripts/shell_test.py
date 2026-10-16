@@ -409,7 +409,7 @@ class ShellTest(unittest.TestCase):
     def test_status(self):
         self.assertEqual(
             self.lines("status"),
-            ["no stocks held", "mail watcher: not started"],
+            ["no stocks held", "mail broker: not started"],
         )
         self.run_cmd("add trade SOXL buy count 10 price 20")
         self.prices = {"SOXL": 22}
@@ -422,14 +422,14 @@ class ShellTest(unittest.TestCase):
                 "SOXL  |    10 |     20.00 |    22.00 | "
                 "   +20.00",
                 "-" * WIDTH,
-                "mail watcher: not started",
+                "mail broker: not started",
             ],
         )
         self.assertEqual(
             self.lines("status now"), ["usage: status"]
         )
 
-    def test_status_watcher(self):
+    def test_status_mail_broker(self):
         now = datetime.now()
         storage.watcher_status_set(
             {
@@ -441,7 +441,7 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.lines("status")[-2:],
             [
-                f"mail watcher: running, checked "
+                f"mail broker: running, checked "
                 f"{now:%H:%M}, last order",
                 "  BUY 10 SOXL",
             ],
@@ -984,7 +984,7 @@ class ShellTest(unittest.TestCase):
             self.lines("status"),
             [
                 "no stocks held",
-                "mail watcher: not started",
+                "mail broker: not started",
                 "background tasks run on pc (since 16.10 "
                 "14:30)",
             ],

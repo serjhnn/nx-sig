@@ -1,7 +1,7 @@
 # overview_cmd: the commands that span the features
 #
 #   status      held positions with gain/loss, the
-#               mail watcher and the device of the
+#               mail broker and the device of the
 #               background tasks
 #   xtop [sec]  live gain/loss with Telegram alerts
 #
@@ -51,7 +51,7 @@ class OverviewCmd:
             average buy price, current price and
             state: gain/loss in money,
             count * (price - avg price),
-            and whether order_watcher.py is running
+            and whether the mail broker is running
             and which device runs the background
             tasks
         """
