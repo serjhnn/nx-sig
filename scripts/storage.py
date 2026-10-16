@@ -1,21 +1,20 @@
 # storage: reads and writes all nX-sig data in config
-# "storage_dir" (csv files for trades and totals, json
-# files for rules and the watcher)
+# "storage_dir" (csv files for trades, json files for
+# rules and the watcher)
 #
 # public functions:
 #   trade_add(stock, trade_type,
 #                        count, price)
 #       record a BUY/SELL trade in
-#       {stock}_trades.csv and update the stock's
-#       totals in trades_total.csv
+#       {stock}_trades.csv
 #   trades_get_all(stock)
 #       return all recorded trades for a stock
 #   trade_delete(stock, trade_id)
 #       delete the trade with the given Id from
-#       {stock}_trades.csv and recalculate the stock's
-#       totals in trades_total.csv
+#       {stock}_trades.csv
 #   trades_total_get(stock)
-#       return (count held, average buy price) for a stock
+#       return (count held, average buy price) for a
+#       stock, computed from its trades
 #   rules_get_all()
 #       return all personal rules from personal_rules.json,
 #       numbered from 1
@@ -96,7 +95,6 @@ TRADE_FIELDNAMES = [
     "Count",
     "Price",
 ]
-TOTAL_FIELDNAMES = ["Type", "Count", "Price"]
 BASETRADE_FIELDNAMES = ["Stock", "Price", "Count"]
 LADDER_FIELDNAMES = [
     "Id",
@@ -125,7 +123,7 @@ def _db_lock():
     """
     exclusive lock on {DB_DIR}/.lock shared by all processes
     using the database, so a read-modify-write (e.g. of
-    trades_total.csv) is not interleaved with another
+    a trades file) is not interleaved with another
     process doing the same; re-entrant within one thread
     """
     if getattr(_lock_state, "depth", 0):
@@ -211,8 +209,6 @@ def trade_add(stock, trade_type, count, price):
     )
     _write_csv_atomic(path, TRADE_FIELDNAMES, rows)
 
-    _trades_total_save(stock, trade_type, count, price)
-
 
 def trades_get_all(stock):
     """
@@ -241,8 +237,7 @@ def trades_get_all(stock):
 def trade_delete(stock, trade_id):
     """
     delete the trade with the given Id from
-    {stock_name}_trades.csv and recalculate the
-    stock's totals in trades_total.csv
+    {stock_name}_trades.csv
 
     remaining trades keep their Id
     return True if a trade was deleted, False if
@@ -258,19 +253,6 @@ def trade_delete(stock, trade_id):
         TRADE_FIELDNAMES,
         [{**t, "Type": t["Type"].name} for t in remaining],
     )
-
-    # replay the remaining trades to rebuild the
-    # totals from scratch
-    total_count, avg_price = 0, 0.0
-    for t in remaining:
-        total_count, avg_price = _total_apply(
-            total_count,
-            avg_price,
-            t["Type"],
-            t["Count"],
-            t["Price"],
-        )
-    _trades_total_set(stock, total_count, avg_price)
     return True
 
 
@@ -319,50 +301,6 @@ def _write_atomic(path, write):
         raise
 
 
-def _trades_total_save(stock, trade_type, count, price):
-    """
-        save trades total in trades_total.csv
-        file
-
-            trades_total.csv
-     ______________________
-    | Type | Count | Price |
-    | TSMX |    10 |   250 |
-
-    where
-        Count and price are repeatedly updated after
-        every trade
-        Count - total sum of all stocks buyed and still
-                not sold
-        Price - average price for a stock for multiple
-                buy trade
-
-        if BUY :
-            avg_price = (avg_price * total_count
-                         + price * count)
-                        / (total_count + count)
-            total_count += count
-        else : # sell
-            total_count -= count
-
-        place total_count in "Count" row
-        place avg_price in "Price" row
-
-        for a specified stock
-
-
-    """
-    total_count, avg_price = trades_total_get(stock)
-    total_count, avg_price = _total_apply(
-        total_count,
-        avg_price,
-        trade_type,
-        count,
-        price,
-    )
-    _trades_total_set(stock, total_count, avg_price)
-
-
 def _total_apply(
     total_count, avg_price, trade_type, count, price
 ):
@@ -381,44 +319,30 @@ def _total_apply(
     return total_count, avg_price
 
 
-def _trades_total_set(stock, total_count, avg_price):
-    """
-    store total_count and avg_price of a stock in
-    trades_total.csv
-    """
-    os.makedirs(DB_DIR, exist_ok=True)
-    path = _trades_total_path()
-    rows = []
-    if os.path.exists(path):
-        with open(path, newline="") as f:
-            rows = list(csv.DictReader(f))
-
-    row = next(
-        (r for r in rows if r["Type"] == stock.name), None
-    )
-    if row is None:
-        row = {"Type": stock.name}
-        rows.append(row)
-    row["Count"] = total_count
-    row["Price"] = avg_price
-
-    _write_csv_atomic(path, TOTAL_FIELDNAMES, rows)
-
-
 def trades_total_get(stock):
     """
-    return (total_count, avg_price) for a stock from
-    trades_total.csv
+    return (total_count, avg_price) for a stock,
+    computed from its trades in {stock_name}_trades.csv
+
+    for every trade in order:
+        if BUY :
+            avg_price = (avg_price * total_count
+                         + price * count)
+                        / (total_count + count)
+            total_count += count
+        else : # sell
+            total_count -= count
     """
-    path = _trades_total_path()
-    if os.path.exists(path):
-        with open(path, newline="") as f:
-            for row in csv.DictReader(f):
-                if row["Type"] == stock.name:
-                    return int(row["Count"]), float(
-                        row["Price"]
-                    )
-    return 0, 0.0
+    total_count, avg_price = 0, 0.0
+    for t in trades_get_all(stock):
+        total_count, avg_price = _total_apply(
+            total_count,
+            avg_price,
+            t["Type"],
+            t["Count"],
+            t["Price"],
+        )
+    return total_count, avg_price
 
 
 def rules_get_all():
@@ -762,10 +686,6 @@ def _watcher_status_path():
     return os.path.join(DB_DIR, "mtsig_status.json")
 
 
-def _trades_total_path():
-    return os.path.join(DB_DIR, "trades_total.csv")
-
-
 if __name__ == "__main__":
     import tempfile
     import unittest
@@ -862,16 +782,10 @@ if __name__ == "__main__":
                 (6, 250.0),
             )
 
-        def test_total_stocks_in_one_file(self):
+        def test_total_of_each_stock(self):
             trade_add(Stock.SOXL, TradeType.BUY, 1, 100)
             trade_add(Stock.TSMX, TradeType.BUY, 2, 200)
 
-            with open(
-                _trades_total_path(), newline=""
-            ) as f:
-                rows = list(csv.reader(f))
-            self.assertEqual(rows[0], TOTAL_FIELDNAMES)
-            self.assertEqual(len(rows), 3)
             self.assertEqual(
                 trades_total_get(Stock.SOXL),
                 (1, 100.0),
@@ -879,6 +793,23 @@ if __name__ == "__main__":
             self.assertEqual(
                 trades_total_get(Stock.TSMX),
                 (2, 200.0),
+            )
+            self.assertEqual(
+                trades_total_get(Stock.NVDL), (0, 0.0)
+            )
+
+        def test_total_follows_edited_trades_file(self):
+            # e.g. a hand edit or a Syncthing conflict
+            trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
+            path = _trades_path(Stock.TSMX)
+            with open(path) as f:
+                text = f.read()
+            with open(path, "w") as f:
+                f.write(text.replace(",10,250", ",4,300"))
+
+            self.assertEqual(
+                trades_total_get(Stock.TSMX),
+                (4, 300.0),
             )
 
         def test_delete_removes_row_and_keeps_ids(self):
@@ -975,10 +906,7 @@ if __name__ == "__main__":
                     for f in os.listdir(DB_DIR)
                     if f != ".lock"
                 ),
-                [
-                    "trades_total.csv",
-                    "tsmx_trades.csv",
-                ],
+                ["tsmx_trades.csv"],
             )
 
         def test_rules_without_file_returns_empty(self):

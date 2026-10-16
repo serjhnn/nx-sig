@@ -224,7 +224,6 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | File | Contents |
 |---|---|
 | `<stock>_trades.csv` | the stock's trades: Id, Date, Time, Type, Count, Price |
-| `trades_total.csv` | count and average price of every stock |
 | `personal_rules.json` | your rules |
 | `base_trades.csv` | the basetrades (last buying prices), one per stock: Stock, Price, Count |
 | `mail_state.json` | the last email the watcher handled |
@@ -233,6 +232,10 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `ladders.csv` | the saved ladders: Id, Stock, Direction, Step, From, Last (the last level sent), Created |
 | `ladders_status.json` | the ladder processes' heartbeats, shown by `ls tasks` |
 | `logs/` | the watcher's and the ladders' logs (`mtsig.log`, `ladder_<id>.log`) |
+
+The count and average buy price of a stock are computed from its trades
+file each time, so editing or syncing a trades file can't leave them out of
+date. An old `trades_total.csv` is no longer used and can be deleted.
 
 Data from before the rename of transactions to trades (the files
 `<stock>_transactions.csv`, `transactions_total.csv` and `base_buy.csv`) is

@@ -28,12 +28,12 @@ In this order, before metrics and strategy add more:
    each push, so a change from the phone that breaks
    something shows up right away.~~ (done,
    `.github/workflows/tests.yml`, Python 3.12 and 3.14)
-2. **Totals check**: `trades_total.csv` is a cache of
+2. ~~**Totals check**: `trades_total.csv` is a cache of
    the trade files. Add a check that rebuilds each
    stock's total from its trades and reports (or
-   fixes) a difference, e.g. after a Syncthing
-   conflict, a hand edit or a crash between the two
-   writes. `trade_delete` already has the rebuild.
+   fixes) a difference.~~ (done differently: the
+   cache is gone, `trades_total_get` computes the
+   total from the trades)
 3. **Tests for the mail watcher**: `order_watcher.py`
    and `mail_reader.py` need Python 3.14 and have no
    tests yet. Run them in CI with 3.14 and test
@@ -51,8 +51,6 @@ In this order, before metrics and strategy add more:
 6. Small cleanups:
    - the shared helpers in `shell/ui.py` still have a
      leading `_` though several modules use them
-   - the stock column of `trades_total.csv` is named
-     `Type`
    - `status` still says `order_watcher.py`, see the
      mtsig split above
 
