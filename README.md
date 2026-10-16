@@ -64,6 +64,15 @@ CHAT_ID=telegram-chat-id
 For Gmail, turn on 2-Step Verification and create an app password at
 <https://myaccount.google.com/apppasswords>.
 
+**About Telegram and privacy.** The alerts are encrypted on the way: nX-sig
+sends them to Telegram's Bot API over HTTPS, and Telegram delivers them to
+your app over its own encrypted connection. But they are not end-to-end
+encrypted: a chat with a bot is a normal cloud chat, kept on Telegram's
+servers, and Telegram holds the keys, so Telegram can read the alerts (stock,
+prices, gain). Telegram's end-to-end "secret chats" are not available for
+bots. Keep `TOKEN` private too: anyone with it can send and read messages as
+your bot.
+
 `config.json` holds the rest of the settings:
 
 | Key | Meaning |

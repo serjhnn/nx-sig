@@ -66,8 +66,12 @@ see some of it. Say so, and let alerts say less:
      API key (not your positions)
    - Gmail: the broker emails, read over IMAP
    - Telegram: the alerts, with stock, gain and
-     amounts (bot messages are not end-to-end
-     encrypted)
+     amounts. They are encrypted on the way (HTTPS to
+     the Bot API, Telegram's encryption to the app),
+     but not end-to-end: a bot chat is a cloud chat on
+     Telegram's servers, Telegram holds the keys and
+     can read it, and secret chats don't work with
+     bots (already in the README, under .env)
    - ntfy.sh, if used: the same as Telegram
    - Syncthing: nothing, it syncs directly between
      your devices (discovery and relays are off)
