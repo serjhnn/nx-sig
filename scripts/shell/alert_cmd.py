@@ -249,7 +249,7 @@ def print_basetrade_alerts(basetrades, prices):
         if is_past
     ]
     if past_now:
-        line = "! past now: " + ", ".join(past_now)
+        line = "! in alert: " + ", ".join(past_now)
         print_wrapped(line)
     print_wrapped(_task_line())
 
