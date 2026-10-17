@@ -1,6 +1,7 @@
 {
     "url": "https://data.alpaca.markets/v2/stocks/trades/latest",
-    "feed": "delayed_sip",
+    "feed": "iex",
+    "bars_feed": "delayed_sip",
     "storage_dir": "./data/",
     "gain_alert": 100,
     "gain_alert_pct": 10,
