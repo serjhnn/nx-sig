@@ -820,6 +820,49 @@ class ShellTest(unittest.TestCase):
             ],
         )
 
+    def test_basetrade_alerts_wrap(self):
+        # all seven stocks: the next lines start under
+        # the first stock, a stock and its price stay
+        # together
+        for name, price in (
+            ("ASMG", 40.94),
+            ("AVGG", 21.7),
+            ("NVDL", 31.84),
+            ("TSMX", 71.7),
+            ("MUU", 24.2),
+            ("MRVU", 112.59),
+            ("SOXL", 100.64),
+        ):
+            self.run_cmd(
+                f"add basetrade {name} price {price} "
+                "count 1"
+            )
+        self.run_cmd("add alert basetrades down 10 percent")
+        self.prices = {
+            "AVGG": 19,
+            "MUU": 20,
+            "SOXL": 80,
+            "TSMX": 60,
+        }
+        out = self.lines("ls basetrades")
+        indent = " " * len("alert 1 down 10%: ")
+        first = out.index(
+            "alert 1 down 10%: ASMG 36.85, AVGG 19.53!,"
+        )
+        self.assertEqual(
+            out[first:],
+            [
+                "alert 1 down 10%: ASMG 36.85, "
+                "AVGG 19.53!,",
+                indent + "NVDL 28.66, TSMX 64.53!,",
+                indent + "MUU 21.78!, MRVU 101.33,",
+                indent + "SOXL 90.58!",
+                "! in alert: AVGG #1, TSMX #1, MUU #1, "
+                "SOXL #1",
+                "alerts: running",
+            ],
+        )
+
     def test_alert_errors(self):
         usage = [
             "usage: add alert basetrades <down|up> <n>",

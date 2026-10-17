@@ -11,6 +11,7 @@
 # row in 'ls tasks'. print_basetrade_alerts() is the
 # part of 'ls basetrades' below its table
 
+import textwrap
 from datetime import datetime
 
 import alerts
@@ -27,6 +28,7 @@ from shell.ui import (
     confirm,
     parse_direction,
     parse_id,
+    print_dim,
     print_error,
     print_wrapped,
     space_separator,
@@ -34,6 +36,7 @@ from shell.ui import (
     width,
 )
 
+NO_BREAK = "\u00a0"
 ADD_USAGE = (
     "usage: add alert basetrades <down|up> <n> percent"
 )
@@ -233,15 +236,15 @@ def print_basetrade_alerts(basetrades, prices):
         print_wrapped("no alerts, see 'help add alert'")
         return
     for alert, stocks in rows:
-        levels = ", ".join(
-            f"{name} {at:.2f}" + ("!" if is_past else "")
-            for name, at, is_past in stocks
-        )
-        line = (
+        _print_list(
             f"alert {alert['Id']} "
-            f"{alerts.describe(alert)}: {levels or '-'}"
+            f"{alerts.describe(alert)}: ",
+            [
+                f"{name} {at:.2f}"
+                + ("!" if is_past else "")
+                for name, at, is_past in stocks
+            ],
         )
-        print_wrapped(line)
     past_now = [
         f"{name} #{alert['Id']}"
         for alert, stocks in rows
@@ -249,9 +252,28 @@ def print_basetrade_alerts(basetrades, prices):
         if is_past
     ]
     if past_now:
-        line = "! in alert: " + ", ".join(past_now)
-        print_wrapped(line)
+        _print_list("! in alert: ", past_now)
     print_wrapped(_task_line())
+
+
+def _print_list(head, items):
+    """head and the items joined by ', ', wrapped to
+    width() with the next lines starting under the
+    first item; an item ('SOXL 18.00') is never split"""
+    # a no-break space keeps an item on one line
+    text = head + ", ".join(
+        i.replace(" ", NO_BREAK) for i in items or ["-"]
+    )
+    indent = len(head) if len(head) <= width() // 2 else 2
+    lines = textwrap.wrap(
+        text,
+        width(),
+        subsequent_indent=" " * indent,
+        break_on_hyphens=False,
+        break_long_words=False,
+    )
+    for line in lines:
+        print_dim(line.replace(NO_BREAK, " "))
 
 
 def _task_line():
