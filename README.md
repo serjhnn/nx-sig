@@ -272,7 +272,7 @@ same way above the buying price.
 
 ```
 alert 1 down 10%: MUU 45.45, SOXL 18.00!
-! in alert: SOXL (1)
+! in alert: SOXL #1
 alerts: running, last check 14:30
 ```
 

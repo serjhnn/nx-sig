@@ -243,7 +243,7 @@ def print_basetrade_alerts(basetrades, prices):
         )
         print_wrapped(line)
     past_now = [
-        f"{name} ({alert['Id']})"
+        f"{name} #{alert['Id']}"
         for alert, stocks in rows
         for name, _, is_past in stocks
         if is_past

@@ -796,7 +796,7 @@ class ShellTest(unittest.TestCase):
             [
                 "alert 1 down 10%: MUU 45.45, SOXL 18.00!",
                 "alert 2 up 20%: MUU 60.60!, SOXL 24.00",
-                "! in alert: SOXL (1), MUU (2)",
+                "! in alert: SOXL #1, MUU #2",
                 f"alerts: running, last check {now:%H:%M}",
             ],
         )
