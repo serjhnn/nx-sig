@@ -1,5 +1,5 @@
-# alerts: price alerts for the basetrades, checked by
-# one background process
+# alerts: price alerts for the basetrades and the gain
+# of the held stocks, checked by one background process
 #
 #   python scripts/alerts.py run    the process ('run
 #                                   alert' in the shell
@@ -17,6 +17,15 @@
 # a message every check. a new basetrade (a new buying
 # price) starts the stock over.
 #
+# a gain alert is the gain of a held stock, from its
+# trades like in xtop: 'gain TSMX 100' when the gain of
+# TSMX reaches +100, 'gain all 10 percent' when a held
+# stock is 10% over its average buy price, a negative
+# number for a loss. it becomes a price level too (avg
+# + 100 / count, avg * 1.1), checked the same way; a
+# trade that changes the count or the average starts
+# the stock over.
+#
 # the stocks past each alert are saved in
 # alerts_status.json, so after a restart nothing is
 # sent twice. the price is checked every config
@@ -25,7 +34,12 @@
 #
 # public functions:
 #   create(target, direction, percent)
-#       check and save a new alert, return its Id
+#       check and save a new basetrades alert, return
+#       its Id
+#   create_gain(stock, value, percent=False)
+#       check and save a new gain alert, value the
+#       amount (or the % with percent), negative for a
+#       loss; stock a name or "all"; return its Id
 #   remove(alert_id)
 #       delete it, return it or None; stops the process
 #       when no alert is left
@@ -33,9 +47,12 @@
 #       the saved alerts
 #   level(base, alert)
 #       the price of alert for a buying price
+#   gain_level(alert, count, avg)
+#       the price of a gain alert for a position
 #   past(alert, level, price), rearmed(...)
 #       the crossing math
-#   check(alerts, basetrades, prices, past_now)
+#   check(alerts, basetrades, positions, prices,
+#         past_now)
 #       one check: the messages to send
 #   basetrade_levels(basetrades, prices)
 #       each alert's level per basetrade, for
@@ -66,13 +83,15 @@ from storage import (
     alerts_get_all,
     alerts_status_get,
     alerts_status_set,
+    Stock,
     basetrades_get_all,
+    trades_total_get,
 )
 from trade_engine import get_latest_prices
 from telegram_notify import notify
 
 SCRIPT = os.path.join(ROOT_DIR, "scripts", "alerts.py")
-TARGETS = ("basetrades",)
+TARGETS = ("basetrades", "gain")
 DIRECTIONS = ladder.DIRECTIONS
 INTERVAL = ladder.INTERVAL
 STALE_SECONDS = ladder.STALE_SECONDS
@@ -104,6 +123,25 @@ def create(target, direction, percent):
     return alert_add(target, direction, percent)
 
 
+def create_gain(stock, value, percent=False):
+    if stock != "all" and stock not in Stock.__members__:
+        raise AlertError(f"unknown stock '{stock}'")
+    if value == 0:
+        raise AlertError("the gain can't be 0")
+    if percent and value <= -100:
+        raise AlertError(
+            "a loss can't be 100 percent or more"
+        )
+    direction = "down" if value < 0 else "up"
+    if percent:
+        return alert_add(
+            "gain", direction, abs(value), stock=stock
+        )
+    return alert_add(
+        "gain", direction, stock=stock, amount=abs(value)
+    )
+
+
 def remove(alert_id):
     """delete alert <alert_id>, return it (None if there
     is none) and stop the process if no alert is left"""
@@ -114,14 +152,80 @@ def remove(alert_id):
 
 
 def describe(alert):
-    """'down 10%'"""
-    return f"{alert['Direction']} {alert['Percent']:g}%"
+    """'down 10%' of a basetrades alert, 'TSMX +100' or
+    'all -10%' of a gain alert"""
+    if alert.get("For", "basetrades") == "basetrades":
+        return f"{alert['Direction']} {alert['Percent']:g}%"
+    sign = "-" if alert["Direction"] == "down" else "+"
+    if alert["Percent"] is not None:
+        value = f"{alert['Percent']:g}%"
+    else:
+        value = f"{alert['Amount']:g}"
+    return f"{alert['Stock']} {sign}{value}"
 
 
 def level(base, alert):
     sign = -1 if alert["Direction"] == "down" else 1
     return round(
         base * (1 + sign * alert["Percent"] / 100), 6
+    )
+
+
+def gain_level(alert, count, avg):
+    """the price at which a position of count stocks
+    bought at avg on average reaches the gain alert"""
+    if alert["Percent"] is not None:
+        return level(avg, alert)
+    sign = -1 if alert["Direction"] == "down" else 1
+    return round(avg + sign * alert["Amount"] / count, 6)
+
+
+def positions_get():
+    """[(stock name, count, average buy price)] of the
+    stocks held"""
+    positions = []
+    for stock in Stock:
+        count, avg = trades_total_get(stock)
+        if count > 0:
+            positions.append((stock.name, count, avg))
+    return positions
+
+
+def _targets(alert, basetrades, positions):
+    """[(stock, base, key, level)] the alert checks:
+    base is the buying price (for the re-arm margin),
+    key what is saved for a stock past the level, so a
+    new key starts the stock over"""
+    if alert.get("For", "basetrades") == "basetrades":
+        return [
+            (b["Stock"], b["Price"], b["Price"], at)
+            for b in basetrades
+            for at in [level(b["Price"], alert)]
+        ]
+    return [
+        (name, avg, at, at)
+        for name, count, avg in positions
+        if alert["Stock"] in ("all", name)
+        for at in [gain_level(alert, count, avg)]
+    ]
+
+
+def _text(alert, name, base, price, positions):
+    """the Telegram message of a crossing"""
+    label = f"(alert {alert['Id']}: "
+    if alert.get("For", "basetrades") == "basetrades":
+        change = (price - base) / base * 100
+        return (
+            f"{name} {change:+.1f}% at {price:.2f}, "
+            f"bought at {base:g} {label}"
+            f"{describe(alert)})"
+        )
+    count = next(c for n, c, _ in positions if n == name)
+    gain = (price - base) * count
+    change = (price - base) / base * 100
+    return (
+        f"{name} gain {gain:+.2f} ({change:+.1f}%) at "
+        f"{price:.2f} {label}gain {describe(alert)})"
     )
 
 
@@ -141,49 +245,52 @@ def rearmed(alert, level, base, price):
     return price <= level - margin
 
 
-def check(alerts, basetrades, prices, past_now):
+def check(alerts, basetrades, positions, prices, past_now):
     """
-    one check of every alert against the basetrades;
-    past_now is {alert id: {stock: buying price}} of the
-    stocks past each alert (alerts_status.json). return
-    (past_now with the stocks that went back, the
-    stocks of removed alerts and basetrades dropped,
-    [(alert id, stock, buying price, text)] to send)
+    one check of every alert against the basetrades and
+    the positions, [(stock, count, avg)]; past_now is
+    {alert id: {stock: key}} of the stocks past each
+    alert (alerts_status.json), the key the buying price
+    of a basetrade or the level of a gain alert. return
+    (past_now with the stocks that went back, the stocks
+    of removed alerts, basetrades and positions dropped,
+    [(alert id, stock, key, text)] to send)
     """
     kept = {}
     messages = []
     for alert in alerts:
-        key = str(alert["Id"])
-        before = past_now.get(key) or {}
+        before = past_now.get(str(alert["Id"])) or {}
         stocks = {}
-        for b in basetrades:
-            name, base = b["Stock"], b["Price"]
+        for name, base, key, at in _targets(
+            alert, basetrades, positions
+        ):
             price = prices.get(name)
-            at = level(base, alert)
-            # a new basetrade starts the stock over
-            was_past = before.get(name) == base
+            # a new basetrade or trade starts it over
+            was_past = before.get(name) == key
             if price is None:
                 if was_past:
-                    stocks[name] = base
+                    stocks[name] = key
                 continue
             if was_past and not rearmed(
                 alert, at, base, price
             ):
-                stocks[name] = base
+                stocks[name] = key
             elif not was_past and past(alert, at, price):
-                change = (price - base) / base * 100
                 messages.append(
                     (
                         alert["Id"],
                         name,
-                        base,
-                        f"{name} {change:+.1f}% at "
-                        f"{price:.2f}, bought at {base:g} "
-                        f"(alert {alert['Id']}: "
-                        f"{describe(alert)})",
+                        key,
+                        _text(
+                            alert,
+                            name,
+                            base,
+                            price,
+                            positions,
+                        ),
                     )
                 )
-        kept[key] = stocks
+        kept[str(alert["Id"])] = stocks
     return kept, messages
 
 
@@ -379,10 +486,14 @@ def _check(alerts):
         log.warning("price request failed: %s", e)
         return "no price", past_now
     past_now, messages = check(
-        alerts, basetrades_get_all(), prices, past_now
+        alerts,
+        basetrades_get_all(),
+        positions_get(),
+        prices,
+        past_now,
     )
     state = "waiting"
-    for alert_id, name, base, text in messages:
+    for alert_id, name, key, text in messages:
         try:
             notify(text)
         except Exception as e:
@@ -391,7 +502,7 @@ def _check(alerts):
             log.warning("could not send %r: %s", text, e)
             state = "no notify"
             continue
-        past_now[str(alert_id)][name] = base
+        past_now[str(alert_id)][name] = key
         log.info("sent: %s", text)
     return state, past_now
 
@@ -442,6 +553,7 @@ elif __name__ == "__main__":
             self.past, messages = check(
                 list(alerts),
                 bought(base),
+                [],
                 {"MRVU": price} if price else {},
                 self.past,
             )
@@ -470,6 +582,7 @@ elif __name__ == "__main__":
             _, messages = check(
                 [DOWN, UP],
                 bought(100),
+                [],
                 {"MRVU": 89.5},
                 {},
             )
@@ -505,6 +618,119 @@ elif __name__ == "__main__":
             self.step(95)
             self.assertEqual(self.past, {"1": {}})
 
+    def gain(stock, value, percent=False, alert_id=3):
+        return {
+            "Id": alert_id,
+            "For": "gain",
+            "Stock": stock,
+            "Direction": "down" if value < 0 else "up",
+            "Percent": abs(value) if percent else None,
+            "Amount": None if percent else abs(value),
+        }
+
+    class GainTest(unittest.TestCase):
+        # 10 TSMX at 60 on average, 5 SOXL at 20
+        POSITIONS = [("TSMX", 10, 60.0), ("SOXL", 5, 20.0)]
+
+        def step(self, alert, prices, positions=None):
+            self.past, messages = check(
+                [alert],
+                [],
+                positions or self.POSITIONS,
+                prices,
+                self.past,
+            )
+            for alert_id, name, key, _ in messages:
+                self.past[str(alert_id)][name] = key
+            return [m[3] for m in messages]
+
+        def setUp(self):
+            self.past = {}
+
+        def test_levels(self):
+            self.assertEqual(
+                gain_level(gain("TSMX", 100), 10, 60), 70
+            )
+            self.assertEqual(
+                gain_level(gain("all", -50), 5, 20), 10
+            )
+            self.assertEqual(
+                gain_level(gain("all", 10, True), 10, 60),
+                66,
+            )
+
+        def test_describe(self):
+            self.assertEqual(
+                describe(gain("TSMX", 100)), "TSMX +100"
+            )
+            self.assertEqual(
+                describe(gain("all", -10, True)), "all -10%"
+            )
+
+        def test_amount(self):
+            alert = gain("TSMX", 100)
+            self.assertEqual(
+                self.step(alert, {"TSMX": 69.9}), []
+            )
+            self.assertEqual(
+                self.step(alert, {"TSMX": 70.5}),
+                [
+                    "TSMX gain +105.00 (+17.5%) at 70.50 "
+                    "(alert 3: gain TSMX +100)"
+                ],
+            )
+            # only TSMX, still past
+            self.assertEqual(
+                self.step(alert, {"TSMX": 71, "SOXL": 99}),
+                [],
+            )
+            # back 1% of the avg (0.60) under 70 and up
+            self.assertEqual(
+                self.step(alert, {"TSMX": 69.5}), []
+            )
+            self.assertEqual(
+                self.step(alert, {"TSMX": 70}), []
+            )
+            self.step(alert, {"TSMX": 69.3})
+            self.assertEqual(
+                len(self.step(alert, {"TSMX": 70})), 1
+            )
+
+        def test_all_percent_loss(self):
+            alert = gain("all", -10, True)
+            self.assertEqual(
+                self.step(
+                    alert, {"TSMX": 53.9, "SOXL": 18.5}
+                ),
+                [
+                    "TSMX gain -61.00 (-10.2%) at 53.90 "
+                    "(alert 3: gain all -10%)"
+                ],
+            )
+
+        def test_new_trade_starts_over(self):
+            alert = gain("TSMX", 100)
+            self.step(alert, {"TSMX": 71})
+            # 10 more bought at 80: avg 70, the level
+            # moves to 70 + 100 / 20 = 75
+            moved = [("TSMX", 20, 70.0)]
+            self.assertEqual(
+                self.step(alert, {"TSMX": 74}, moved), []
+            )
+            self.assertEqual(
+                len(self.step(alert, {"TSMX": 76}, moved)),
+                1,
+            )
+
+        def test_create_gain_checks(self):
+            for args in (
+                ("XXX", 100),
+                ("TSMX", 0),
+                ("all", -100, True),
+            ):
+                with self.assertRaises(AlertError):
+                    create_gain(*args)
+
     class ProcessTest(unittest.TestCase):
         def setUp(self):
             self._tmp = tempfile.TemporaryDirectory()
@@ -539,6 +765,25 @@ elif __name__ == "__main__":
             # the next check knows it was sent
             _check(alerts_get_all())
             self.assertEqual(len(self.sent), 1)
+
+        def test_check_gain_from_trades(self):
+            storage.trade_add(
+                Stock.MRVU, storage.TradeType.BUY, 2, 80
+            )
+            create_gain("MRVU", 10)
+            self.assertEqual(
+                positions_get(), [("MRVU", 2, 80.0)]
+            )
+            # 89 - 80 = 9 a stock, 18 for 2: past +10
+            state, past_now = _check(alerts_get_all())
+            self.assertEqual(
+                self.sent,
+                [
+                    "MRVU gain +18.00 (+11.2%) at 89.00 "
+                    "(alert 1: gain MRVU +10)"
+                ],
+            )
+            self.assertEqual(past_now, {"1": {"MRVU": 85}})
 
         def test_failed_notify_is_sent_again(self):
             def fail(text):

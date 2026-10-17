@@ -661,7 +661,7 @@ class ShellTest(unittest.TestCase):
                 "           -",
                 "SOXL       5       18.00       19.80"
                 "     +10.00%",
-                "no alerts, see 'help add alert'",
+                "no basetrade alerts, see 'help add alert'",
             ],
         )
 
@@ -768,11 +768,11 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.lines("ls alerts"),
             [
-                "Id  For         Alert       Created",
+                "Id  For         Alert         Created",
                 "-" * width(),
-                " 1  basetrades  down 10%    "
+                " 1  basetrades  down 10%      "
                 f"{created[0]}",
-                " 2  basetrades  up 20%      "
+                " 2  basetrades  up 20%        "
                 f"{created[1]}",
                 "alerts: running",
             ],
@@ -884,10 +884,74 @@ class ShellTest(unittest.TestCase):
             "AVGG 19.53\033[38;5;124m!\033[39m,", out
         )
 
+    def test_gain_alerts(self):
+        self.assertEqual(
+            self.lines("add alert gain tsmx 100"),
+            [
+                "alert 1 saved: gain TSMX +100",
+                f"alerts started (pid {FAKE_PID})",
+            ],
+        )
+        for line, saved in (
+            ("add alert gain all 10 percent", "all +10%"),
+            ("add alert gain ALL -5%", "all -5%"),
+            ("add alert gain SOXL -50.5", "SOXL -50.5"),
+        ):
+            self.assertEqual(
+                self.lines(line)[0].split(": ")[1],
+                f"gain {saved}",
+                line,
+            )
+        rows = self.lines("ls alerts")[2:6]
+        self.assertEqual(
+            [r[:28].rstrip() for r in rows],
+            [
+                " 1  gain        TSMX +100",
+                " 2  gain        all +10%",
+                " 3  gain        all -5%",
+                " 4  gain        SOXL -50.5",
+            ],
+        )
+        self.assertEqual(
+            self.lines("rm alert 1", "y")[0],
+            "delete alert 1: gain TSMX +100? [y/N] y",
+        )
+        usage = self.lines("add alert gain")
+        self.assertEqual(usage[0][:6], "usage:")
+        for line in (
+            "add alert gain TSMX",
+            "add alert gain TSMX 1 2",
+            "add alert gain TSMX 1 times",
+        ):
+            self.assertEqual(self.lines(line), usage, line)
+        for line, error in (
+            (
+                "add alert gain XXX 100",
+                "error: unknown stock 'XXX'",
+            ),
+            (
+                "add alert gain TSMX x",
+                "error: <n> must be a number",
+            ),
+            (
+                "add alert gain TSMX 0",
+                "error: the gain can't be 0",
+            ),
+            (
+                "add alert gain all -100 percent",
+                "error: a loss can't be 100 percent or "
+                "more",
+            ),
+        ):
+            self.assertEqual(
+                self.lines(line), [error], line
+            )
+
     def test_alert_errors(self):
         usage = [
             "usage: add alert basetrades <down|up> <n>",
-            "  percent",
+            "  percent, or add alert gain <stock|all> <n>",
+            "  [percent]",
         ]
         for line in (
             "add alert",
@@ -898,7 +962,7 @@ class ShellTest(unittest.TestCase):
         for line, error in (
             (
                 "add alert stocks down 10 percent",
-                ["error: alerts are for basetrades"],
+                ["error: alerts are for basetrades/gain"],
             ),
             (
                 "add alert basetrades left 10 percent",
@@ -2170,7 +2234,18 @@ class ShellTest(unittest.TestCase):
             ["ladder", "alert", "mail-broker"],
         )
         self.assertEqual(
-            self.complete("add alert "), ["basetrades"]
+            self.complete("add alert "),
+            ["basetrades", "gain"],
+        )
+        self.assertEqual(
+            self.complete("add alert gain ts"), ["TSMX"]
+        )
+        self.assertEqual(
+            self.complete("add alert gain al"), ["all"]
+        )
+        self.assertEqual(
+            self.complete("add alert gain all 10 "),
+            ["percent"],
         )
         self.assertEqual(
             self.complete("add alert basetrades down 5 "),

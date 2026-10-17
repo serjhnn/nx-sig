@@ -2,6 +2,7 @@
 # engine is scripts/alerts.py
 #
 #   add alert basetrades <down|up> <n> percent
+#   add alert gain <stock|all> <n> [percent]
 #   rm alert <id>
 #   ls alerts
 #   run alert [force], stop alert
@@ -33,6 +34,7 @@ from shell.ui import (
     print_error,
     print_wrapped,
     space_separator,
+    stock_names,
     supports_color,
     width,
 )
@@ -41,14 +43,15 @@ NO_BREAK = "\u00a0"
 # the terminal's default text color, keeps DIM on
 DEFAULT_COLOR = "\033[39m"
 ADD_USAGE = (
-    "usage: add alert basetrades <down|up> <n> percent"
+    "usage: add alert basetrades <down|up> <n> percent, "
+    "or add alert gain <stock|all> <n> [percent]"
 )
 
 
 class AlertCommands(Commands):
     # an alert is a change in percent from the buying
-    # price of every basetrade, one process checks them
-    # all
+    # price of every basetrade, or a gain of the held
+    # stocks; one process checks them all
     name = "alert"
     plural = "alerts"
     order = 55
@@ -84,8 +87,19 @@ class AlertCommands(Commands):
             of the buying price) and crosses it
             once more. starts the alerts process if
             it isn't running
+        add alert gain <stock|all> <n> [percent]
+            the same for the gain of a held stock
+            (or of every one with all), from your
+            trades as in xtop: an amount, or a % of
+            the average buy price with percent; a
+            negative <n> for a loss, e.g. 'add alert
+            gain TSMX 100', 'add alert gain all 10
+            percent'
         """
         args = arg.lower().split()
+        if args and args[0] == "gain":
+            self._add_gain(args[1:])
+            return
         if len(args) != 4 or args[3] not in (
             "percent",
             "%",
@@ -102,11 +116,7 @@ class AlertCommands(Commands):
                 else "error: <n> must be a number"
             )
             return
-        if not telegram_configured():
-            print_error(
-                "error: Telegram isn't set up, add TOKEN "
-                "and CHAT_ID to .env"
-            )
+        if not _telegram_ready():
             return
         try:
             alert_id = alerts.create(
@@ -115,9 +125,48 @@ class AlertCommands(Commands):
         except alerts.AlertError as e:
             print_error(f"error: {e}")
             return
+        self._saved(alert_id)
+
+    def _add_gain(self, args):
+        """add alert gain <stock|all> <n> [percent]"""
+        percent = len(args) == 3 and args[2] in (
+            "percent",
+            "%",
+        )
+        if len(args) != 2 and not percent:
+            print_wrapped(ADD_USAGE)
+            return
+        percent = percent or args[1].endswith("%")
+        try:
+            value = float(args[1].rstrip("%"))
+        except ValueError:
+            print_error("error: <n> must be a number")
+            return
+        if not _telegram_ready():
+            return
+        stock = (
+            args[0] if args[0] == "all" else args[0].upper()
+        )
+        try:
+            alert_id = alerts.create_gain(
+                stock, value, percent
+            )
+        except alerts.AlertError as e:
+            print_error(f"error: {e}")
+            return
+        self._saved(alert_id)
+
+    def _saved(self, alert_id):
+        """after an alert was saved: say so and start the
+        alerts process if it isn't running"""
+        saved = next(
+            a
+            for a in alerts.alerts_get_all()
+            if a["Id"] == alert_id
+        )
         print_wrapped(
-            f"alert {alert_id} saved: basetrades "
-            f"{direction} {percent:g}%"
+            f"alert {alert_id} saved: {saved['For']} "
+            f"{alerts.describe(saved)}"
         )
         if not alerts.running_pid():
             self._start()
@@ -195,8 +244,15 @@ class AlertCommands(Commands):
 
     def complete(self, action, args):
         if action == "add":
+            if args and args[0].lower() == "gain":
+                return [
+                    list(alerts.TARGETS),
+                    [*stock_names(), "all"],
+                    [],
+                    ["percent"],
+                ]
             return [
-                ["basetrades"],
+                list(alerts.TARGETS),
                 ["down", "up"],
                 [],
                 ["percent"],
@@ -236,7 +292,9 @@ def print_basetrade_alerts(basetrades, prices):
     whether the alerts are checked"""
     rows = alerts.basetrade_levels(basetrades, prices)
     if not rows:
-        print_wrapped("no alerts, see 'help add alert'")
+        print_wrapped(
+            "no basetrade alerts, see 'help add alert'"
+        )
         return
     for alert, stocks in rows:
         _print_list(
@@ -257,6 +315,17 @@ def print_basetrade_alerts(basetrades, prices):
     if past_now:
         _print_list("! in alert: ", past_now)
     print_wrapped(_task_line())
+
+
+def _telegram_ready():
+    """True if Telegram is set up, else print why"""
+    if telegram_configured():
+        return True
+    print_error(
+        "error: Telegram isn't set up, add TOKEN and "
+        "CHAT_ID to .env"
+    )
+    return False
 
 
 def _print_list(head, items):
@@ -348,7 +417,7 @@ def _print_alerts(saved):
         [
             f"{'Id':>2}",
             f"{'For':<10}",
-            f"{'Alert':<10}",
+            f"{'Alert':<12}",
             "Created",
         ]
     )
@@ -364,7 +433,7 @@ def _print_alerts(saved):
         cols = [
             f"{alert['Id']:>2}",
             f"{alert['For']:<10.10}",
-            f"{alerts.describe(alert):<10.10}",
+            f"{alerts.describe(alert):<12.12}",
             f"{alert['Created']:<16.16}",
         ]
         if color:

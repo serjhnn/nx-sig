@@ -22,8 +22,8 @@ width you set, see `width` below).
   written atomically and locked, so the shell and the mail broker can run together
 - **Ladders**: background price-step alerts on Telegram, e.g. at 90, 80, 70, ...
   when a stock falls from 100
-- **Alerts**: a Telegram message each time a basetrade's stock crosses e.g.
-  10% below its buying price
+- **Alerts**: a Telegram message each time a basetrade's stock or a held
+  stock's gain crosses a level, e.g. 10% below the buying price
 - **Notifications** through [ntfy](https://ntfy.sh) and Telegram
 
 ## Requirements
@@ -279,6 +279,30 @@ alerts: running, last check 14:30
 - Like the ladders, it needs Telegram and runs only on the device that runs
   the background tasks. Logs are in `data/logs/alerts.log`.
 
+#### Gain alerts
+
+```
+nX-sig> add alert gain TSMX 100
+alert 2 saved: gain TSMX +100
+nX-sig> add alert gain all 10 percent
+alert 3 saved: gain all +10%
+```
+
+`add alert gain <stock|all> <n> [percent]` alerts on the gain of a held stock,
+computed from your trades as in `xtop`: `gain TSMX 100` when the gain of your
+TSMX position reaches +100, `gain all 10 percent` when any held stock is 10%
+over its average buy price. A negative `<n>` is a loss: `gain all -50`.
+The message is like `TSMX gain +105.00 (+17.5%) at 70.50 (alert 2: gain TSMX
++100)`.
+
+- A gain alert is turned into a price per held stock (average buy price +
+  100 / count, or the average buy price + 10%) and checked like the basetrade
+  alerts, by the same process: sent each time it is crossed, after the price
+  went back 1% of the average buy price.
+- A trade that changes the count or the average buy price moves the level,
+  and the stock starts over.
+- Only stocks you hold are checked; `all` covers the ones you buy later too.
+
 ### Syncing the phone and the PC
 
 `./syncnx` keeps `data/` the same on the phone (Termux) and the PC
@@ -346,7 +370,7 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `mtsig.pid` | the process id of the running `./mtsig` |
 | `ladders.csv` | the saved ladders: Id, Stock, Direction, Step, From, Last (the last level sent), Created |
 | `ladders_status.json` | the ladder processes' heartbeats, shown by `ls tasks` |
-| `alerts.csv` | the alerts: Id, For (`basetrades`), Direction, Percent, Created |
+| `alerts.csv` | the alerts: Id, For (`basetrades` or `gain`), Direction, Percent, Created, Stock and Amount (of a gain alert) |
 | `alerts_status.json` | the alerts process's heartbeat and the stocks past each alert |
 | `tasks_owner.json` | the device that runs the background tasks |
 | `logs/` | the background tasks' logs (`mtsig.log`, `ladder_<id>.log`, `alerts.log`) |
@@ -400,7 +424,7 @@ nx-sig/
     ├── storage.py        trades, totals, rules and mail broker state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
     ├── ladder.py         price-step alerts, one process each
-    ├── alerts.py         basetrade alerts, one process for all
+    ├── alerts.py         basetrade and gain alerts, one process for all
     ├── chart.py          the price chart of 'chart'
     ├── tasks_owner.py    one device runs the background tasks
     ├── sync.py           syncs data/ between phone and PC (Syncthing)

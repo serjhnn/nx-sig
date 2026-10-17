@@ -50,7 +50,8 @@
 #       heartbeat of a ladder process (dict), kept in
 #       ladders_status.json
 #   alerts_get_all()
-#   alert_add(target, direction, percent)
+#   alert_add(target, direction, percent=None,
+#             stock="", amount=None)
 #   alert_delete(alert_id)
 #       the price alerts of alerts.csv (see alerts.py)
 #   alerts_status_get(), alerts_status_set(status)
@@ -122,6 +123,8 @@ ALERT_FIELDNAMES = [
     "Direction",
     "Percent",
     "Created",
+    "Stock",
+    "Amount",
 ]
 
 # stocks are the "indices" listed in config.json
@@ -664,8 +667,10 @@ def ladder_status_set(ladder_id, status):
 def alerts_get_all():
     """
     return the alerts of alerts.csv as dicts: Id (int),
-    For ("basetrades"), Direction ("down"/"up"), Percent
-    (float), Created (text)
+    For ("basetrades"/"gain"), Direction ("down"/"up"),
+    Percent and Amount (float, or None when not set),
+    Stock (a stock name or "all", "" for basetrades),
+    Created (text)
     """
     path = _alerts_path()
     if not os.path.exists(path):
@@ -674,12 +679,18 @@ def alerts_get_all():
         rows = list(csv.DictReader(f))
     for row in rows:
         row["Id"] = int(row["Id"])
-        row["Percent"] = float(row["Percent"])
+        for key in ("Percent", "Amount"):
+            row[key] = (
+                float(row[key]) if row.get(key) else None
+            )
+        row["Stock"] = row.get("Stock") or ""
     return rows
 
 
 @_locked
-def alert_add(target, direction, percent):
+def alert_add(
+    target, direction, percent=None, stock="", amount=None
+):
     """
     save a new alert to alerts.csv and return its Id,
     the one after the highest saved Id
@@ -695,6 +706,8 @@ def alert_add(target, direction, percent):
             "Created": datetime.now().strftime(
                 "%d.%m.%Y %H:%M"
             ),
+            "Stock": stock,
+            "Amount": amount,
         }
     )
     _alerts_save(rows)
@@ -1139,6 +1152,22 @@ if __name__ == "__main__":
             self.assertEqual(
                 alert_add("basetrades", "up", 2.5), 2
             )
+            alert_add(
+                "gain", "down", stock="TSMX", amount=50.0
+            )
+            gain = alerts_get_all()[2]
+            self.assertEqual(
+                (
+                    gain["For"],
+                    gain["Stock"],
+                    gain["Amount"],
+                    gain["Percent"],
+                ),
+                ("gain", "TSMX", 50.0, None),
+            )
+            self.assertEqual(
+                alerts_get_all()[0]["Stock"], ""
+            )
             first = alerts_get_all()[0]
             self.assertEqual(
                 {k: first[k] for k in ALERT_FIELDNAMES[:4]},
@@ -1160,7 +1189,7 @@ if __name__ == "__main__":
             )
             # the next Id follows the highest one
             self.assertEqual(
-                alert_add("basetrades", "down", 5.0), 3
+                alert_add("basetrades", "down", 5.0), 4
             )
 
         def test_ladders(self):

@@ -142,6 +142,14 @@ add alert basetrades <down|up> <n> percent
     of the buying price) and crosses it
     once more. starts the alerts process if
     it isn't running
+add alert gain <stock|all> <n> [percent]
+    the same for the gain of a held stock
+    (or of every one with all), from your
+    trades as in xtop: an amount, or a % of
+    the average buy price with percent; a
+    negative <n> for a loss, e.g. 'add alert
+    gain TSMX 100', 'add alert gain all 10
+    percent'
 
 rm alert <id>
     delete alert <id> after confirmation;
