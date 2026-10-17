@@ -89,8 +89,6 @@ your bot.
 |---|---|
 | `indices` | the stocks you track; only these can be used in commands and are recorded by the mail broker |
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
-| `gain_alert` | `xtop` sends a Telegram message when a stock's gain reaches this amount (default `100`) |
-| `gain_alert_pct` | ... or when its gain reaches this % (default `10`) |
 | `ladder_interval` | how often a ladder and the alerts check the prices, in seconds (default `30`) |
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
 | `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` for the terminal's width, read anew for every command; `NX_WIDTH` in `.env` sets it for one device only |
@@ -139,8 +137,8 @@ else: `ls ladders`, but `rm ladder 1`. The one other plural is
 | `tasks` | `ls`, `stop` | `ls tasks`: running background tasks, `stop tasks all` stops them |
 
 And the commands of their own: `status` (positions with gain/loss and the
-mail broker's state), `xtop [sec]` (live gain/loss with Telegram alerts at
-`gain_alert` / `gain_alert_pct`), `chart <stock> [period <n> <unit>]` (a
+mail broker's state), `xtop [sec]` (live gain/loss, with the gain alerts
+below the table), `chart <stock> [period <n> <unit>]` (a
 price chart, see below), `terminal info` / `terminal set ...` (the
 terminal's size, width and theme), `help [<command>]` and `exit`.
 
@@ -302,6 +300,8 @@ The message is like `TSMX gain +105.00 (+17.5%) at 70.50 (alert 2: gain TSMX
 - A trade that changes the count or the average buy price moves the level,
   and the stock starts over.
 - Only stocks you hold are checked; `all` covers the ones you buy later too.
+- `xtop` shows each gain alert's price per stock below its table, with a `!`
+  where the price is past it, like `ls basetrades` for the basetrade alerts.
 
 ### Syncing the phone and the PC
 

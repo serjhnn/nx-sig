@@ -30,7 +30,6 @@ from shell.ui import (
     confirm,
     parse_direction,
     parse_id,
-    print_dim,
     print_error,
     print_wrapped,
     space_separator,
@@ -290,31 +289,51 @@ def print_basetrade_alerts(basetrades, prices):
     """the lines below the 'ls basetrades' table: each
     alert's level per stock, the stocks past one and
     whether the alerts are checked"""
-    rows = alerts.basetrade_levels(basetrades, prices)
+    for line in _level_lines(
+        alerts.basetrade_levels(basetrades, prices),
+        "basetrade",
+    ):
+        print(line)
+
+
+def gain_alert_lines(prices):
+    """the lines below the xtop table, like
+    print_basetrade_alerts for the gain alerts; colored
+    and fitted to width() already"""
+    return _level_lines(alerts.gain_levels(prices), "gain")
+
+
+def _level_lines(rows, kind):
+    """the lines of rows, [(alert, [(stock, level,
+    past)])]: each alert's level per stock, the stocks
+    past one and whether the alerts process runs"""
     if not rows:
-        print_wrapped(
-            "no basetrade alerts, see 'help add alert'"
+        return _list_lines(
+            f"no {kind} alerts, see 'help add alert'", []
         )
-        return
+    lines = []
     for alert, stocks in rows:
-        _print_list(
-            f"alert {alert['Id']} "
-            f"{alerts.describe(alert)}: ",
+        name = alerts.describe(alert)
+        if alert["For"] == "gain":
+            name = f"gain {name}"
+        lines += _list_lines(
+            f"alert {alert['Id']} {name}: ",
             [
-                f"{name} {at:.2f}"
+                f"{stock} {at:.2f}"
                 + ("!" if is_past else "")
-                for name, at, is_past in stocks
-            ],
+                for stock, at, is_past in stocks
+            ]
+            or ["-"],
         )
     past_now = [
-        f"{name} #{alert['Id']}"
+        f"{stock} #{alert['Id']}"
         for alert, stocks in rows
-        for name, _, is_past in stocks
+        for stock, _, is_past in stocks
         if is_past
     ]
     if past_now:
-        _print_list("! in alert: ", past_now)
-    print_wrapped(_task_line())
+        lines += _list_lines("! in alert: ", past_now)
+    return lines + _list_lines(_task_line(), [])
 
 
 def _telegram_ready():
@@ -328,15 +347,21 @@ def _telegram_ready():
     return False
 
 
-def _print_list(head, items):
+def _list_lines(head, items):
     """head and the items joined by ', ', wrapped to
     width() with the next lines starting under the
-    first item; an item ('SOXL 18.00') is never split"""
+    first item (2 spaces when head is long or there are
+    no items); an item ('SOXL 18.00') is never split.
+    dimmed, with a red !"""
     # a no-break space keeps an item on one line
     text = head + ", ".join(
-        i.replace(" ", NO_BREAK) for i in items or ["-"]
+        i.replace(" ", NO_BREAK) for i in items
     )
-    indent = len(head) if len(head) <= width() // 2 else 2
+    indent = (
+        len(head)
+        if items and len(head) <= width() // 2
+        else 2
+    )
     lines = textwrap.wrap(
         text,
         width(),
@@ -344,16 +369,18 @@ def _print_list(head, items):
         break_on_hyphens=False,
         break_long_words=False,
     )
-    color = supports_color()
-    for line in lines:
-        line = line.replace(NO_BREAK, " ")
-        if color:
-            # the line is dimmed: a red !, then the
-            # default color, still dimmed
-            line = line.replace(
-                "!", f"{SELL_COLOR}!{DEFAULT_COLOR}"
-            )
-        print_dim(line)
+    if not supports_color():
+        return [l.replace(NO_BREAK, " ") for l in lines]
+    return [
+        # the line is dimmed: a red !, then the default
+        # color, still dimmed
+        DIM
+        + l.replace(NO_BREAK, " ").replace(
+            "!", f"{SELL_COLOR}!{DEFAULT_COLOR}"
+        )
+        + RESET
+        for l in lines
+    ]
 
 
 def _task_line():

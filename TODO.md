@@ -142,8 +142,7 @@ see some of it. Say so, and let alerts say less:
    shell shows 'N new alerts' before the prompt, and
    `ls alerts` lists them. It works the same on the
    phone and the PC and keeps alerts that were missed
-   or swiped away; xtop already shows its alerts in
-   its footer.
+   or swiped away.
 
 ## Later: open it up for other people
 

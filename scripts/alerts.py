@@ -57,6 +57,9 @@
 #   basetrade_levels(basetrades, prices)
 #       each alert's level per basetrade, for
 #       'ls basetrades'
+#   gain_levels(prices)
+#       each gain alert's level per held stock, for
+#       'xtop'
 #   start(force=False), stop(), running_pid()
 #       the process, see ladder.start
 #   status()
@@ -309,6 +312,32 @@ def basetrade_levels(basetrades, prices):
             stocks.append(
                 (
                     b["Stock"],
+                    at,
+                    price is not None
+                    and past(alert, at, price),
+                )
+            )
+        rows.append((alert, stocks))
+    return rows
+
+
+def gain_levels(prices):
+    """[(alert, [(stock, level, past)])] of every gain
+    alert for the held stocks, past True if the current
+    price has reached the level"""
+    positions = positions_get()
+    rows = []
+    for alert in alerts_get_all():
+        if alert["For"] != "gain":
+            continue
+        stocks = []
+        for name, _, _, at in _targets(
+            alert, [], positions
+        ):
+            price = prices.get(name)
+            stocks.append(
+                (
+                    name,
                     at,
                     price is not None
                     and past(alert, at, price),

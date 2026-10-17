@@ -38,6 +38,7 @@ import storage
 import tasks_owner
 import trade_engine
 from commands import NxSigShell
+from shell.alert_cmd import gain_alert_lines
 from shell.overview_cmd import _xtop_lines
 from shell.ui import width
 
@@ -564,6 +565,42 @@ class ShellTest(unittest.TestCase):
                 "Ctrl+C to stop",
                 "a note",
             ],
+        )
+
+    def test_xtop_gain_alerts(self):
+        self.run_cmd("add trade SOXL buy count 10 price 20")
+        self.run_cmd("add trade MUU buy count 2 price 50")
+        prices = {"SOXL": 22, "MUU": 49}
+        self.assertEqual(
+            gain_alert_lines(prices),
+            ["no gain alerts, see 'help add alert'"],
+        )
+        self.run_cmd("add alert gain SOXL 20")
+        self.run_cmd("add alert gain all -1 percent")
+        # SOXL: 20 + 20 / 10 = 22, reached; MUU: 50 - 1%
+        lines = _xtop_lines(
+            prices,
+            None,
+            None,
+            5,
+            False,
+            gain_alert_lines(prices),
+        )
+        self.assertEqual(
+            lines[-4:],
+            [
+                "alert 1 gain SOXL +20: SOXL 22.00!",
+                "alert 2 gain all -1%: MUU 49.50!, SOXL "
+                "19.80",
+                "! in alert: SOXL #1, MUU #2",
+                "alerts: running",
+            ],
+        )
+        # a gain alert for a stock not held: no levels
+        self.run_cmd("add alert gain TSMX 10")
+        self.assertIn(
+            "alert 3 gain TSMX +10: -",
+            gain_alert_lines(prices),
         )
 
     # ---------------- rules ----------------

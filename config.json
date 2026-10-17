@@ -4,8 +4,6 @@
     "bars_feed": "delayed_sip",
     "chart_height": 15,
     "storage_dir": "./data/",
-    "gain_alert": 100,
-    "gain_alert_pct": 10,
     "ladder_interval": 30,
     "indices": [ "ASMG", "AVGG", "NVDL", "TSMX", "MUU", "MRVU", "SOXL"]
 }

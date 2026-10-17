@@ -217,8 +217,9 @@ xtop [sec]
     quantity, average buy price, current
     price, gain and gain %, updated every
     5 seconds or every <sec> seconds,
-    e.g. 'xtop 10'.
-    Ctrl+C returns to the shell
+    e.g. 'xtop 10', and below it each gain
+    alert's price per stock (see 'help add
+    alert'). Ctrl+C returns to the shell
 
 chart <stock> [period <n> <unit>]
     the price of <stock> over the period
