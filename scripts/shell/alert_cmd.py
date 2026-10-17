@@ -298,15 +298,19 @@ def print_basetrade_alerts(basetrades, prices):
 
 def gain_alert_lines(prices):
     """the lines below the xtop table, like
-    print_basetrade_alerts for the gain alerts; colored
-    and fitted to width() already"""
-    return _level_lines(alerts.gain_levels(prices), "gain")
+    print_basetrade_alerts for the gain alerts but
+    without the prices per stock; colored and fitted to
+    width() already"""
+    return _level_lines(
+        alerts.gain_levels(prices), "gain", levels=False
+    )
 
 
-def _level_lines(rows, kind):
+def _level_lines(rows, kind, levels=True):
     """the lines of rows, [(alert, [(stock, level,
-    past)])]: each alert's level per stock, the stocks
-    past one and whether the alerts process runs"""
+    past)])]: each alert (with its level per stock, or
+    without when not levels), the stocks past one and
+    whether the alerts process runs"""
     if not rows:
         return _list_lines(
             f"no {kind} alerts, see 'help add alert'", []
@@ -316,6 +320,11 @@ def _level_lines(rows, kind):
         name = alerts.describe(alert)
         if alert["For"] == "gain":
             name = f"gain {name}"
+        if not levels:
+            lines += _list_lines(
+                f"alert {alert['Id']} {name}", []
+            )
+            continue
         lines += _list_lines(
             f"alert {alert['Id']} {name}: ",
             [

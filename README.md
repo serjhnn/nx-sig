@@ -300,8 +300,8 @@ The message is like `TSMX gain +105.00 (+17.5%) at 70.50 (alert 2: gain TSMX
 - A trade that changes the count or the average buy price moves the level,
   and the stock starts over.
 - Only stocks you hold are checked; `all` covers the ones you buy later too.
-- `xtop` shows each gain alert's price per stock below its table, with a `!`
-  where the price is past it, like `ls basetrades` for the basetrade alerts.
+- `xtop` lists the gain alerts below its table, and the stocks past one
+  (`! in alert: SOXL #2`).
 
 ### Syncing the phone and the PC
 

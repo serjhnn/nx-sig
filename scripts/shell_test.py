@@ -589,17 +589,16 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             lines[-4:],
             [
-                "alert 1 gain SOXL +20: SOXL 22.00!",
-                "alert 2 gain all -1%: MUU 49.50!, SOXL "
-                "19.80",
+                "alert 1 gain SOXL +20",
+                "alert 2 gain all -1%",
                 "! in alert: SOXL #1, MUU #2",
                 "alerts: running",
             ],
         )
-        # a gain alert for a stock not held: no levels
+        # a gain alert for a stock not held
         self.run_cmd("add alert gain TSMX 10")
         self.assertIn(
-            "alert 3 gain TSMX +10: -",
+            "alert 3 gain TSMX +10",
             gain_alert_lines(prices),
         )
 

@@ -138,9 +138,10 @@ class OverviewCmd:
             quantity, average buy price, current
             price, gain and gain %, updated every
             5 seconds or every <sec> seconds,
-            e.g. 'xtop 10', and below it each gain
-            alert's price per stock (see 'help add
-            alert'). Ctrl+C returns to the shell
+            e.g. 'xtop 10', and below it the gain
+            alerts and the stocks in alert (see
+            'help add alert'). Ctrl+C returns to the
+            shell
         """
         args = arg.split()
         if len(args) > 1:
