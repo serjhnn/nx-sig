@@ -2,6 +2,7 @@
 # own process
 #
 #   ls tasks
+#   stop tasks all
 #
 # TaskCommands joins the tasks() rows of every module
 # (the ladders, the mail broker), so a new feature with
@@ -31,6 +32,7 @@ class TaskCommands(Commands):
     name = "task"
     plural = "tasks"
     order = 70
+    plural_actions = ("ls", "stop")
 
     def ls(self, arg):
         """
@@ -54,6 +56,37 @@ class TaskCommands(Commands):
         else:
             _print_tasks(tasks)
         print_owner()
+
+    def stop(self, arg):
+        """
+        stop tasks all
+            stop every background task running on
+            this device: the ladders, the alerts
+            and the mail broker, as their own stop
+            commands do; they stay saved
+        """
+        if arg.lower().split() != ["all"]:
+            print_wrapped("usage: stop tasks all")
+            return
+        stopped = False
+        for module in self.shell.objects.values():
+            if module is self or not module.supports(
+                "stop"
+            ):
+                continue
+            for task in module.tasks():
+                # a ladder's stop takes its id, the
+                # others nothing
+                task_id = task["id"]
+                module.stop(
+                    "" if task_id == "-" else str(task_id)
+                )
+                stopped = True
+        if not stopped:
+            print_wrapped("no background tasks running")
+
+    def complete(self, action, args):
+        return [["all"]] if action == "stop" else []
 
 
 def print_owner():

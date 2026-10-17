@@ -1296,6 +1296,50 @@ class ShellTest(unittest.TestCase):
             self.lines("ls tasks -a"), ["usage: ls tasks"]
         )
 
+    def test_stop_tasks_all(self):
+        self.assertEqual(
+            self.lines("stop tasks all"),
+            ["no background tasks running"],
+        )
+        self.run_cmd("add ladder SOXL down 10 from 100 run")
+        self.run_cmd("add ladder MUU up 5 from 50 run")
+        self.run_cmd("add alert basetrades down 10 percent")
+        with open(
+            os.path.join(storage.DB_DIR, "mtsig.pid"), "w"
+        ) as f:
+            f.write("777\n")
+        with mock.patch.object(
+            ladder, "process_runs", lambda *a: True
+        ):
+            out = self.lines("stop tasks all")
+        self.assertEqual(
+            out,
+            [
+                "ladder 1 stopped",
+                "ladder 2 stopped",
+                "alerts stopped",
+                "stopping the mail broker...",
+                "mtsig stop: ok",
+            ],
+        )
+        self.assertEqual(self.running, set())
+        self.assertFalse(self.alerts_running)
+        self.assertEqual(self.mtsig_calls[-1][-1], "stop")
+        for line in ("stop tasks", "stop tasks 1"):
+            self.assertEqual(
+                self.lines(line),
+                ["usage: stop tasks all"],
+                line,
+            )
+        # plural, like ls
+        self.assertEqual(
+            self.lines("stop task all"),
+            ["use 'stop tasks all'"],
+        )
+        self.assertEqual(
+            self.complete("stop tasks "), ["all"]
+        )
+
     def test_tasks_owner(self):
         storage.tasks_owner_set(OTHER_OWNER)
         self.assertEqual(
@@ -1352,7 +1396,7 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.lines("stop"),
-            ["stop: ladder, alert, mail-broker"],
+            ["stop: ladder, alert, mail-broker, tasks"],
         )
 
     def test_action_errors(self):
@@ -1981,7 +2025,7 @@ class ShellTest(unittest.TestCase):
                 "add": data,
                 "rm": data,
                 "run": tasks,
-                "stop": tasks,
+                "stop": tasks + ["task"],
             },
         )
         trade = self.shell.objects["trade"]

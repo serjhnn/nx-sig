@@ -184,6 +184,12 @@ ls tasks
     as their own process, with their pid,
     start time and state, and the device
     that runs them
+
+stop tasks all
+    stop every background task running on
+    this device: the ladders, the alerts
+    and the mail broker, as their own stop
+    commands do; they stay saved
 ```
 
 ## other commands

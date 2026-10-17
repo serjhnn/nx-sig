@@ -95,7 +95,7 @@ Why action first:
 | ladder | yes | yes | yes | yes | yes |
 | alert | yes | yes | yes | yes | yes |
 | mail-broker | | | | yes | yes |
-| tasks | yes | | | | |
+| tasks | yes | | | | yes |
 
 ### Stocks and trades
 

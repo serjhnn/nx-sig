@@ -285,7 +285,8 @@ class NxSigShell(
                 f"{'/'.join(module.actions())}"
             )
             return
-        # plural after ls, singular everywhere else
+        # plural after ls (and the module's
+        # plural_actions), singular everywhere else
         right = self._object_word(module, action)
         if words[0].lower() != right:
             print_error(
@@ -298,7 +299,9 @@ class NxSigShell(
 
     def _object_word(self, module, action):
         return (
-            module.plural if action == "ls" else module.name
+            module.plural
+            if action in module.plural_actions
+            else module.name
         )
 
     def _object_words(self, action):

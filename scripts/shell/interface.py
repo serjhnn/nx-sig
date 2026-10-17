@@ -13,6 +13,8 @@
 #   .complete(action, args)
 #                        completion options per argument
 #   .tasks()             its rows for 'ls tasks'
+#   .plural_actions      the actions that take the
+#                        plural, ("ls",) by default
 
 
 class Commands:
@@ -24,6 +26,9 @@ class Commands:
     name = ""
     # used after ls: "ladders"
     plural = ""
+    # the actions written with the plural: 'ls ladders'
+    # but 'rm ladder 1'
+    plural_actions = ("ls",)
     # where the module comes in 'ls tasks' and in the
     # lists of objects, lowest first
     order = 100

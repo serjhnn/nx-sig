@@ -123,7 +123,8 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 Commands are `<action> <object> [arguments]`. The actions are `ls` (list or
 show), `add` (save), `rm` (delete, after confirmation), `run` and `stop`
 (background tasks). The object is plural after `ls` and singular everywhere
-else: `ls ladders`, but `rm ladder 1`.
+else: `ls ladders`, but `rm ladder 1`. The one other plural is
+`stop tasks all`, which stops every background task on this device.
 
 | Object | Actions | e.g. |
 |---|---|---|
@@ -134,7 +135,7 @@ else: `ls ladders`, but `rm ladder 1`.
 | `basetrade` | `ls`, `add`, `rm` | `add basetrade MRVU price 100 count 10` |
 | `alert` | `ls`, `add`, `rm`, `run`, `stop` | `add alert basetrades down 10 percent` |
 | `mail-broker` | `run`, `stop` | `run mail-broker` |
-| `tasks` | `ls` | `ls tasks`: running background tasks |
+| `tasks` | `ls`, `stop` | `ls tasks`: running background tasks, `stop tasks all` stops them |
 
 And the commands of their own: `status` (positions with gain/loss and the
 mail broker's state), `xtop [sec]` (live gain/loss with Telegram alerts at
