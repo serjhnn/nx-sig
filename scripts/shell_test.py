@@ -31,7 +31,9 @@ os.environ["NO_COLOR"] = "1"
 import alerts
 import ladder
 import requests
+import shell.alert_cmd
 import shell.terminal_cmd
+import shell.ui
 import storage
 import tasks_owner
 import trade_engine
@@ -861,6 +863,25 @@ class ShellTest(unittest.TestCase):
                 "SOXL #1",
                 "alerts: running",
             ],
+        )
+        # in color the ! is red, the line stays dimmed
+        with mock.patch.object(
+            shell.ui, "supports_color", lambda: True
+        ), mock.patch.object(
+            shell.alert_cmd, "supports_color", lambda: True
+        ):
+            # run_cmd's width check would count the
+            # color codes
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                self.shell.onecmd("ls basetrades")
+            out = buffer.getvalue()
+        self.assertIn(
+            "\033[2m! in alert: AVGG #1",
+            out.replace("\033[38;5;124m!\033[39m", "!"),
+        )
+        self.assertIn(
+            "AVGG 19.53\033[38;5;124m!\033[39m,", out
         )
 
     def test_alert_errors(self):

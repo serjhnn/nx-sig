@@ -24,6 +24,7 @@ from shell.ui import (
     BOLD,
     DIM,
     RESET,
+    SELL_COLOR,
     TOTAL_STOCK_COLOR,
     confirm,
     parse_direction,
@@ -37,6 +38,8 @@ from shell.ui import (
 )
 
 NO_BREAK = "\u00a0"
+# the terminal's default text color, keeps DIM on
+DEFAULT_COLOR = "\033[39m"
 ADD_USAGE = (
     "usage: add alert basetrades <down|up> <n> percent"
 )
@@ -272,8 +275,16 @@ def _print_list(head, items):
         break_on_hyphens=False,
         break_long_words=False,
     )
+    color = supports_color()
     for line in lines:
-        print_dim(line.replace(NO_BREAK, " "))
+        line = line.replace(NO_BREAK, " ")
+        if color:
+            # the line is dimmed: a red !, then the
+            # default color, still dimmed
+            line = line.replace(
+                "!", f"{SELL_COLOR}!{DEFAULT_COLOR}"
+            )
+        print_dim(line)
 
 
 def _task_line():
