@@ -95,6 +95,7 @@ your bot.
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
 | `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` for the terminal's width, read anew for every command; `NX_WIDTH` in `.env` sets it for one device only |
 | `bars_feed` | the feed of the past prices for `chart` (default: `feed`, with `delayed_sip` read as `sip` and the newest 15 minutes left out); set `"iex"` if your plan refuses `sip` |
+| `chart_height` | the number of price rows of `chart` (default `15`, at least `3`) |
 | `theme` | `"colored"` (default) or `"plain"` for no colors; `NX_THEME` in `.env` sets it for one device only |
 
 On a screen wider than 48 the tables spread out (at most 4 more spaces between

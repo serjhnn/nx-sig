@@ -41,8 +41,12 @@
 #       a key missing in .env, requests.RequestException
 #       when the prices can't be fetched
 #   chart_lines(stock, period, bars, width, avg=None,
-#               trades=(), colors=None)
-#       the lines of the chart of bars
+#               trades=(), colors=None, rows=None)
+#       the lines of the chart of bars, rows price rows
+#       (chart_rows() by default)
+#   chart_rows()
+#       the number of price rows of config
+#       "chart_height"
 
 import bisect
 from datetime import datetime, timedelta
@@ -64,8 +68,10 @@ UNITS = {
     "month": 30,
     "months": 30,
 }
-# the price rows are 0..HEIGHT
-HEIGHT = 8
+# the number of price rows: config "chart_height", or
+# DEFAULT_ROWS when it is missing or less than MIN_ROWS
+DEFAULT_ROWS = 15
+MIN_ROWS = 3
 # room after the chart for ' avg'
 AVG_ROOM = 4
 # the room a date label takes, with a gap
@@ -159,6 +165,19 @@ def _trades(stock):
     return trades
 
 
+def chart_rows():
+    rows = trade_engine.config.get(
+        "chart_height", DEFAULT_ROWS
+    )
+    if (
+        isinstance(rows, int)
+        and not isinstance(rows, bool)
+        and rows >= MIN_ROWS
+    ):
+        return rows
+    return DEFAULT_ROWS
+
+
 def chart_lines(
     stock,
     period,
@@ -167,12 +186,16 @@ def chart_lines(
     avg=None,
     trades=(),
     colors=None,
+    rows=None,
 ):
     """the chart of bars, [(time, price)] oldest first;
     period is (days, text); avg the average buy price or
     None; trades [(time, 'B' or 'S', price)]; colors
     {'*', 'B', 'S', '.', 'dim', 'reset': escape code},
-    None for plain text"""
+    None for plain text; rows the number of price
+    rows, chart_rows() by default"""
+    # the price rows are 0..height
+    height = (rows or chart_rows()) - 1
     days, text = period
     tf, bar_label = timeframe(days, plot_columns(width))
     prices = [p for _, p in bars]
@@ -200,11 +223,11 @@ def chart_lines(
 
     points = _fit(bars, columns)
     used = max(c for c, _, _ in points) + 1
-    grid = [[" "] * used for _ in range(HEIGHT + 1)]
+    grid = [[" "] * used for _ in range(height + 1)]
 
     def row(price):
-        return HEIGHT - round(
-            (price - low) / (high - low) * HEIGHT
+        return height - round(
+            (price - low) / (high - low) * height
         )
 
     avg_row = row(avg) if avg is not None else None
@@ -224,8 +247,8 @@ def chart_lines(
 
     paint = _painter(colors)
     lines = [paint("title", header)]
-    for r in range(HEIGHT + 1):
-        value = high - (high - low) * r / HEIGHT
+    for r in range(height + 1):
+        value = high - (high - low) * r / height
         cells = "".join(paint(c, c) for c in grid[r])
         line = (
             paint("dim", f"{value:>{label}.2f} |") + cells
@@ -353,6 +376,7 @@ def _painter(colors):
 
 if __name__ == "__main__":
     import unittest
+    from unittest import mock
 
     START = datetime(2026, 10, 12, 9, 0)
 
@@ -363,6 +387,34 @@ if __name__ == "__main__":
         ]
 
     class ChartTest(unittest.TestCase):
+        def setUp(self):
+            # the layouts below are pinned with 9 rows
+            patch = mock.patch.dict(
+                trade_engine.config, {"chart_height": 9}
+            )
+            patch.start()
+            self.addCleanup(patch.stop)
+
+        def test_chart_rows(self):
+            self.assertEqual(chart_rows(), 9)
+            for bad in (2, "15", 15.0, True, None):
+                trade_engine.config["chart_height"] = bad
+                self.assertEqual(chart_rows(), 15, bad)
+            del trade_engine.config["chart_height"]
+            self.assertEqual(chart_rows(), 15)
+            bars = hourly([10, 12, 14, 16, 18, 16, 14])
+            lines = chart_lines(
+                "SOXL", (5, "5 days"), bars, 48
+            )
+            # title, rows, axis, dates, legend
+            self.assertEqual(len(lines), 1 + 15 + 3)
+            self.assertTrue(lines[1].startswith("18.00 |"))
+            self.assertTrue(lines[15].startswith("10.00 |"))
+            lines = chart_lines(
+                "SOXL", (5, "5 days"), bars, 48, rows=5
+            )
+            self.assertEqual(len(lines), 1 + 5 + 3)
+
         def test_parse_period(self):
             self.assertEqual(
                 parse_period([]), (5, "5 days")

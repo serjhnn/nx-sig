@@ -1647,8 +1647,13 @@ class ShellTest(unittest.TestCase):
                 "Id,Date,Time,Type,Count,Price\n"
                 "1,12.10.2026,10:00,BUY,2,12.0\n"
             )
+        # pinned with 9 rows, config "chart_height"
+        with mock.patch.dict(
+            trade_engine.config, {"chart_height": 9}
+        ):
+            out = self.lines("chart soxl")
         self.assertEqual(
-            self.lines("chart soxl"),
+            out,
             [
                 "SOXL 5 days, 15m bars   14.00  +40.00%",
                 "18.00 |                       ***",
