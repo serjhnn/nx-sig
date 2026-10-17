@@ -5,7 +5,7 @@
 #   add alert gain <stock|all> <n> [percent]
 #   rm alert <id>
 #   ls alerts
-#   run alert [force], stop alert
+#   run alerts [force], stop alerts
 #
 # AlertCommands implements them for the verb commands
 # of commands.py; its tasks() are the alerts process's
@@ -54,6 +54,8 @@ class AlertCommands(Commands):
     name = "alert"
     plural = "alerts"
     order = 55
+    # one process runs every alert: 'run alerts'
+    plural_actions = ("ls", "run", "stop")
 
     def ls(self, arg):
         """
@@ -213,7 +215,7 @@ class AlertCommands(Commands):
 
     def run(self, arg):
         """
-        run alert [force]
+        run alerts [force]
             start the alerts process that checks
             every alert (add alert starts it too);
             it keeps running when the shell is
@@ -223,18 +225,18 @@ class AlertCommands(Commands):
         """
         args = [a.lower() for a in arg.split()]
         if args not in ([], ["force"]):
-            print_wrapped("usage: run alert [force]")
+            print_wrapped("usage: run alerts [force]")
             return
         self._start(force=bool(args))
 
     def stop(self, arg):
         """
-        stop alert
+        stop alerts
             stop the alerts process, the alerts
             stay saved
         """
         if arg.split():
-            print_wrapped("usage: stop alert")
+            print_wrapped("usage: stop alerts")
             return
         if alerts.stop():
             print_wrapped("alerts stopped")
@@ -407,7 +409,7 @@ def _task_line():
             "alerts: not running here, the background "
             f"tasks run on {tasks_owner.describe(current)}"
         )
-    return "alerts: not running, see 'run alert'"
+    return "alerts: not running, see 'run alerts'"
 
 
 def _time(status, key):

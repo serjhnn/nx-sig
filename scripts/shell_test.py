@@ -839,13 +839,13 @@ class ShellTest(unittest.TestCase):
             ],
         )
         self.prices = {"SOXL": 19}
-        self.run_cmd("stop alert")
+        self.run_cmd("stop alerts")
         self.assertEqual(
             self.lines("ls basetrades")[4:],
             [
                 "alert 1 down 10%: MUU 45.45, SOXL 18.00",
                 "alert 2 up 20%: MUU 60.60, SOXL 24.00",
-                "alerts: not running, see 'run alert'",
+                "alerts: not running, see 'run alerts'",
             ],
         )
         storage.tasks_owner_set(OTHER_OWNER)
@@ -1079,11 +1079,11 @@ class ShellTest(unittest.TestCase):
 
     def test_run_and_stop_alert(self):
         self.assertEqual(
-            self.lines("run alert"),
+            self.lines("run alerts"),
             ["error: no alerts, see 'help add alert'"],
         )
         self.assertEqual(
-            self.lines("stop alert"),
+            self.lines("stop alerts"),
             ["the alerts aren't running"],
         )
         # saved, but another device runs the tasks
@@ -1101,7 +1101,7 @@ class ShellTest(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            self.lines("run alert force"),
+            self.lines("run alerts force"),
             [
                 "taking over the background tasks from pc "
                 "(since",
@@ -1110,18 +1110,26 @@ class ShellTest(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            self.lines("run alert"),
+            self.lines("run alerts"),
             [
                 "error: the alerts are already checked "
                 f"(pid {FAKE_PID})"
             ],
         )
         self.assertEqual(
-            self.lines("stop alert"), ["alerts stopped"]
+            self.lines("stop alerts"), ["alerts stopped"]
+        )
+        # plural, one process runs every alert
+        self.assertEqual(
+            self.lines("run alert"), ["use 'run alerts'"]
+        )
+        self.assertEqual(
+            self.lines("stop alert"),
+            ["use 'stop alerts'"],
         )
         for line, usage in (
-            ("run alert x", "usage: run alert [force]"),
-            ("stop alert 1", "usage: stop alert"),
+            ("run alerts x", "usage: run alerts [force]"),
+            ("stop alerts 1", "usage: stop alerts"),
         ):
             self.assertEqual(self.lines(line), [usage])
 
@@ -1556,11 +1564,11 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.lines("run"),
-            ["run: ladder, alert, mail-broker"],
+            ["run: ladder, alerts, mail-broker"],
         )
         self.assertEqual(
             self.lines("stop"),
-            ["stop: ladder, alert, mail-broker, tasks"],
+            ["stop: ladder, alerts, mail-broker, tasks"],
         )
 
     def test_action_errors(self):
@@ -2267,7 +2275,7 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.complete("run "),
-            ["ladder", "alert", "mail-broker"],
+            ["ladder", "alerts", "mail-broker"],
         )
         self.assertEqual(
             self.complete("add alert "),

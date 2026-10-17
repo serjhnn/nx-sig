@@ -122,8 +122,9 @@ anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 Commands are `<action> <object> [arguments]`. The actions are `ls` (list or
 show), `add` (save), `rm` (delete, after confirmation), `run` and `stop`
 (background tasks). The object is plural after `ls` and singular everywhere
-else: `ls ladders`, but `rm ladder 1`. The one other plural is
-`stop tasks all`, which stops every background task on this device.
+else: `ls ladders`, but `rm ladder 1`. The other plurals are `run alerts` /
+`stop alerts` (one process runs every alert) and `stop tasks all`, which stops
+every background task on this device.
 
 | Object | Actions | e.g. |
 |---|---|---|
@@ -263,7 +264,7 @@ same way above the buying price.
 - A new basetrade (a new buying price) starts the stock over.
 - The stocks past each alert are saved, so a restart sends nothing twice.
 - `add alert` starts the process if it isn't running, `rm alert` of the last
-  alert stops it; `run alert [force]` and `stop alert` start and stop it, and
+  alert stops it; `run alerts [force]` and `stop alerts` start and stop it, and
   `ls tasks` shows it.
 - `ls basetrades` shows each alert's price per stock below the table, with a
   `!` where the price is past it:
@@ -341,12 +342,12 @@ data in `data/`. Otherwise, the files that differ end up as
 the ladders and the alerts, shown by `status` and `ls tasks`
 (`background tasks run on pc (since 16.10 14:30)`).
 
-- `run ladder`, `run alert`, `run mail-broker` and `./mtsig start` refuse to start when the
+- `run ladder`, `run alerts`, `run mail-broker` and `./mtsig start` refuse to start when the
   other device runs them: stop them there first.
 - When the last background task on a device stops, it releases them, so the
   other device can start them after the next sync.
 - If the other device is off or crashed and can't stop them, take them over
-  with `force`: `run ladder 1 force`, `run alert force`,
+  with `force`: `run ladder 1 force`, `run alerts force`,
   `run mail-broker force`,
   `./mtsig start force`. When the other device syncs again, its tasks see that
   and stop by themselves, without recording or sending anything.

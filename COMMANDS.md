@@ -156,7 +156,7 @@ rm alert <id>
     the alerts process stops when no alert
     is left
 
-run alert [force]
+run alerts [force]
     start the alerts process that checks
     every alert (add alert starts it too);
     it keeps running when the shell is
@@ -164,7 +164,7 @@ run alert [force]
     tasks over from the other device, see
     'help run ladder'
 
-stop alert
+stop alerts
     stop the alerts process, the alerts
     stay saved
 ```
