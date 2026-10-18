@@ -101,7 +101,8 @@ columns, so they don't get thin), and messages and help texts fill the width.
 
 In the shell, `terminal info` shows the terminal's size, the width and theme in
 use and where they come from (`.env`, `config.json` or the default), the
-colors the terminal supports, the encoding and this device's name.
+colors the terminal supports, the encoding, this device's name and the
+phone or computer model.
 `terminal set width <auto|number|default>` and
 `terminal set theme <colored|plain|default>` save the setting for this device
 in `.env` and apply it right away; `default` removes it again. Without colors

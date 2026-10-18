@@ -1985,6 +1985,13 @@ class ShellTest(unittest.TestCase):
         with mock.patch.dict(
             os.environ,
             {"TERMUX_VERSION": "0.118", "TERM": "xterm"},
+        ), mock.patch.object(
+            shell.terminal_cmd,
+            "_getprop",
+            {
+                "ro.product.manufacturer": "samsung",
+                "ro.product.model": "SM-S918B",
+            }.get,
         ):
             out = self.lines("terminal info")
         self.assertEqual(
@@ -2003,10 +2010,41 @@ class ShellTest(unittest.TestCase):
                 out[7],
                 out[8],
                 f"device:     {name}",
+                "model:      samsung SM-S918B",
             ],
         )
         self.assertTrue(out[7].startswith("completion: "))
         self.assertTrue(out[8].startswith("python:     3."))
+
+    def test_terminal_model(self):
+        model = shell.terminal_cmd._model
+        props = {"ro.product.manufacturer": "Google"}
+        with mock.patch.dict(
+            os.environ, {"TERMUX_VERSION": "0.118"}
+        ), mock.patch.object(
+            shell.terminal_cmd,
+            "_getprop",
+            lambda name: props.get(name, ""),
+        ):
+            props["ro.product.model"] = "Pixel 8"
+            self.assertEqual(model(), "Google Pixel 8")
+            # the maker isn't repeated
+            props["ro.product.model"] = "google Pixel"
+            self.assertEqual(model(), "google Pixel")
+            props.clear()
+            self.assertEqual(model(), "-")
+        env = dict(os.environ)
+        env.pop("TERMUX_VERSION", None)
+        dmi = {"sys_vendor": "LENOVO"}
+        with mock.patch.dict(
+            os.environ, env, clear=True
+        ), mock.patch.object(
+            shell.terminal_cmd,
+            "_dmi",
+            lambda name: dmi.get(name, ""),
+        ):
+            dmi["product_name"] = "20XW0026GE"
+            self.assertEqual(model(), "LENOVO 20XW0026GE")
 
     def test_terminal_set(self):
         from shell import ui

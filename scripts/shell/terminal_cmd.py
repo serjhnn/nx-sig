@@ -15,6 +15,7 @@
 import importlib.util
 import os
 import platform
+import subprocess
 import sys
 import textwrap
 
@@ -42,6 +43,8 @@ USAGE = (
 )
 # the label column of 'terminal info'
 LABEL = 12
+# where Linux says what the computer is
+DMI_DIR = "/sys/devices/virtual/dmi/id"
 
 
 class TerminalCmd:
@@ -52,10 +55,10 @@ class TerminalCmd:
         terminal set theme <colored|plain|default>
             info: the terminal's size, the width
             and theme in use and where they come
-            from; set: save the width (auto or
-            48 or more) or the theme for this
-            device in .env, default goes back to
-            config.json
+            from, the phone or computer model;
+            set: save the width (auto or 48 or
+            more) or the theme for this device in
+            .env, default goes back to config.json
         """
         args = arg.lower().split()
         if args == ["info"]:
@@ -175,6 +178,42 @@ def _terminal_name():
     return "-"
 
 
+def _model():
+    """the phone's maker and model in Termux, the
+    computer's on Linux, or '-'"""
+    if os.environ.get("TERMUX_VERSION"):
+        maker = _getprop("ro.product.manufacturer")
+        model = _getprop("ro.product.model")
+    else:
+        maker = _dmi("sys_vendor")
+        model = _dmi("product_name")
+    # some makers repeat their name in the model
+    if maker.lower() in model.lower():
+        maker = ""
+    return " ".join(filter(None, [maker, model])) or "-"
+
+
+def _getprop(name):
+    try:
+        result = subprocess.run(
+            ["getprop", name],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return result.stdout.strip()
+
+
+def _dmi(name):
+    try:
+        with open(os.path.join(DMI_DIR, name)) as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
 def _colors():
     """how many colors the terminal says it shows"""
     term = os.environ.get("TERM", "")
@@ -208,6 +247,7 @@ def _info_rows():
         ("completion", _completion()),
         ("python", platform.python_version()),
         ("device", tasks_owner.this_device()["name"]),
+        ("model", _model()),
     ]
 
 
