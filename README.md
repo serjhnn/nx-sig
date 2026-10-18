@@ -8,8 +8,10 @@
 your buy and sell trades, keeps the count and average buy price of every
 stock, shows live prices and your gain or loss, and can record broker orders
 automatically from the confirmation emails. It is made to run on a phone in
-[Termux](https://termux.dev), so all output fits a 48-character screen (or the
-width you set, see `width` below).
+[Termux](https://termux.dev), so all output fits a 48-character screen. With
+the width set to `auto` it adjusts to the screen by itself: it follows the
+terminal's width, also when the window is resized or the phone turned (see
+`width` below).
 
 ## Features
 
@@ -96,8 +98,10 @@ your bot.
 | `chart_height` | the number of price rows of `chart` (default `15`, at least `3`) |
 | `theme` | `"colored"` (default) or `"plain"` for no colors; `NX_THEME` in `.env` sets it for one device only |
 
-On a screen wider than 48 the tables spread out (at most 4 more spaces between
-columns, so they don't get thin), and messages and help texts fill the width.
+With `auto`, the width is read again for every command, so the output adjusts
+to the screen as it is now; it is never less than 48. On a screen wider than 48
+the tables spread out (at most 4 more spaces between columns, so they don't get
+thin), and messages and help texts fill the width.
 
 In the shell, `terminal info` shows the terminal's size, the width and theme in
 use and where they come from (`.env`, `config.json` or the default), the
