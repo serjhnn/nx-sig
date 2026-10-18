@@ -2,8 +2,8 @@
 #
 #   terminal info
 #
-# the width and theme are config.json "width" and
-# "theme"
+# the width and theme are config.json "terminal"
+# "width" and "theme"
 #
 # TerminalCmd is mixed into NxSigShell: a command of its
 # own, not a kind of data
@@ -40,8 +40,8 @@ class TerminalCmd:
             the terminal's size, the width and
             theme in use and where they come from,
             the phone or computer model; the width
-            and theme are config.json "width" and
-            "theme"
+            and theme are config.json "terminal"
+            "width" and "theme"
         """
         if arg.lower().split() == ["info"]:
             _print_info()

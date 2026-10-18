@@ -2,10 +2,12 @@
     "url": "https://data.alpaca.markets/v2/stocks/trades/latest",
     "feed": "iex",
     "bars_feed": "delayed_sip",
-    "chart_height": 15,
-    "width": "auto",
-    "theme": "colored",
     "storage_dir": "./data/",
     "ladder_interval": 30,
-    "indices": [ "ASMG", "AVGG", "NVDL", "TSMX", "MUU", "MRVU", "SOXL"]
+    "indices": [ "ASMG", "AVGG", "NVDL", "TSMX", "MUU", "MRVU", "SOXL"],
+    "terminal": {
+        "width": "auto",
+        "theme": "colored",
+        "chart_height": 15
+    }
 }

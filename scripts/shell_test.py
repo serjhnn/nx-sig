@@ -138,8 +138,7 @@ class ShellTest(unittest.TestCase):
         config_patch = mock.patch.dict(storage.config)
         config_patch.start()
         self._patches.append(config_patch)
-        storage.config.pop("width", None)
-        storage.config.pop("theme", None)
+        storage.config.pop("terminal", None)
         self.shell = NxSigShell()
 
     def tearDown(self):
@@ -1687,14 +1686,18 @@ class ShellTest(unittest.TestCase):
 
         self.assertEqual(width(), 48)
         self.assertEqual(ui.setting_problems(), [])
-        with mock.patch.dict(ui.config, {"width": 60}):
+        with mock.patch.dict(
+            ui.config, {"terminal": {"width": 60}}
+        ):
             self.assertEqual(width(), 60)
             # .env has no say
             with mock.patch.dict(
                 os.environ, {"NX_WIDTH": "100"}
             ):
                 self.assertEqual(width(), 60)
-        auto = mock.patch.dict(ui.config, {"width": "auto"})
+        auto = mock.patch.dict(
+            ui.config, {"terminal": {"width": "auto"}}
+        )
         with auto, mock.patch.dict(
             os.environ, {"COLUMNS": "90"}
         ):
@@ -1708,7 +1711,9 @@ class ShellTest(unittest.TestCase):
                 ui.setting_problems(),
                 ["the terminal is 40 wide, using 48"],
             )
-        with mock.patch.dict(ui.config, {"width": 30}):
+        with mock.patch.dict(
+            ui.config, {"terminal": {"width": 30}}
+        ):
             self.assertEqual(width(), 48)
             self.assertEqual(
                 ui.setting_problems(),
@@ -1718,7 +1723,9 @@ class ShellTest(unittest.TestCase):
                 "width 30 is too narrow",
                 NxSigShell().intro,
             )
-        with mock.patch.dict(ui.config, {"width": "wide"}):
+        with mock.patch.dict(
+            ui.config, {"terminal": {"width": "wide"}}
+        ):
             self.assertEqual(width(), 48)
             self.assertEqual(
                 ui.setting_problems(),
@@ -1734,7 +1741,9 @@ class ShellTest(unittest.TestCase):
             "add trade SOXL buy count 10 price 20.5"
         )
         self.run_cmd("add ladder SOXL down 10 from 100")
-        with mock.patch.dict(storage.config, {"width": 80}):
+        with mock.patch.dict(
+            storage.config, {"terminal": {"width": 80}}
+        ):
             # run_cmd checks that every line fits 80
             status = self.lines("status")
             self.assertEqual(
@@ -1781,7 +1790,9 @@ class ShellTest(unittest.TestCase):
             self.prices, None, None, 5, False
         )
         self.assertEqual(xtop[1], "-" * 48)
-        with mock.patch.dict(storage.config, {"width": 80}):
+        with mock.patch.dict(
+            storage.config, {"terminal": {"width": 80}}
+        ):
             xtop = _xtop_lines(
                 self.prices, None, None, 5, False
             )
@@ -1810,9 +1821,11 @@ class ShellTest(unittest.TestCase):
                 "Id,Date,Time,Type,Count,Price\n"
                 "1,12.10.2026,10:00,BUY,2,12.0\n"
             )
-        # pinned with 9 rows, config "chart_height"
+        # pinned with 9 rows, config "terminal"
+        # "chart_height"
         with mock.patch.dict(
-            trade_engine.config, {"chart_height": 9}
+            trade_engine.config,
+            {"terminal": {"chart_height": 9}},
         ):
             out = self.lines("chart soxl")
         self.assertEqual(
@@ -2058,7 +2071,7 @@ class ShellTest(unittest.TestCase):
             os.environ.pop("NO_COLOR")
             self.assertTrue(ui.supports_color())
             with mock.patch.dict(
-                ui.config, {"theme": "plain"}
+                ui.config, {"terminal": {"theme": "plain"}}
             ):
                 self.assertFalse(ui.supports_color())
                 self.assertEqual(
@@ -2068,7 +2081,9 @@ class ShellTest(unittest.TestCase):
                 # .env has no say
                 os.environ["NX_THEME"] = "colored"
                 self.assertFalse(ui.supports_color())
-        with mock.patch.dict(ui.config, {"theme": "dark"}):
+        with mock.patch.dict(
+            ui.config, {"terminal": {"theme": "dark"}}
+        ):
             self.assertEqual(ui.theme(), "colored")
             self.assertEqual(
                 ui.setting_problems(),

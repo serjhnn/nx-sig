@@ -235,8 +235,8 @@ terminal info
     the terminal's size, the width and
     theme in use and where they come from,
     the phone or computer model; the width
-    and theme are config.json "width" and
-    "theme"
+    and theme are config.json "terminal"
+    "width" and "theme"
 
 strategy [run/stop/list/get]
     not implemented yet

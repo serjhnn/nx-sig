@@ -10,7 +10,7 @@ stock, shows live prices and your gain or loss, and can record broker orders
 automatically from the confirmation emails. It is made to run on a phone in
 [Termux](https://termux.dev): the output adjusts to the screen width by
 itself, also when the window is resized or the phone turned, and fits a screen
-as narrow as 48 characters (see `width` below).
+as narrow as 48 characters (see `terminal` `width` below).
 
 ## Features
 
@@ -87,10 +87,16 @@ your bot.
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
 | `ladder_interval` | how often a ladder and the alerts check the prices, in seconds (default `30`) |
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
-| `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` (as shipped) for the terminal's width, read anew for every command |
 | `bars_feed` | the feed of the past prices for `chart` (default: `feed`, with `delayed_sip` read as `sip` and the newest 15 minutes left out); set `"iex"` if your plan refuses `sip` |
-| `chart_height` | the number of price rows of `chart` (default `15`, at least `3`) |
+| `terminal` | the shell's look on the screen, see below |
+
+The `terminal` settings:
+
+| Key | Meaning |
+|---|---|
+| `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` (as shipped) for the terminal's width, read anew for every command |
 | `theme` | `"colored"` (default) or `"plain"` for no colors |
+| `chart_height` | the number of price rows of `chart` (default `15`, at least `3`) |
 
 With `auto`, the width is read again for every command, so the output adjusts
 to the screen as it is now; it is never less than 48. On a screen wider than 48
@@ -102,7 +108,7 @@ use and where they come from (`config.json` or the default), the
 colors the terminal supports, the encoding, this device's name and the
 phone's name (Settings, About phone) and model when Termux may read the
 name, otherwise the phone or computer model. The width and theme are set only
-in `config.json`. Without colors the output is the same, only plain; `NO_COLOR` or output that is not a terminal
+in `config.json` `terminal`. Without colors the output is the same, only plain; `NO_COLOR` or output that is not a terminal
 also turns them off.
 
 ## Running

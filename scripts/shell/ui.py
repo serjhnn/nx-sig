@@ -6,15 +6,18 @@
 # question, the argument parsers, tab completion and the
 # current prices
 #
-# the width is config.json "width": a number, or
+# the width is config.json "terminal" "width": a
+# number, or
 # "auto" for the terminal's width. the tables are made for
 # DEFAULT_WIDTH; on a wider screen the gaps between
 # their columns grow, by at most MAX_GAP_GROWTH each.
-# the theme is config.json "theme": colored, or plain
+# the theme is config.json "terminal" "theme": colored,
+# or plain
 # for no colors.
 #
 # shared helpers:
 #   width()            the output width now
+#   terminal_config()  config.json "terminal"
 #   width_setting(), theme_setting()
 #                      (setting, where it comes from)
 #   theme()            colored or plain
@@ -82,11 +85,18 @@ RULE_COLOR = LOGO_COLORS[
 ]  # dark green, the last color of the logo gradient
 
 
+def terminal_config():
+    """the "terminal" settings of config.json"""
+    section = config.get("terminal")
+    return section if isinstance(section, dict) else {}
+
+
 def _setting(key, default):
     """(setting, where it comes from): config.json or
     the default"""
-    if key in config:
-        return config[key], "config.json"
+    section = terminal_config()
+    if key in section:
+        return section[key], "config.json"
     return default, "default"
 
 
