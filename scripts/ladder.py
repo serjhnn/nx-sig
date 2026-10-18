@@ -14,9 +14,10 @@
 # a restart no level is sent twice. a down ladder ends
 # when its next level would be 0 or less.
 #
-# the price is checked every config "ladder_interval"
-# seconds (default 30). heartbeat: ladders_status.json,
-# logs: {storage_dir}/logs/ladder_<id>.log
+# the price is checked every config "timing"
+# "ladder_interval" seconds (default 30). heartbeat:
+# ladders_status.json, logs:
+# {storage_dir}/logs/ladder_<id>.log
 #
 # public functions:
 #   create(stock_name, direction, step, from_price)
@@ -40,7 +41,8 @@
 #       release the wake lock and the background tasks
 #       when none runs any more
 #   spawn(args, out_path), wake_lock(command),
-#   last_line(paths), setup_logging(path)
+#   last_line(paths), setup_logging(path),
+#   interval(key)
 #       the process helpers, also of alerts.py
 #   run(ladder_id)
 #       the process: check the price and notify
@@ -78,7 +80,18 @@ from telegram_notify import notify
 
 SCRIPT = os.path.join(ROOT_DIR, "scripts", "ladder.py")
 DIRECTIONS = ("down", "up")
-INTERVAL = config.get("ladder_interval", 30)
+DEFAULT_INTERVAL = 30
+
+
+def interval(key):
+    """config "timing" key, in seconds"""
+    timing = config.get("timing")
+    if not isinstance(timing, dict):
+        timing = {}
+    return timing.get(key, DEFAULT_INTERVAL)
+
+
+INTERVAL = interval("ladder_interval")
 # 'ls tasks' shows a ladder as 'no reply' when its
 # heartbeat is older than this
 STALE_SECONDS = max(3 * INTERVAL, 120)

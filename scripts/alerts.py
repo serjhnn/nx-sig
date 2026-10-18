@@ -29,8 +29,8 @@
 # the stocks past each alert are saved in
 # alerts_status.json, so after a restart nothing is
 # sent twice. the price is checked every config
-# "ladder_interval" seconds (default 30), like the
-# ladders. logs: {storage_dir}/logs/alerts.log
+# "timing" "alert_interval" seconds (default 30).
+# logs: {storage_dir}/logs/alerts.log
 #
 # public functions:
 #   create(target, direction, percent)
@@ -96,8 +96,10 @@ from telegram_notify import notify
 SCRIPT = os.path.join(ROOT_DIR, "scripts", "alerts.py")
 TARGETS = ("basetrades", "gain")
 DIRECTIONS = ladder.DIRECTIONS
-INTERVAL = ladder.INTERVAL
-STALE_SECONDS = ladder.STALE_SECONDS
+INTERVAL = ladder.interval("alert_interval")
+# 'ls alerts' shows 'no reply' when the heartbeat is
+# older than this
+STALE_SECONDS = max(3 * INTERVAL, 120)
 # how far, in percent of the buying price, the price
 # must go back past the level before it is sent again
 REARM_PERCENT = 1

@@ -3,8 +3,11 @@
     "feed": "iex",
     "bars_feed": "delayed_sip",
     "storage_dir": "./data/",
-    "ladder_interval": 30,
     "indices": [ "ASMG", "AVGG", "NVDL", "TSMX", "MUU", "MRVU", "SOXL"],
+    "timing": {
+        "ladder_interval": 30,
+        "alert_interval": 30
+    },
     "terminal": {
         "width": "auto",
         "theme": "colored",

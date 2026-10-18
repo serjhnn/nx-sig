@@ -85,10 +85,17 @@ your bot.
 |---|---|
 | `indices` | the stocks you track; only these can be used in commands and are recorded by the mail broker |
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
-| `ladder_interval` | how often a ladder and the alerts check the prices, in seconds (default `30`) |
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
 | `bars_feed` | the feed of the past prices for `chart` (default: `feed`, with `delayed_sip` read as `sip` and the newest 15 minutes left out); set `"iex"` if your plan refuses `sip` |
+| `timing` | how often the background tasks check the prices, see below |
 | `terminal` | the shell's look on the screen, see below |
+
+The `timing` settings, in seconds:
+
+| Key | Meaning |
+|---|---|
+| `ladder_interval` | how often a ladder checks its price (default `30`) |
+| `alert_interval` | how often the alerts check the prices (default `30`) |
 
 The `terminal` settings:
 
@@ -230,8 +237,8 @@ ladder 1 started (pid 366), next alert at 90
 ```
 
 Each ladder is its own process (`scripts/ladder.py`), so it keeps running when
-the shell is closed. It checks the price every `ladder_interval` seconds and
-sends a Telegram message when the price passes the next level, like
+the shell is closed. It checks the price every `ladder_interval` seconds (see
+`timing` above) and sends a Telegram message when the price passes the next level, like
 `SOXL down to 89.50, passed 90 (ladder 1, next 80)`. When the price jumps over
 several levels between two checks, one message names the farthest one.
 
@@ -255,10 +262,10 @@ alerts started (pid 412)
 
 An alert is a change from the buying price of every basetrade: `down 10
 percent` is 90 for a basetrade bought at 100, and 18 for one bought at 20.
-One process (`scripts/alerts.py`) checks all alerts every `ladder_interval`
-seconds and sends a Telegram message each time a stock crosses the level,
-like `SOXL -10.5% at 17.90, bought at 20 (alert 1: down 10%)`. `up` works the
-same way above the buying price.
+One process (`scripts/alerts.py`) checks all alerts every `alert_interval`
+seconds (see `timing` above) and sends a Telegram message each time a stock
+crosses the level, like `SOXL -10.5% at 17.90, bought at 20 (alert 1: down
+10%)`. `up` works the same way above the buying price.
 
 - It is sent again each time the price comes back over the level and crosses
   it once more. The price must first go back 1% of the buying price past the
