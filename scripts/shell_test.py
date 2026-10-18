@@ -15,8 +15,11 @@
 #
 # the tests pin down what the commands print, so a
 # change of the shell shows what it changes.
+# ConfigTest reads the real config.json: every script
+# finds its settings there.
 
 import io
+import json
 import os
 import subprocess
 import tempfile
@@ -29,6 +32,7 @@ from unittest import mock
 os.environ["NO_COLOR"] = "1"
 
 import alerts
+import chart
 import ladder
 import requests
 import shell.alert_cmd
@@ -2322,6 +2326,75 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.complete("stop ladder "), ["2"]
         )
+
+
+class ConfigTest(unittest.TestCase):
+    """the shipped config.json, as the scripts read it"""
+
+    def setUp(self):
+        path = os.path.join(storage.ROOT_DIR, "config.json")
+        with open(path) as f:
+            self.file = json.load(f)
+
+    def test_scripts_read_it(self):
+        self.assertEqual(storage.config, self.file)
+        self.assertEqual(trade_engine.config, self.file)
+        self.assertTrue(self.file["indices"])
+        for name in self.file["indices"]:
+            self.assertIsInstance(name, str)
+        for key in ("url", "feed", "storage_dir"):
+            self.assertIsInstance(self.file[key], str)
+
+    def test_timing(self):
+        timing = self.file["timing"]
+        for key in ("ladder_interval", "alert_interval"):
+            self.assertIsInstance(timing[key], (int, float))
+            self.assertGreater(timing[key], 0)
+        self.assertEqual(
+            ladder.INTERVAL, timing["ladder_interval"]
+        )
+        self.assertEqual(
+            alerts.INTERVAL, timing["alert_interval"]
+        )
+
+    def test_terminal(self):
+        from shell import ui
+
+        terminal = self.file["terminal"]
+        self.assertEqual(
+            ui.width_setting(),
+            (terminal["width"], "config.json"),
+        )
+        self.assertEqual(
+            ui.theme_setting(),
+            (terminal["theme"], "config.json"),
+        )
+        with mock.patch.dict(os.environ, {"COLUMNS": "80"}):
+            self.assertEqual(ui.setting_problems(), [])
+        self.assertEqual(
+            chart.chart_rows(), terminal["chart_height"]
+        )
+
+    def test_interval_defaults(self):
+        self.assertEqual(ladder.DEFAULT_INTERVAL, 30)
+        for timing in ({}, None, [30], {"other": 5}):
+            with mock.patch.dict(
+                ladder.config, {"timing": timing}
+            ):
+                self.assertEqual(
+                    ladder.interval("ladder_interval"), 30
+                )
+        with mock.patch.dict(
+            ladder.config, {"timing": {"alert_interval": 5}}
+        ):
+            self.assertEqual(
+                ladder.interval("alert_interval"), 5
+            )
+        with mock.patch.dict(ladder.config):
+            del ladder.config["timing"]
+            self.assertEqual(
+                ladder.interval("ladder_interval"), 30
+            )
 
 
 if __name__ == "__main__":
