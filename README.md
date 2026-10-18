@@ -8,10 +8,9 @@
 your buy and sell trades, keeps the count and average buy price of every
 stock, shows live prices and your gain or loss, and can record broker orders
 automatically from the confirmation emails. It is made to run on a phone in
-[Termux](https://termux.dev), so all output fits a 48-character screen. With
-the width set to `auto` it adjusts to the screen by itself: it follows the
-terminal's width, also when the window is resized or the phone turned (see
-`width` below).
+[Termux](https://termux.dev): the output adjusts to the screen width by
+itself, also when the window is resized or the phone turned, and fits a screen
+as narrow as 48 characters (see `width` below).
 
 ## Features
 
@@ -61,10 +60,9 @@ IMAP_SENDER=address-your-broker-sends-orders-from@example.com
 # optional
 IMAP_MAILBOX=INBOX
 LOG_LEVEL=INFO
-# the shell's width and theme on this device, instead
-# of config.json "width" / "theme" (optional, written
-# by 'terminal set width|theme' in the shell)
-NX_WIDTH=auto
+# the shell's theme on this device, instead of
+# config.json "theme" (optional, written by
+# 'terminal set theme' in the shell)
 NX_THEME=colored
 
 # notifications (optional)
@@ -93,7 +91,7 @@ your bot.
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
 | `ladder_interval` | how often a ladder and the alerts check the prices, in seconds (default `30`) |
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
-| `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` for the terminal's width, read anew for every command; `NX_WIDTH` in `.env` sets it for one device only |
+| `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` (as shipped) for the terminal's width, read anew for every command |
 | `bars_feed` | the feed of the past prices for `chart` (default: `feed`, with `delayed_sip` read as `sip` and the newest 15 minutes left out); set `"iex"` if your plan refuses `sip` |
 | `chart_height` | the number of price rows of `chart` (default `15`, at least `3`) |
 | `theme` | `"colored"` (default) or `"plain"` for no colors; `NX_THEME` in `.env` sets it for one device only |
@@ -108,9 +106,9 @@ use and where they come from (`.env`, `config.json` or the default), the
 colors the terminal supports, the encoding, this device's name and the
 phone's name (Settings, About phone) and model when Termux may read the
 name, otherwise the phone or computer model.
-`terminal set width <auto|number|default>` and
-`terminal set theme <colored|plain|default>` save the setting for this device
-in `.env` and apply it right away; `default` removes it again. Without colors
+`terminal set theme <colored|plain|default>` saves the theme for this device
+in `.env` and applies it right away; `default` removes it again. The width is
+set only in `config.json`. Without colors
 the output is the same, only plain; `NO_COLOR` or output that is not a terminal
 also turns them off.
 
@@ -146,7 +144,7 @@ every background task on this device.
 And the commands of their own: `status` (positions with gain/loss and the
 mail broker's state), `xtop [sec]` (live gain/loss, with the gain alerts
 below the table), `chart <stock> [period <n> <unit>]` (a
-price chart, see below), `terminal info` / `terminal set ...` (the
+price chart, see below), `terminal info` / `terminal set theme ...` (the
 terminal's size, width and theme), `help [<command>]` and `exit`.
 
 Every command with its arguments is in **[COMMANDS.md](COMMANDS.md)**, the same

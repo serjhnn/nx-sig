@@ -6,14 +6,13 @@
 # question, the argument parsers, tab completion and the
 # current prices
 #
-# the width is config.json "width" (or NX_WIDTH in .env,
-# for one device): a number, or "auto" for the
-# terminal's width. the tables are made for
+# the width is config.json "width": a number, or
+# "auto" for the terminal's width. the tables are made for
 # DEFAULT_WIDTH; on a wider screen the gaps between
 # their columns grow, by at most MAX_GAP_GROWTH each.
 # the theme is config.json "theme" (or NX_THEME in
-# .env): colored, or plain for no colors. 'terminal set'
-# writes NX_WIDTH / NX_THEME.
+# .env): colored, or plain for no colors. 'terminal set
+# theme' writes NX_THEME.
 #
 # shared helpers:
 #   width()            the output width now
@@ -87,8 +86,8 @@ RULE_COLOR = LOGO_COLORS[
 def _setting(env_name, key, default):
     """(setting, where it comes from): NX_... in .env
     for this device, config.json for all of them, or the
-    default"""
-    if os.environ.get(env_name):
+    default; env_name None: config.json only"""
+    if env_name and os.environ.get(env_name):
         return os.environ[env_name], f"{env_name} in .env"
     if key in config:
         return config[key], "config.json"
@@ -96,7 +95,7 @@ def _setting(env_name, key, default):
 
 
 def width_setting():
-    return _setting("NX_WIDTH", "width", DEFAULT_WIDTH)
+    return _setting(None, "width", DEFAULT_WIDTH)
 
 
 def theme_setting():
@@ -154,10 +153,8 @@ def setting_problems():
 def _width_problem():
     """a line about a width setting that isn't used as
     it is, or None"""
-    setting, source = width_setting()
-    name = source.split()[0]
-    if name == "config.json":
-        name = "width"
+    setting, _ = width_setting()
+    name = "width"
     wanted = _width_wanted()
     if wanted is None:
         return (

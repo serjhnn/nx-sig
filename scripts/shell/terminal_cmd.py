@@ -1,13 +1,12 @@
 # terminal_cmd: the terminal the shell runs in
 #
 #   terminal info
-#   terminal set width <auto|number|default>
 #   terminal set theme <colored|plain|default>
 #
-# 'set' saves NX_WIDTH / NX_THEME in .env, so it is for
-# this device only and applies right away; 'default'
-# removes the line, so config.json "width" / "theme"
-# (or the default) applies again.
+# 'set' saves NX_THEME in .env, so it is for this device
+# only and applies right away; 'default' removes the
+# line, so config.json "theme" (or the default) applies
+# again. the width is config.json "width" only.
 #
 # TerminalCmd is mixed into NxSigShell: a command of its
 # own, not a kind of data
@@ -24,7 +23,6 @@ from dotenv import dotenv_values, set_key, unset_key
 import tasks_owner
 from storage import ROOT_DIR
 from shell.ui import (
-    MIN_WIDTH,
     THEMES,
     color_off_reason,
     complete_options,
@@ -38,8 +36,8 @@ from shell.ui import (
 
 ENV_PATH = os.path.join(ROOT_DIR, ".env")
 USAGE = (
-    "usage: terminal info, or terminal set "
-    "width|theme <value>, see 'help terminal'"
+    "usage: terminal info, or terminal set theme "
+    "<value>, see 'help terminal'"
 )
 # the label column of 'terminal info'
 LABEL = 12
@@ -51,54 +49,29 @@ class TerminalCmd:
     def do_terminal(self, arg):
         """
         terminal info
-        terminal set width <auto|number|default>
         terminal set theme <colored|plain|default>
             info: the terminal's size, the width
             and theme in use and where they come
             from, the phone or computer model;
-            set: save the width (auto or 48 or
-            more) or the theme for this device in
-            .env, default goes back to config.json
+            set: save the theme for this device in
+            .env, default goes back to config.json;
+            the width is config.json "width"
         """
         args = arg.lower().split()
         if args == ["info"]:
             _print_info()
             return
-        if len(args) == 3 and args[0] == "set":
-            if args[1] == "width":
-                self._set_width(args[2])
-                return
-            if args[1] == "theme":
-                self._set_theme(args[2])
-                return
+        if args[:2] == ["set", "theme"] and len(args) == 3:
+            self._set_theme(args[2])
+            return
         print_wrapped(USAGE)
 
     def complete_terminal(self, text, line, begidx, endidx):
         args = line.split()
-        options = [["info", "set"], ["width", "theme"]]
+        options = [["info", "set"], ["theme"]]
         if len(args) > 2 and args[1] == "set":
-            values = {
-                "width": ["auto", "default"],
-                "theme": [*THEMES, "default"],
-            }
-            options.append(values.get(args[2], []))
+            options.append([*THEMES, "default"])
         return complete_options(text, line, options)
-
-    def _set_width(self, value):
-        if value not in ("auto", "default"):
-            if not value.isdigit():
-                print_wrapped(USAGE)
-                return
-            if int(value) < MIN_WIDTH:
-                print_error(
-                    f"error: the narrowest width is "
-                    f"{MIN_WIDTH}, the tables don't fit "
-                    "in less"
-                )
-                return
-        if not _save("NX_WIDTH", value):
-            return
-        print_wrapped(f"width: {_describe_width()}")
 
     def _set_theme(self, value):
         if value not in (*THEMES, "default"):
@@ -136,7 +109,7 @@ def _save(name, value):
 
 
 def _describe_width():
-    """'52, auto (NX_WIDTH in .env)'"""
+    """'52, auto (config.json)'"""
     setting, source = width_setting()
     used = width()
     setting = str(setting).strip().lower()

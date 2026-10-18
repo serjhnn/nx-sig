@@ -139,8 +139,12 @@ class ShellTest(unittest.TestCase):
         for p in self._patches:
             p.start()
         # the tables are pinned at the default width,
-        # whatever .env says (test_width changes it)
-        os.environ.pop("NX_WIDTH", None)
+        # whatever config.json and .env say (test_width
+        # changes it)
+        width_patch = mock.patch.dict(storage.config)
+        width_patch.start()
+        self._patches.append(width_patch)
+        storage.config.pop("width", None)
         os.environ.pop("NX_THEME", None)
         self.shell = NxSigShell()
 
@@ -1691,36 +1695,33 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(ui.setting_problems(), [])
         with mock.patch.dict(ui.config, {"width": 60}):
             self.assertEqual(width(), 60)
-            # .env wins, it is per device
+            # .env has no say
             with mock.patch.dict(
                 os.environ, {"NX_WIDTH": "100"}
             ):
-                self.assertEqual(width(), 100)
-        with mock.patch.dict(
-            os.environ,
-            {"NX_WIDTH": "auto", "COLUMNS": "90"},
+                self.assertEqual(width(), 60)
+        auto = mock.patch.dict(ui.config, {"width": "auto"})
+        with auto, mock.patch.dict(
+            os.environ, {"COLUMNS": "90"}
         ):
             self.assertEqual(width(), 90)
             self.assertEqual(ui.setting_problems(), [])
-        with mock.patch.dict(
-            os.environ,
-            {"NX_WIDTH": "auto", "COLUMNS": "40"},
+        with auto, mock.patch.dict(
+            os.environ, {"COLUMNS": "40"}
         ):
             self.assertEqual(width(), 48)
             self.assertEqual(
                 ui.setting_problems(),
                 ["the terminal is 40 wide, using 48"],
             )
-        with mock.patch.dict(
-            os.environ, {"NX_WIDTH": "30"}
-        ):
+        with mock.patch.dict(ui.config, {"width": 30}):
             self.assertEqual(width(), 48)
             self.assertEqual(
                 ui.setting_problems(),
-                ["NX_WIDTH 30 is too narrow, using 48"],
+                ["width 30 is too narrow, using 48"],
             )
             self.assertIn(
-                "NX_WIDTH 30 is too narrow",
+                "width 30 is too narrow",
                 NxSigShell().intro,
             )
         with mock.patch.dict(ui.config, {"width": "wide"}):
@@ -1739,9 +1740,7 @@ class ShellTest(unittest.TestCase):
             "add trade SOXL buy count 10 price 20.5"
         )
         self.run_cmd("add ladder SOXL down 10 from 100")
-        with mock.patch.dict(
-            os.environ, {"NX_WIDTH": "80"}
-        ):
+        with mock.patch.dict(storage.config, {"width": 80}):
             # run_cmd checks that every line fits 80
             status = self.lines("status")
             self.assertEqual(
@@ -1788,9 +1787,7 @@ class ShellTest(unittest.TestCase):
             self.prices, None, None, 5, False
         )
         self.assertEqual(xtop[1], "-" * 48)
-        with mock.patch.dict(
-            os.environ, {"NX_WIDTH": "80"}
-        ):
+        with mock.patch.dict(storage.config, {"width": 80}):
             xtop = _xtop_lines(
                 self.prices, None, None, 5, False
             )
@@ -2064,11 +2061,6 @@ class ShellTest(unittest.TestCase):
         with open(env, "w") as f:
             f.write("# keys\nTOKEN=secret\n")
         self.assertEqual(
-            self.lines("terminal set width 80"),
-            ["width: 80 (NX_WIDTH in .env)"],
-        )
-        self.assertEqual(width(), 80)
-        self.assertEqual(
             self.lines("terminal set theme plain"),
             ["theme: plain (NX_THEME in .env)"],
         )
@@ -2077,33 +2069,15 @@ class ShellTest(unittest.TestCase):
         with open(env) as f:
             self.assertEqual(
                 f.read(),
-                "# keys\nTOKEN=secret\nNX_WIDTH=80\n"
-                "NX_THEME=plain\n",
+                "# keys\nTOKEN=secret\nNX_THEME=plain\n",
             )
-        self.assertEqual(
-            self.lines("terminal set width 30"),
-            [
-                "error: the narrowest width is 48, the "
-                "tables don't fit in less"
-            ],
-        )
-        with mock.patch.dict(os.environ, {"COLUMNS": "60"}):
-            self.assertEqual(
-                self.lines("terminal set width AUTO"),
-                ["width: 60, auto (NX_WIDTH in .env)"],
-            )
-        # the patch put NX_WIDTH=80 back
-        self.assertEqual(
-            self.lines("terminal set width default"),
-            ["width: 48 (default)"],
-        )
         usage = [
-            "usage: terminal info, or terminal set",
-            "  width|theme <value>, see 'help terminal'",
+            "usage: terminal info, or terminal set theme",
+            "  <value>, see 'help terminal'",
         ]
         for line in (
             "terminal",
-            "terminal set width wide",
+            "terminal set width 80",
             "terminal set theme dark",
             "terminal set color plain",
             "terminal info now",
@@ -2122,7 +2096,7 @@ class ShellTest(unittest.TestCase):
             self.assertEqual(
                 f.read(), "# keys\nTOKEN=secret\n"
             )
-        self.assertNotIn("NX_WIDTH", os.environ)
+        self.assertNotIn("NX_THEME", os.environ)
 
     def test_theme(self):
         from shell import ui
@@ -2160,14 +2134,11 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.complete("terminal set "),
-            ["width", "theme"],
+            ["theme"],
         )
         self.assertEqual(
             self.complete("terminal set theme "),
             ["colored", "plain", "default"],
-        )
-        self.assertEqual(
-            self.complete("terminal set width a"), ["auto"]
         )
 
     def test_unknown_command(self):
