@@ -60,10 +60,6 @@ IMAP_SENDER=address-your-broker-sends-orders-from@example.com
 # optional
 IMAP_MAILBOX=INBOX
 LOG_LEVEL=INFO
-# the shell's theme on this device, instead of
-# config.json "theme" (optional, written by
-# 'terminal set theme' in the shell)
-NX_THEME=colored
 
 # notifications (optional)
 NTFY_TOPIC=your-ntfy-topic
@@ -94,7 +90,7 @@ your bot.
 | `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` (as shipped) for the terminal's width, read anew for every command |
 | `bars_feed` | the feed of the past prices for `chart` (default: `feed`, with `delayed_sip` read as `sip` and the newest 15 minutes left out); set `"iex"` if your plan refuses `sip` |
 | `chart_height` | the number of price rows of `chart` (default `15`, at least `3`) |
-| `theme` | `"colored"` (default) or `"plain"` for no colors; `NX_THEME` in `.env` sets it for one device only |
+| `theme` | `"colored"` (default) or `"plain"` for no colors |
 
 With `auto`, the width is read again for every command, so the output adjusts
 to the screen as it is now; it is never less than 48. On a screen wider than 48
@@ -102,14 +98,11 @@ the tables spread out (at most 4 more spaces between columns, so they don't get
 thin), and messages and help texts fill the width.
 
 In the shell, `terminal info` shows the terminal's size, the width and theme in
-use and where they come from (`.env`, `config.json` or the default), the
+use and where they come from (`config.json` or the default), the
 colors the terminal supports, the encoding, this device's name and the
 phone's name (Settings, About phone) and model when Termux may read the
-name, otherwise the phone or computer model.
-`terminal set theme <colored|plain|default>` saves the theme for this device
-in `.env` and applies it right away; `default` removes it again. The width is
-set only in `config.json`. Without colors
-the output is the same, only plain; `NO_COLOR` or output that is not a terminal
+name, otherwise the phone or computer model. The width and theme are set only
+in `config.json`. Without colors the output is the same, only plain; `NO_COLOR` or output that is not a terminal
 also turns them off.
 
 ## Running
@@ -144,8 +137,8 @@ every background task on this device.
 And the commands of their own: `status` (positions with gain/loss and the
 mail broker's state), `xtop [sec]` (live gain/loss, with the gain alerts
 below the table), `chart <stock> [period <n> <unit>]` (a
-price chart, see below), `terminal info` / `terminal set theme ...` (the
-terminal's size, width and theme), `help [<command>]` and `exit`.
+price chart, see below), `terminal info` (the terminal's size, width
+and theme), `help [<command>]` and `exit`.
 
 Every command with its arguments is in **[COMMANDS.md](COMMANDS.md)**, the same
 text as `help` in the shell (`help add trade`, `help rm`, `help ladder`).
@@ -420,7 +413,7 @@ nx-sig/
     │   ├── tasks_cmd.py      ls tasks
     │   ├── overview_cmd.py   status, xtop
     │   ├── chart_cmd.py      chart
-    │   └── terminal_cmd.py   terminal info, terminal set
+    │   └── terminal_cmd.py   terminal info
     ├── mtsig/            the mail broker (mail trades service)
     │   ├── order_watcher.py  email -> parsed order -> trade
     │   ├── mail_reader.py    IMAP IDLE watcher with reconnects

@@ -83,8 +83,6 @@ In this order, before metrics and strategy add more:
    - `overview_cmd.py`: `config` and `start_polling`
      through the engines (the gain alert settings, the
      xtop prices)
-   - `terminal_cmd.py`: the `.env` path from an engine
-     instead of `storage.ROOT_DIR`
    - `ui.py`: `held_positions` and `fetch_prices` call
      `trades.py` / `trade_engine` functions, not
      `storage` directly

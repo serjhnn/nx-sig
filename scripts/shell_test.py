@@ -75,12 +75,6 @@ class ShellTest(unittest.TestCase):
         self.alerts_running = False
         self.alerts_forced = []
         self._patches = [
-            # 'terminal set' writes this .env
-            mock.patch.object(
-                shell.terminal_cmd,
-                "ENV_PATH",
-                os.path.join(self._tmp.name, ".env"),
-            ),
             # this device's id, not in the repo folder
             mock.patch.object(
                 tasks_owner,
@@ -139,13 +133,13 @@ class ShellTest(unittest.TestCase):
         for p in self._patches:
             p.start()
         # the tables are pinned at the default width,
-        # whatever config.json and .env say (test_width
-        # changes it)
-        width_patch = mock.patch.dict(storage.config)
-        width_patch.start()
-        self._patches.append(width_patch)
+        # and theme, whatever config.json says
+        # (test_width and test_theme change them)
+        config_patch = mock.patch.dict(storage.config)
+        config_patch.start()
+        self._patches.append(config_patch)
         storage.config.pop("width", None)
-        os.environ.pop("NX_THEME", None)
+        storage.config.pop("theme", None)
         self.shell = NxSigShell()
 
     def tearDown(self):
@@ -2054,50 +2048,6 @@ class ShellTest(unittest.TestCase):
             dmi["product_name"] = "20XW0026GE"
             self.assertEqual(model(), "LENOVO 20XW0026GE")
 
-    def test_terminal_set(self):
-        from shell import ui
-
-        env = shell.terminal_cmd.ENV_PATH
-        with open(env, "w") as f:
-            f.write("# keys\nTOKEN=secret\n")
-        self.assertEqual(
-            self.lines("terminal set theme plain"),
-            ["theme: plain (NX_THEME in .env)"],
-        )
-        self.assertEqual(ui.theme(), "plain")
-        self.assertEqual(self.shell.prompt, "nX-sig> ")
-        with open(env) as f:
-            self.assertEqual(
-                f.read(),
-                "# keys\nTOKEN=secret\nNX_THEME=plain\n",
-            )
-        usage = [
-            "usage: terminal info, or terminal set theme",
-            "  <value>, see 'help terminal'",
-        ]
-        for line in (
-            "terminal",
-            "terminal set width 80",
-            "terminal set theme dark",
-            "terminal set color plain",
-            "terminal info now",
-        ):
-            self.assertEqual(self.lines(line), usage)
-        self.assertEqual(
-            self.lines("terminal set theme default"),
-            [
-                "theme: colored (default), no colors now:",
-                "  NO_COLOR is set",
-            ],
-        )
-        # default again: nothing to remove
-        self.run_cmd("terminal set theme default")
-        with open(env) as f:
-            self.assertEqual(
-                f.read(), "# keys\nTOKEN=secret\n"
-            )
-        self.assertNotIn("NX_THEME", os.environ)
-
     def test_theme(self):
         from shell import ui
 
@@ -2115,9 +2065,9 @@ class ShellTest(unittest.TestCase):
                     ui.color_off_reason(),
                     "the theme is plain",
                 )
-                # .env wins
+                # .env has no say
                 os.environ["NX_THEME"] = "colored"
-                self.assertTrue(ui.supports_color())
+                self.assertFalse(ui.supports_color())
         with mock.patch.dict(ui.config, {"theme": "dark"}):
             self.assertEqual(ui.theme(), "colored")
             self.assertEqual(
@@ -2130,15 +2080,11 @@ class ShellTest(unittest.TestCase):
 
     def test_complete_terminal(self):
         self.assertEqual(
-            self.complete("terminal "), ["info", "set"]
+            self.complete("terminal "), ["info"]
         )
         self.assertEqual(
-            self.complete("terminal set "),
-            ["theme"],
-        )
-        self.assertEqual(
-            self.complete("terminal set theme "),
-            ["colored", "plain", "default"],
+            self.lines("terminal set theme plain"),
+            ["usage: terminal info, see 'help terminal'"],
         )
 
     def test_unknown_command(self):

@@ -10,9 +10,8 @@
 # "auto" for the terminal's width. the tables are made for
 # DEFAULT_WIDTH; on a wider screen the gaps between
 # their columns grow, by at most MAX_GAP_GROWTH each.
-# the theme is config.json "theme" (or NX_THEME in
-# .env): colored, or plain for no colors. 'terminal set
-# theme' writes NX_THEME.
+# the theme is config.json "theme": colored, or plain
+# for no colors.
 #
 # shared helpers:
 #   width()            the output width now
@@ -83,23 +82,20 @@ RULE_COLOR = LOGO_COLORS[
 ]  # dark green, the last color of the logo gradient
 
 
-def _setting(env_name, key, default):
-    """(setting, where it comes from): NX_... in .env
-    for this device, config.json for all of them, or the
-    default; env_name None: config.json only"""
-    if env_name and os.environ.get(env_name):
-        return os.environ[env_name], f"{env_name} in .env"
+def _setting(key, default):
+    """(setting, where it comes from): config.json or
+    the default"""
     if key in config:
         return config[key], "config.json"
     return default, "default"
 
 
 def width_setting():
-    return _setting(None, "width", DEFAULT_WIDTH)
+    return _setting("width", DEFAULT_WIDTH)
 
 
 def theme_setting():
-    return _setting("NX_THEME", "theme", DEFAULT_THEME)
+    return _setting("theme", DEFAULT_THEME)
 
 
 def theme():

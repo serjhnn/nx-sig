@@ -1,12 +1,9 @@
 # terminal_cmd: the terminal the shell runs in
 #
 #   terminal info
-#   terminal set theme <colored|plain|default>
 #
-# 'set' saves NX_THEME in .env, so it is for this device
-# only and applies right away; 'default' removes the
-# line, so config.json "theme" (or the default) applies
-# again. the width is config.json "width" only.
+# the width and theme are config.json "width" and
+# "theme"
 #
 # TerminalCmd is mixed into NxSigShell: a command of its
 # own, not a kind of data
@@ -18,15 +15,10 @@ import subprocess
 import sys
 import textwrap
 
-from dotenv import dotenv_values, set_key, unset_key
-
 import tasks_owner
-from storage import ROOT_DIR
 from shell.ui import (
-    THEMES,
     color_off_reason,
     complete_options,
-    print_error,
     print_wrapped,
     theme,
     theme_setting,
@@ -34,11 +26,7 @@ from shell.ui import (
     width_setting,
 )
 
-ENV_PATH = os.path.join(ROOT_DIR, ".env")
-USAGE = (
-    "usage: terminal info, or terminal set theme "
-    "<value>, see 'help terminal'"
-)
+USAGE = "usage: terminal info, see 'help terminal'"
 # the label column of 'terminal info'
 LABEL = 12
 # where Linux says what the computer is
@@ -49,63 +37,19 @@ class TerminalCmd:
     def do_terminal(self, arg):
         """
         terminal info
-        terminal set theme <colored|plain|default>
-            info: the terminal's size, the width
-            and theme in use and where they come
-            from, the phone or computer model;
-            set: save the theme for this device in
-            .env, default goes back to config.json;
-            the width is config.json "width"
+            the terminal's size, the width and
+            theme in use and where they come from,
+            the phone or computer model; the width
+            and theme are config.json "width" and
+            "theme"
         """
-        args = arg.lower().split()
-        if args == ["info"]:
+        if arg.lower().split() == ["info"]:
             _print_info()
-            return
-        if args[:2] == ["set", "theme"] and len(args) == 3:
-            self._set_theme(args[2])
             return
         print_wrapped(USAGE)
 
     def complete_terminal(self, text, line, begidx, endidx):
-        args = line.split()
-        options = [["info", "set"], ["theme"]]
-        if len(args) > 2 and args[1] == "set":
-            options.append([*THEMES, "default"])
-        return complete_options(text, line, options)
-
-    def _set_theme(self, value):
-        if value not in (*THEMES, "default"):
-            print_wrapped(USAGE)
-            return
-        if not _save("NX_THEME", value):
-            return
-        # the prompt was made in the old theme
-        self.set_prompt()
-        print_wrapped(f"theme: {_describe_theme()}")
-
-
-def _save(name, value):
-    """write name=value to .env, or remove it for
-    default, and use it right away; False after printing
-    why it couldn't be saved"""
-    try:
-        if value == "default":
-            if name in dotenv_values(ENV_PATH):
-                unset_key(
-                    ENV_PATH, name, quote_mode="never"
-                )
-        else:
-            set_key(
-                ENV_PATH, name, value, quote_mode="never"
-            )
-    except OSError as e:
-        print_error(f"error: can't write .env: {e}")
-        return False
-    if value == "default":
-        os.environ.pop(name, None)
-    else:
-        os.environ[name] = value
-    return True
+        return complete_options(text, line, [["info"]])
 
 
 def _describe_width():
@@ -121,7 +65,7 @@ def _describe_width():
 
 
 def _describe_theme():
-    """'plain (NX_THEME in .env)', and why there are no
+    """'plain (config.json)', and why there are no
     colors when the theme is colored"""
     _, source = theme_setting()
     line = f"{theme()} ({source})"

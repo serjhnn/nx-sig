@@ -232,13 +232,11 @@ chart <stock> [period <n> <unit>]
     months'
 
 terminal info
-terminal set theme <colored|plain|default>
-    info: the terminal's size, the width
-    and theme in use and where they come
-    from, the phone or computer model;
-    set: save the theme for this device in
-    .env, default goes back to config.json;
-    the width is config.json "width"
+    the terminal's size, the width and
+    theme in use and where they come from,
+    the phone or computer model; the width
+    and theme are config.json "width" and
+    "theme"
 
 strategy [run/stop/list/get]
     not implemented yet
