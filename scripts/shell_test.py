@@ -2159,6 +2159,26 @@ class ShellTest(unittest.TestCase):
                 f"{name} imports {imported}",
             )
 
+    def test_ladder_and_alerts_separate(self):
+        # neither engine imports the other, they share
+        # only process.py
+        import ast
+
+        folder = os.path.join(storage.ROOT_DIR, "scripts")
+        for name, other in (
+            ("ladder.py", "alerts"),
+            ("alerts.py", "ladder"),
+        ):
+            with open(os.path.join(folder, name)) as f:
+                tree = ast.parse(f.read())
+            imported = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    imported |= {a.name for a in node.names}
+                elif isinstance(node, ast.ImportFrom):
+                    imported.add(node.module or "")
+            self.assertNotIn(other, imported, name)
+
     def test_collected_modules(self):
         self.assertEqual(
             list(self.shell.objects),

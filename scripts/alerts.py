@@ -61,8 +61,9 @@
 #       each gain alert's level per held stock, for
 #       'xtop'
 #   start(force=False), stop(), running_pid()
-#       the process, see ladder.start (the helpers
-#       are in process.py)
+#       the process; only on the device that runs the
+#       background tasks (tasks_owner.py), force takes
+#       them over (the helpers are in process.py)
 #   status()
 #       its heartbeat, or None
 #   run()
@@ -77,7 +78,6 @@ from datetime import datetime
 
 import requests
 
-import ladder
 import process
 import storage
 import tasks_owner
@@ -97,7 +97,7 @@ from telegram_notify import notify
 
 SCRIPT = os.path.join(ROOT_DIR, "scripts", "alerts.py")
 TARGETS = ("basetrades", "gain")
-DIRECTIONS = ladder.DIRECTIONS
+DIRECTIONS = ("down", "up")
 INTERVAL = process.interval("alert_interval")
 # 'ls alerts' shows 'no reply' when the heartbeat is
 # older than this
