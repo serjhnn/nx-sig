@@ -1987,8 +1987,12 @@ class ShellTest(unittest.TestCase):
             {"TERMUX_VERSION": "0.118", "TERM": "xterm"},
         ), mock.patch.object(
             shell.terminal_cmd,
-            "_device_name",
-            lambda: "Galaxy S23 Ultra",
+            "_output",
+            lambda args: {
+                "device_name": "Galaxy S23 Ultra",
+                "ro.product.manufacturer": "samsung",
+                "ro.product.model": "SM-S918B",
+            }[args[-1]],
         ):
             out = self.lines("terminal info")
         self.assertEqual(
@@ -2007,7 +2011,7 @@ class ShellTest(unittest.TestCase):
                 out[7],
                 out[8],
                 f"device:     {name}",
-                "model:      Galaxy S23 Ultra",
+                "model:      Galaxy S23 Ultra (SM-S918B)",
             ],
         )
         self.assertTrue(out[7].startswith("completion: "))
@@ -2026,6 +2030,11 @@ class ShellTest(unittest.TestCase):
             shell.terminal_cmd, "_output", output
         ):
             self.assertEqual(model(), "My phone")
+            outputs["ro.product.model"] = "Pixel 8"
+            self.assertEqual(model(), "My phone (Pixel 8)")
+            # the model isn't repeated
+            outputs["device_name"] = "Pixel 8"
+            self.assertEqual(model(), "Pixel 8")
             # Android doesn't let Termux read the name
             outputs = {"ro.product.manufacturer": "Google"}
             outputs["ro.product.model"] = "Pixel 8"

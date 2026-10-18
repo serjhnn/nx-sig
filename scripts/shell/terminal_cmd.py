@@ -179,15 +179,18 @@ def _terminal_name():
 
 
 def _model():
-    """the phone's name (Settings, About phone) or its
-    maker and model in Termux, the computer's maker and
-    model on Linux, or '-'"""
+    """the phone's name (Settings, About phone) and
+    model, or its maker and model in Termux, the
+    computer's maker and model on Linux, or '-'"""
     if os.environ.get("TERMUX_VERSION"):
         name = _device_name()
-        if name:
-            return name
         maker = _getprop("ro.product.manufacturer")
         model = _getprop("ro.product.model")
+        if name and model and model not in name:
+            # 'Galaxy S23 Ultra (SM-S918B)'
+            return f"{name} ({model})"
+        if name:
+            return name
     else:
         maker = _dmi("sys_vendor")
         model = _dmi("product_name")
