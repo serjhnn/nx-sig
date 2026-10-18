@@ -179,9 +179,13 @@ def _terminal_name():
 
 
 def _model():
-    """the phone's maker and model in Termux, the
-    computer's on Linux, or '-'"""
+    """the phone's name (Settings, About phone) or its
+    maker and model in Termux, the computer's maker and
+    model on Linux, or '-'"""
     if os.environ.get("TERMUX_VERSION"):
+        name = _device_name()
+        if name:
+            return name
         maker = _getprop("ro.product.manufacturer")
         model = _getprop("ro.product.model")
     else:
@@ -193,15 +197,31 @@ def _model():
     return " ".join(filter(None, [maker, model])) or "-"
 
 
+def _device_name():
+    """'Galaxy S23 Ultra', or '' where Android doesn't
+    let Termux read it"""
+    name = _output(
+        ["settings", "get", "global", "device_name"]
+    )
+    return "" if name == "null" else name
+
+
 def _getprop(name):
+    return _output(["getprop", name])
+
+
+def _output(args):
+    """the command's output, or '' when it fails"""
     try:
         result = subprocess.run(
-            ["getprop", name],
+            args,
             capture_output=True,
             text=True,
             timeout=2,
         )
     except (OSError, subprocess.SubprocessError):
+        return ""
+    if result.returncode:
         return ""
     return result.stdout.strip()
 

@@ -1987,11 +1987,8 @@ class ShellTest(unittest.TestCase):
             {"TERMUX_VERSION": "0.118", "TERM": "xterm"},
         ), mock.patch.object(
             shell.terminal_cmd,
-            "_getprop",
-            {
-                "ro.product.manufacturer": "samsung",
-                "ro.product.model": "SM-S918B",
-            }.get,
+            "_device_name",
+            lambda: "Galaxy S23 Ultra",
         ):
             out = self.lines("terminal info")
         self.assertEqual(
@@ -2010,7 +2007,7 @@ class ShellTest(unittest.TestCase):
                 out[7],
                 out[8],
                 f"device:     {name}",
-                "model:      samsung SM-S918B",
+                "model:      Galaxy S23 Ultra",
             ],
         )
         self.assertTrue(out[7].startswith("completion: "))
@@ -2018,20 +2015,25 @@ class ShellTest(unittest.TestCase):
 
     def test_terminal_model(self):
         model = shell.terminal_cmd._model
-        props = {"ro.product.manufacturer": "Google"}
+        outputs = {"device_name": "My phone"}
+
+        def output(args):
+            return outputs.get(args[-1], "")
+
         with mock.patch.dict(
             os.environ, {"TERMUX_VERSION": "0.118"}
         ), mock.patch.object(
-            shell.terminal_cmd,
-            "_getprop",
-            lambda name: props.get(name, ""),
+            shell.terminal_cmd, "_output", output
         ):
-            props["ro.product.model"] = "Pixel 8"
+            self.assertEqual(model(), "My phone")
+            # Android doesn't let Termux read the name
+            outputs = {"ro.product.manufacturer": "Google"}
+            outputs["ro.product.model"] = "Pixel 8"
             self.assertEqual(model(), "Google Pixel 8")
             # the maker isn't repeated
-            props["ro.product.model"] = "google Pixel"
+            outputs["ro.product.model"] = "google Pixel"
             self.assertEqual(model(), "google Pixel")
-            props.clear()
+            outputs.clear()
             self.assertEqual(model(), "-")
         env = dict(os.environ)
         env.pop("TERMUX_VERSION", None)
