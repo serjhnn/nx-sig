@@ -34,72 +34,44 @@
 #       pid of its process, or None
 #   next_level(ladder), passed_level(ladder, price)
 #       the level math
-#   process_runs(pid, script, arg=None)
-#       True if pid is a live process running script
-#   release_if_idle(ending_id=None, watcher_ending=False,
-#                   alerts_ending=False)
-#       release the wake lock and the background tasks
-#       when none runs any more
-#   spawn(args, out_path), wake_lock(command),
-#   last_line(paths), setup_logging(path),
-#   interval(key)
-#       the process helpers, also of alerts.py
 #   run(ladder_id)
 #       the process: check the price and notify
+#
+# the process helpers (spawn, release_if_idle, ...) are
+# in process.py
 
 import glob
 import logging
-import logging.handlers
 import math
 import os
-import shutil
 import signal
-import subprocess
 import sys
 import time
 from datetime import datetime
 
 import requests
 
+import process
 import storage
 import tasks_owner
 from storage import (
     ROOT_DIR,
-    alerts_status_get,
     ladder_add,
     ladder_delete,
     ladder_get,
     ladder_set_last,
     ladder_status_get,
     ladder_status_set,
-    ladders_get_all,
-    mtsig_pid_get,
 )
-from trade_engine import config, get_latest_prices
+from trade_engine import get_latest_prices
 from telegram_notify import notify
 
 SCRIPT = os.path.join(ROOT_DIR, "scripts", "ladder.py")
 DIRECTIONS = ("down", "up")
-DEFAULT_INTERVAL = 30
-
-
-def interval(key):
-    """config "timing" key, in seconds"""
-    timing = config.get("timing")
-    if not isinstance(timing, dict):
-        timing = {}
-    return timing.get(key, DEFAULT_INTERVAL)
-
-
-INTERVAL = interval("ladder_interval")
+INTERVAL = process.interval("ladder_interval")
 # 'ls tasks' shows a ladder as 'no reply' when its
 # heartbeat is older than this
 STALE_SECONDS = max(3 * INTERVAL, 120)
-# how long start() watches for a crash at start
-START_CHECK_SECONDS = 2
-STOP_WAIT_SECONDS = 10
-LOG_MAX_BYTES = 200_000
-LOG_BACKUP_COUNT = 2
 # float rounding of the levels
 EPS = 1e-9
 
@@ -150,7 +122,9 @@ def passed_level(ladder, price):
 def running_pid(ladder_id):
     status = ladder_status_get(ladder_id) or {}
     pid = status.get("pid")
-    if pid and process_runs(pid, "ladder.py", ladder_id):
+    if pid and process.process_runs(
+        pid, "ladder.py", ladder_id
+    ):
         return pid
     return None
 
@@ -177,7 +151,7 @@ def start(ladder_id, force=False):
         tasks_owner.claim(force)
     except tasks_owner.OwnerError as e:
         raise LadderError(str(e)) from None
-    process = spawn(
+    child = process.spawn(
         [SCRIPT, str(ladder_id)], _out_path(ladder_id)
     )
     # so running_pid() knows it before the process writes
@@ -185,21 +159,23 @@ def start(ladder_id, force=False):
     ladder_status_set(
         ladder_id,
         {
-            "pid": process.pid,
+            "pid": child.pid,
             "started": _now(),
             "updated": _now(),
             "state": "starting",
         },
     )
     # catch a crash at start, e.g. a missing package
-    deadline = time.monotonic() + START_CHECK_SECONDS
+    deadline = (
+        time.monotonic() + process.START_CHECK_SECONDS
+    )
     while time.monotonic() < deadline:
-        if process.poll() is not None:
-            release_if_idle()
+        if child.poll() is not None:
+            process.release_if_idle()
             raise LadderError(
                 f"ladder {ladder_id} stopped right after "
                 "starting: "
-                + last_line(
+                + process.last_line(
                     [
                         _out_path(ladder_id),
                         _log_path(ladder_id),
@@ -207,7 +183,7 @@ def start(ladder_id, force=False):
                 )
             )
         time.sleep(0.2)
-    return process.pid
+    return child.pid
 
 
 def stop(ladder_id):
@@ -224,16 +200,16 @@ def stop(ladder_id):
     if not pid:
         return False
     os.kill(pid, signal.SIGTERM)
-    deadline = time.monotonic() + STOP_WAIT_SECONDS
+    deadline = time.monotonic() + process.STOP_WAIT_SECONDS
     while time.monotonic() < deadline:
-        _reap(pid)
+        process.reap(pid)
         if not running_pid(ladder_id):
             break
         time.sleep(0.2)
     else:
         os.kill(pid, signal.SIGKILL)
         _status(ladder_id, pid, None, "stopped")
-    release_if_idle()
+    process.release_if_idle()
     return True
 
 
@@ -255,116 +231,6 @@ def remove(ladder_id):
         except OSError:
             pass
     return was_running
-
-
-def _reap(pid):
-    # a process started by this shell stays a zombie
-    # until it is waited for
-    try:
-        os.waitpid(pid, os.WNOHANG)
-    except (ChildProcessError, OSError):
-        pass
-
-
-def process_runs(pid, script, arg=None):
-    """
-    True if pid is alive and runs script (with arg as
-    its last argument), so a pid that Android gave to
-    another program isn't taken for it
-    """
-    try:
-        with open(f"/proc/{pid}/cmdline", "rb") as f:
-            args = f.read().decode(errors="replace")
-    except OSError:
-        if os.name == "nt":
-            return False
-        # no /proc: only check that it is alive
-        try:
-            os.kill(pid, 0)
-        except PermissionError:
-            return True
-        except OSError:
-            return False
-        return True
-    # a zombie (ended, not yet reaped) has no args
-    args = args.split("\0")[:-1]
-    if not any(a.endswith(script) for a in args):
-        return False
-    return arg is None or args[-1] == str(arg)
-
-
-def spawn(args, out_path):
-    """start python <args> as a background process
-    with its output in out_path, holding the Termux wake
-    lock; return the Popen"""
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    wake_lock("termux-wake-lock")
-    with open(out_path, "w") as out:
-        return subprocess.Popen(
-            [sys.executable, *args],
-            cwd=ROOT_DIR,
-            stdin=subprocess.DEVNULL,
-            stdout=out,
-            stderr=subprocess.STDOUT,
-            env={**os.environ, "LOG_CONSOLE": "0"},
-            # its own session, so Ctrl+C or closing the
-            # shell doesn't reach it
-            start_new_session=True,
-        )
-
-
-def wake_lock(command):
-    # Termux only: keeps Android from pausing the process
-    if shutil.which(command):
-        subprocess.run([command], check=False)
-
-
-def release_if_idle(
-    ending_id=None,
-    watcher_ending=False,
-    alerts_ending=False,
-):
-    """release the Termux wake lock and the background
-    tasks (tasks_owner.release) when no ladder but
-    ending_id, no mail broker and no alerts process
-    (unless it is the one ending) runs any more"""
-    others = [
-        l["Id"]
-        for l in ladders_get_all()
-        if l["Id"] != ending_id
-    ]
-    if any(running_pid(i) for i in others):
-        return
-    pid = mtsig_pid_get()
-    if (
-        not watcher_ending
-        and pid
-        and process_runs(pid, "order_watcher.py")
-    ):
-        return
-    alerts = (alerts_status_get() or {}).get("pid")
-    if (
-        not alerts_ending
-        and alerts
-        and process_runs(alerts, "alerts.py", "run")
-    ):
-        return
-    wake_lock("termux-wake-unlock")
-    tasks_owner.release()
-
-
-def last_line(paths):
-    """the last line of the first of paths (a process
-    output, its log) that has one"""
-    for path in paths:
-        try:
-            with open(path) as f:
-                lines = [l for l in f if l.strip()]
-        except OSError:
-            continue
-        if lines:
-            return lines[-1].strip()
-    return "no output, see the log"
 
 
 def _out_path(ladder_id):
@@ -391,7 +257,7 @@ def run(ladder_id):
     each level passed, until SIGTERM or Ctrl+C"""
     signal.signal(signal.SIGTERM, _stop_on_signal)
     signal.signal(signal.SIGINT, signal.default_int_handler)
-    setup_logging(_log_path(ladder_id))
+    process.setup_logging(_log_path(ladder_id))
     ladder = ladder_get(ladder_id)
     if ladder is None:
         log.error("no ladder %s in ladders.csv", ladder_id)
@@ -442,7 +308,7 @@ def run(ladder_id):
         _status(ladder_id, pid, started, "crashed")
         sys.exit(1)
     finally:
-        release_if_idle(ending_id=ladder_id)
+        process.release_if_idle(ending_id=ladder_id)
 
 
 def _check(ladder):
@@ -513,32 +379,6 @@ def _stop_on_signal(signum, frame):
     raise KeyboardInterrupt
 
 
-def setup_logging(path):
-    """log to path ({storage_dir}/logs/...) and to the
-    console unless LOG_CONSOLE=0"""
-    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
-    level = getattr(logging, level_name, logging.INFO)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    handlers = [
-        logging.handlers.RotatingFileHandler(
-            path,
-            maxBytes=LOG_MAX_BYTES,
-            backupCount=LOG_BACKUP_COUNT,
-            encoding="utf-8",
-        )
-    ]
-    if os.getenv("LOG_CONSOLE", "1") != "0":
-        handlers.append(logging.StreamHandler())
-    formatter = logging.Formatter(
-        "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
-    )
-    root = logging.getLogger()
-    root.setLevel(level)
-    for handler in handlers:
-        handler.setFormatter(formatter)
-        root.addHandler(handler)
-
-
 if __name__ == "__main__" and len(sys.argv) == 2:
     run(int(sys.argv[1]))
 
@@ -600,13 +440,5 @@ elif __name__ == "__main__":
             ):
                 with self.assertRaises(LadderError):
                     create(*args)
-
-        def test_process_runs(self):
-            self.assertTrue(
-                process_runs(os.getpid(), "ladder.py")
-            )
-            self.assertFalse(
-                process_runs(os.getpid(), "other.py")
-            )
 
     unittest.main()

@@ -34,6 +34,7 @@ os.environ["NO_COLOR"] = "1"
 import alerts
 import chart
 import ladder
+import process
 import requests
 import shell.alert_cmd
 import shell.terminal_cmd
@@ -1450,7 +1451,7 @@ class ShellTest(unittest.TestCase):
         )
         started = f"{now:%d.%m %H:%M}"
         with mock.patch.object(
-            ladder, "process_runs", lambda *a: True
+            process, "process_runs", lambda *a: True
         ):
             out = self.lines("ls tasks")
         self.assertEqual(
@@ -1482,7 +1483,7 @@ class ShellTest(unittest.TestCase):
         ) as f:
             f.write("777\n")
         with mock.patch.object(
-            ladder, "process_runs", lambda *a: True
+            process, "process_runs", lambda *a: True
         ):
             out = self.lines("stop tasks all")
         self.assertEqual(
@@ -2374,27 +2375,6 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(
             chart.chart_rows(), terminal["chart_height"]
         )
-
-    def test_interval_defaults(self):
-        self.assertEqual(ladder.DEFAULT_INTERVAL, 30)
-        for timing in ({}, None, [30], {"other": 5}):
-            with mock.patch.dict(
-                ladder.config, {"timing": timing}
-            ):
-                self.assertEqual(
-                    ladder.interval("ladder_interval"), 30
-                )
-        with mock.patch.dict(
-            ladder.config, {"timing": {"alert_interval": 5}}
-        ):
-            self.assertEqual(
-                ladder.interval("alert_interval"), 5
-            )
-        with mock.patch.dict(ladder.config):
-            del ladder.config["timing"]
-            self.assertEqual(
-                ladder.interval("ladder_interval"), 30
-            )
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ import os
 import subprocess
 from datetime import datetime
 
-import ladder
+import process
 from storage import (
     ROOT_DIR,
     mtsig_pid_get,
@@ -97,7 +97,7 @@ def _mail_broker_task():
     """the 'ls tasks' row of the mail broker, or None
     if it isn't running"""
     pid = mtsig_pid_get()
-    if pid is None or not ladder.process_runs(
+    if pid is None or not process.process_runs(
         pid, "order_watcher.py"
     ):
         return None

@@ -436,6 +436,7 @@ nx-sig/
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
     ├── ladder.py         price-step alerts, one process each
     ├── alerts.py         basetrade and gain alerts, one process for all
+    ├── process.py        the helpers of the background processes
     ├── chart.py          the price chart of 'chart'
     ├── tasks_owner.py    one device runs the background tasks
     ├── sync.py           syncs data/ between phone and PC (Syncthing)

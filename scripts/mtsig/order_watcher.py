@@ -37,7 +37,7 @@ import signal
 import sys
 from datetime import datetime
 
-# storage.py, ladder.py and tasks_owner.py are in
+# storage.py, process.py and tasks_owner.py are in
 # scripts/, one level up
 sys.path.insert(
     1,
@@ -46,7 +46,7 @@ sys.path.insert(
     ),
 )
 
-import ladder
+import process
 import storage
 import tasks_owner
 
@@ -312,12 +312,12 @@ def main():
         # old Python, another device runs the tasks
         log.critical("order watcher crashed", exc_info=True)
         _status("crashed, see log")
-        ladder.release_if_idle(watcher_ending=True)
+        process.release_if_idle(watcher_ending=True)
         sys.exit(1)
     if _taken_over:
         name = _taken_over.get("name", "?")
         _status(f"taken over by {name}")
-        ladder.release_if_idle(watcher_ending=True)
+        process.release_if_idle(watcher_ending=True)
     else:
         _status("stopped")
     log.info("order watcher stopped")

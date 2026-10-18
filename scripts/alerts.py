@@ -61,7 +61,8 @@
 #       each gain alert's level per held stock, for
 #       'xtop'
 #   start(force=False), stop(), running_pid()
-#       the process, see ladder.start
+#       the process, see ladder.start (the helpers
+#       are in process.py)
 #   status()
 #       its heartbeat, or None
 #   run()
@@ -77,6 +78,7 @@ from datetime import datetime
 import requests
 
 import ladder
+import process
 import storage
 import tasks_owner
 from storage import (
@@ -96,7 +98,7 @@ from telegram_notify import notify
 SCRIPT = os.path.join(ROOT_DIR, "scripts", "alerts.py")
 TARGETS = ("basetrades", "gain")
 DIRECTIONS = ladder.DIRECTIONS
-INTERVAL = ladder.interval("alert_interval")
+INTERVAL = process.interval("alert_interval")
 # 'ls alerts' shows 'no reply' when the heartbeat is
 # older than this
 STALE_SECONDS = max(3 * INTERVAL, 120)
@@ -355,7 +357,9 @@ def status():
 
 def running_pid():
     pid = (alerts_status_get() or {}).get("pid")
-    if pid and ladder.process_runs(pid, "alerts.py", "run"):
+    if pid and process.process_runs(
+        pid, "alerts.py", "run"
+    ):
         return pid
     return None
 
@@ -378,23 +382,25 @@ def start(force=False):
         tasks_owner.claim(force)
     except tasks_owner.OwnerError as e:
         raise AlertError(str(e)) from None
-    process = ladder.spawn([SCRIPT, "run"], _out_path())
+    child = process.spawn([SCRIPT, "run"], _out_path())
     # so running_pid() knows it before the process writes
     # its first heartbeat
-    _status(process.pid, _now(), "starting")
-    deadline = time.monotonic() + ladder.START_CHECK_SECONDS
+    _status(child.pid, _now(), "starting")
+    deadline = (
+        time.monotonic() + process.START_CHECK_SECONDS
+    )
     while time.monotonic() < deadline:
-        if process.poll() is not None:
-            ladder.release_if_idle()
+        if child.poll() is not None:
+            process.release_if_idle()
             raise AlertError(
                 "the alerts process stopped right after "
                 "starting: "
-                + ladder.last_line(
+                + process.last_line(
                     [_out_path(), _log_path()]
                 )
             )
         time.sleep(0.2)
-    return process.pid
+    return child.pid
 
 
 def stop():
@@ -404,19 +410,16 @@ def stop():
     if not pid:
         return False
     os.kill(pid, signal.SIGTERM)
-    deadline = time.monotonic() + ladder.STOP_WAIT_SECONDS
+    deadline = time.monotonic() + process.STOP_WAIT_SECONDS
     while time.monotonic() < deadline:
-        try:
-            os.waitpid(pid, os.WNOHANG)
-        except (ChildProcessError, OSError):
-            pass
+        process.reap(pid)
         if not running_pid():
             break
         time.sleep(0.2)
     else:
         os.kill(pid, signal.SIGKILL)
         _status(pid, None, "stopped")
-    ladder.release_if_idle()
+    process.release_if_idle()
     return True
 
 
@@ -467,7 +470,7 @@ def run():
     notify each crossing, until SIGTERM or Ctrl+C"""
     signal.signal(signal.SIGTERM, _stop_on_signal)
     signal.signal(signal.SIGINT, signal.default_int_handler)
-    ladder.setup_logging(_log_path())
+    process.setup_logging(_log_path())
     pid = os.getpid()
     started = _now()
     log.info("alerts starting, pid %s", pid)
@@ -500,7 +503,7 @@ def run():
         _status(pid, started, "crashed")
         sys.exit(1)
     finally:
-        ladder.release_if_idle(alerts_ending=True)
+        process.release_if_idle(alerts_ending=True)
 
 
 def _check(alerts):
