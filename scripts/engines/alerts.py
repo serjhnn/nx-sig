@@ -405,7 +405,9 @@ def stop():
     pid = running_pid()
     if not pid:
         return False
-    os.kill(pid, signal.SIGTERM)
+    if not process.kill(pid, signal.SIGTERM):
+        process.release_if_idle()
+        return False
     deadline = time.monotonic() + process.STOP_WAIT_SECONDS
     while time.monotonic() < deadline:
         process.reap(pid)
@@ -413,7 +415,7 @@ def stop():
             break
         time.sleep(0.2)
     else:
-        os.kill(pid, signal.SIGKILL)
+        process.kill(pid, signal.SIGKILL)
         save_status(pid, None, "stopped")
     process.release_if_idle()
     return True

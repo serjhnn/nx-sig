@@ -10,7 +10,10 @@ import tempfile
 import unittest
 
 import paths  # noqa: F401, scripts/ on sys.path
+from unittest import mock
+
 from process import (
+    kill,
     last_line,
     process_runs,
 )
@@ -52,6 +55,25 @@ class ProcessTest(unittest.TestCase):
                 child.kill()
                 child.wait()
                 child.stdout.close()
+
+    def test_other_users_process(self):
+        # Android hides another app's /proc/<pid>, and
+        # its pid can't be signaled: not one of the tasks
+        denied = mock.patch(
+            "os.kill", side_effect=PermissionError
+        )
+        hidden = mock.patch(
+            "builtins.open", side_effect=PermissionError
+        )
+        with denied, hidden:
+            self.assertFalse(process_runs(1, "alerts.py"))
+        with denied:
+            self.assertFalse(kill(1, 15))
+
+    def test_kill_ended(self):
+        child = subprocess.Popen([sys.executable, "-c", ""])
+        child.wait()
+        self.assertFalse(kill(child.pid, 15))
 
     def test_last_line(self):
         with tempfile.TemporaryDirectory() as tmp:

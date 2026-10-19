@@ -9,6 +9,9 @@
 #       the Termux wake lock; return the Popen
 #   process_runs(pid, script, arg=None)
 #       True if pid is a live process running script
+#   kill(pid, sig)
+#       send sig to pid, False if it is gone or not
+#       ours
 #   reap(pid)
 #       wait for an ended child, so it isn't a zombie
 #   release_if_idle(ending_id=None, watcher_ending=False,
@@ -78,11 +81,12 @@ def process_runs(pid, script, arg=None):
     except OSError:
         if os.name == "nt":
             return False
-        # no /proc: only check that it is alive
+        # no /proc (or Android hides another app's):
+        # only check that it is alive and ours, a
+        # process of another user (PermissionError) is
+        # never one of the tasks
         try:
             os.kill(pid, 0)
-        except PermissionError:
-            return True
         except OSError:
             return False
         return True
@@ -91,6 +95,16 @@ def process_runs(pid, script, arg=None):
     if not any(a.endswith(script) for a in args):
         return False
     return arg is None or args[-1] == str(arg)
+
+
+def kill(pid, sig):
+    """send sig to pid; False if it ended already or
+    belongs to another user, so it isn't ours"""
+    try:
+        os.kill(pid, sig)
+    except OSError:
+        return False
+    return True
 
 
 def reap(pid):
