@@ -31,6 +31,8 @@
 #   print_dim(text), print_wrapped(text),
 #   print_error(text)
 #   confirm(question)  True if answered y/yes
+#   key_reader()       with it, read() is the key
+#                      pressed or None, not waiting
 #   stock_names()      the config "indices"
 #   parse_stock(name), parse_id(text),
 #   parse_direction(name), parse_trade_type(name)
@@ -40,7 +42,9 @@
 #   complete_options(text, line, options_per_position)
 #   fetch_prices(), held_positions(), color_for_gain(gain)
 
+import contextlib
 import os
+import select
 import shutil
 import sys
 import textwrap
@@ -261,6 +265,44 @@ def confirm(question):
         answer = ""
         print()
     return answer.strip().lower() in ("y", "yes")
+
+
+@contextlib.contextmanager
+def key_reader():
+    """
+    with key_reader() as read: read() is the key
+    pressed since the last read, or None; it doesn't
+    wait for Enter, and Ctrl+C still works. None
+    always when stdin is not a terminal
+    """
+    if not sys.stdin.isatty():
+        yield lambda: None
+        return
+    if os.name == "nt":
+        import msvcrt
+
+        yield lambda: (
+            msvcrt.getwch() if msvcrt.kbhit() else None
+        )
+        return
+    import termios
+    import tty
+
+    fd = sys.stdin.fileno()
+    saved = termios.tcgetattr(fd)
+
+    def read():
+        ready, _, _ = select.select([fd], [], [], 0)
+        if not ready:
+            return None
+        return os.read(fd, 1).decode(errors="replace")
+
+    try:
+        # keys without Enter and without echo
+        tty.setcbreak(fd)
+        yield read
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, saved)
 
 
 def stock_names():

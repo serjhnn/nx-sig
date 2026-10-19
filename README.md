@@ -148,8 +148,8 @@ every background task on this device.
 | `tasks` | `ls`, `stop` | `ls tasks`: running background tasks, `stop tasks all` stops them |
 
 And the commands of their own: `status` (positions with gain/loss and the
-mail broker's state), `xtop [sec]` (live gain/loss, with the gain alerts
-below the table), `chart <stock> [period <n> <unit>]` (a
+mail broker's state), `xtop [sec] [al]` (live gain/loss, with `al`
+the gain alerts below the table, `q` to stop), `chart <stock> [period <n> <unit>]` (a
 price chart, see below), `terminal info` (the terminal's size, width
 and theme), `help [<command>]` and `exit`.
 
@@ -311,7 +311,7 @@ The message is like `TSMX gain +105.00 (+17.5%) at 70.50 (alert 2: gain TSMX
 - A trade that changes the count or the average buy price moves the level,
   and the stock starts over.
 - Only stocks you hold are checked; `all` covers the ones you buy later too.
-- `xtop` lists the gain alerts below its table, and the stocks past one
+- `xtop al` lists the gain alerts below its table, and the stocks past one
   (`! in alert: SOXL #2`).
 
 ### Syncing the phone and the PC

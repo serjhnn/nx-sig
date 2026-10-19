@@ -23,8 +23,9 @@ import json
 import os
 import subprocess
 import tempfile
+import threading
 import unittest
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 from datetime import datetime, timedelta, timezone
 from unittest import mock
 
@@ -37,6 +38,7 @@ import ladder
 import process
 import requests
 import shell.alert_cmd
+import shell.overview_cmd
 import shell.terminal_cmd
 import shell.ui
 import storage
@@ -525,7 +527,12 @@ class ShellTest(unittest.TestCase):
 
     def test_xtop_checks(self):
         self.assertEqual(
-            self.lines("xtop 1 2"), ["usage: xtop [sec]"]
+            self.lines("xtop 1 2"),
+            ["usage: xtop [sec] [al]"],
+        )
+        self.assertEqual(
+            self.lines("xtop al al"),
+            ["usage: xtop [sec] [al]"],
         )
         self.assertEqual(
             self.lines("xtop 0.5"),
@@ -563,11 +570,49 @@ class ShellTest(unittest.TestCase):
                 "-" * width(),
                 "total                           +20.00"
                 "  +10.00%",
-                "updated 09:30:05, every 5s, "
-                "Ctrl+C to stop",
+                "updated 09:30:05, every 5s, q to stop",
                 "a note",
             ],
         )
+
+    def run_xtop(self, line):
+        """line's xtop output: one price update, then q"""
+        keys = iter([None, "q"])
+
+        def polling(interval, on_update, on_error):
+            on_update(self.prices)
+            return threading.Event()
+
+        @contextmanager
+        def reader():
+            yield lambda: next(keys)
+
+        with mock.patch.object(
+            shell.overview_cmd, "start_polling", polling
+        ), mock.patch.object(
+            shell.overview_cmd, "key_reader", reader
+        ):
+            return self.lines(line)
+
+    def test_xtop_run(self):
+        self.run_cmd("add trade SOXL buy count 10 price 20")
+        self.run_cmd("add alert gain SOXL 20")
+        self.prices = {"SOXL": 22}
+        # the gain alerts only with al; q stops it
+        out = self.run_xtop("xtop")
+        self.assertTrue(out[-1].endswith("q to stop"))
+        self.assertNotIn("alert 1 gain SOXL +20", out)
+        out = self.run_xtop("xtop 10 al")
+        self.assertIn("alert 1 gain SOXL +20", out)
+        self.assertIn("! in alert: SOXL #1", out)
+        self.assertIn("every 10s", " ".join(out))
+        out = self.run_xtop("xtop al 10")
+        self.assertIn("alert 1 gain SOXL +20", out)
+        # not a terminal: no key is read
+        with mock.patch.object(
+            shell.ui.sys.stdin, "isatty", lambda: False
+        ), shell.ui.key_reader() as read:
+            self.assertIsNone(read())
 
     def test_xtop_gain_alerts(self):
         self.run_cmd("add trade SOXL buy count 10 price 20")

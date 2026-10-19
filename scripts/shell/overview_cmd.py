@@ -3,8 +3,9 @@
 #   status      held positions with gain/loss, the
 #               mail broker and the device of the
 #               background tasks
-#   xtop [sec]  live gain/loss, with the gain alerts
-#               (alert_cmd.py) below the table
+#   xtop [sec] [al]
+#               live gain/loss, with al the gain
+#               alerts (alert_cmd.py) below the table
 #
 # OverviewCmd is mixed into NxSigShell: these are
 # commands of their own, not kinds of data
@@ -28,6 +29,7 @@ from shell.ui import (
     column_separator,
     fetch_prices,
     color_for_gain,
+    key_reader,
     held_positions,
     print_error,
     print_wrapped,
@@ -133,19 +135,22 @@ class OverviewCmd:
 
     def do_xtop(self, arg):
         """
-        xtop [sec]
+        xtop [sec] [al]
             live gain/loss of the stocks you hold:
             quantity, average buy price, current
             price, gain and gain %, updated every
             5 seconds or every <sec> seconds,
-            e.g. 'xtop 10', and below it the gain
-            alerts and the stocks in alert (see
-            'help add alert'). Ctrl+C returns to the
-            shell
+            e.g. 'xtop 10'; with al, below it the
+            gain alerts and the stocks in alert
+            (see 'help add alert'). q returns to
+            the shell
         """
-        args = arg.split()
-        if len(args) > 1:
-            print_wrapped("usage: xtop [sec]")
+        args = arg.lower().split()
+        show_alerts = "al" in args
+        if show_alerts:
+            args.remove("al")
+        if len(args) > 1 or "al" in args:
+            print_wrapped("usage: xtop [sec] [al]")
             return
         interval = 5.0
         if args:
@@ -175,6 +180,11 @@ class OverviewCmd:
             on_error=lambda e: updates.put(("error", e)),
         )
 
+        def notes(prices):
+            if not show_alerts:
+                return []
+            return gain_alert_lines(prices)
+
         color = supports_color()
         prices, error, updated = {}, None, None
         drawn = 0
@@ -183,31 +193,8 @@ class OverviewCmd:
                 "\033[?25l", end=""
             )  # hide the cursor while redrawing
         try:
-            print()
-            drawn = _draw_xtop(
-                _xtop_lines(
-                    prices,
-                    error,
-                    updated,
-                    interval,
-                    color,
-                    gain_alert_lines(prices),
-                ),
-                drawn,
-                color,
-            )
-            while True:
-                try:
-                    # short timeout so Ctrl+C is handled
-                    # promptly, also on Windows
-                    kind, value = updates.get(timeout=0.2)
-                except queue.Empty:
-                    continue
-                if kind == "prices":
-                    prices, error = value, None
-                    updated = datetime.now()
-                else:
-                    error = value
+            with key_reader() as read_key:
+                print()
                 drawn = _draw_xtop(
                     _xtop_lines(
                         prices,
@@ -215,11 +202,39 @@ class OverviewCmd:
                         updated,
                         interval,
                         color,
-                        gain_alert_lines(prices),
+                        notes(prices),
                     ),
                     drawn,
                     color,
                 )
+                while True:
+                    if read_key() in ("q", "Q"):
+                        break
+                    try:
+                        # short timeout so q and Ctrl+C are
+                        # handled promptly, also on Windows
+                        kind, value = updates.get(
+                            timeout=0.2
+                        )
+                    except queue.Empty:
+                        continue
+                    if kind == "prices":
+                        prices, error = value, None
+                        updated = datetime.now()
+                    else:
+                        error = value
+                    drawn = _draw_xtop(
+                        _xtop_lines(
+                            prices,
+                            error,
+                            updated,
+                            interval,
+                            color,
+                            notes(prices),
+                        ),
+                        drawn,
+                        color,
+                    )
         except KeyboardInterrupt:
             pass
         finally:
@@ -325,7 +340,7 @@ def _xtop_lines(
     else:
         status = (
             f"updated {updated:%H:%M:%S}, every "
-            f"{interval:g}s, Ctrl+C to stop"
+            f"{interval:g}s, q to stop"
         )
     lines.append(
         f"{DIM}{status}{RESET}" if color else status

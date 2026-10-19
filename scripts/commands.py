@@ -17,8 +17,8 @@
 #   run mail-broker, stop mail-broker
 #   ls tasks               running background tasks
 # and the commands of their own:
-#   status, xtop [sec], chart <stock> [period ...],
-#   terminal info|set ...,
+#   status, xtop [sec] [al],
+#   chart <stock> [period ...], terminal info,
 #   strategy (not implemented yet)
 #   help [<command>], exit, quit, q
 #
