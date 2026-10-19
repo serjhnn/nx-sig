@@ -476,7 +476,7 @@ python scripts/check_style.py      # code style (line width), generated files
 ```
 
 GitHub Actions runs all of these on every push and pull request,
-on Python 3.12 and 3.14 ([tests.yml](.github/workflows/tests.yml)),
+on Python 3.14 ([tests.yml](.github/workflows/tests.yml)),
 and also checks that `order_watcher.py` and `mail_reader.py` compile
 and that the shell scripts have no syntax errors. A red mark on the
 commit (or the badge at the top) means something broke.
