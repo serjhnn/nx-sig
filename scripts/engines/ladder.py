@@ -1,9 +1,7 @@
-# ladder: price-step alerts for one stock, every ladder
-# runs as its own process
+# ladder: the ladders engine, price-step alerts for one
+# stock; every ladder runs as its own process,
+# services/ladder_service.py
 #
-#   python scripts/ladder.py <id>   run saved ladder <id>
-#                                   ('run ladder' in the
-#                                   shell starts it)
 #   python tests/test_ladder.py     the tests
 #
 # a ladder sends a message (notifier.py: Telegram or a
@@ -33,10 +31,15 @@
 #       stop it if it runs, delete it and its logs
 #   running_pid(ladder_id)
 #       pid of its process, or None
+#   get(ladder_id), get_all(), status(ladder_id)
+#       the saved ladders and the heartbeat of one
 #   next_level(ladder), passed_level(ladder, price)
 #       the level math
-#   run(ladder_id)
-#       the process: check the price and notify
+#   save_status(ladder_id, pid, started, state,
+#               price=None)
+#       write the heartbeat that 'ls tasks' shows
+#   log_path(ladder_id)
+#       the log file of its process
 #
 # the process helpers (spawn, release_if_idle, ...) are
 # in process.py
@@ -46,29 +49,29 @@ import logging
 import math
 import os
 import signal
-import sys
 import time
 from datetime import datetime
-
-import requests
 
 import config
 import process
 import storage
 import tasks_owner
-from storage import (
+from storage import (  # noqa: F401, Stock for the shell
     ROOT_DIR,
+    Stock,
     ladder_add,
     ladder_delete,
     ladder_get,
     ladder_set_last,
     ladder_status_get,
     ladder_status_set,
+    ladders_get_all,
 )
-from trade_engine import get_latest_prices
-from notifier import notify
 
-SCRIPT = os.path.join(ROOT_DIR, "scripts", "ladder.py")
+SERVICE = "ladder_service.py"
+SCRIPT = os.path.join(
+    ROOT_DIR, "scripts", "services", SERVICE
+)
 DIRECTIONS = ("down", "up")
 INTERVAL = config.interval("ladder_interval")
 # 'ls tasks' shows a ladder as 'no reply' when its
@@ -125,10 +128,28 @@ def running_pid(ladder_id):
     status = ladder_status_get(ladder_id) or {}
     pid = status.get("pid")
     if pid and process.process_runs(
-        pid, "ladder.py", ladder_id
+        pid, SERVICE, ladder_id
     ):
         return pid
     return None
+
+
+def get(ladder_id):
+    return ladder_get(ladder_id)
+
+
+def get_all():
+    return ladders_get_all()
+
+
+def status(ladder_id):
+    """the heartbeat of the ladder's process, or None"""
+    return ladder_status_get(ladder_id)
+
+
+def set_last(ladder_id, level):
+    """save the last level the ladder notified"""
+    ladder_set_last(ladder_id, level)
 
 
 def start(ladder_id, force=False):
@@ -180,7 +201,7 @@ def start(ladder_id, force=False):
                 + process.last_line(
                     [
                         _out_path(ladder_id),
-                        _log_path(ladder_id),
+                        log_path(ladder_id),
                     ]
                 )
             )
@@ -210,7 +231,7 @@ def stop(ladder_id):
         time.sleep(0.2)
     else:
         os.kill(pid, signal.SIGKILL)
-        _status(ladder_id, pid, None, "stopped")
+        save_status(ladder_id, pid, None, "stopped")
     process.release_if_idle()
     return True
 
@@ -241,7 +262,7 @@ def _out_path(ladder_id):
     )
 
 
-def _log_path(ladder_id):
+def log_path(ladder_id):
     return os.path.join(
         storage.DB_DIR, "logs", f"ladder_{ladder_id}.log"
     )
@@ -251,113 +272,7 @@ def _now():
     return datetime.now().isoformat(timespec="seconds")
 
 
-# ---------------- the ladder process ----------------
-
-
-def run(ladder_id):
-    """check the price every INTERVAL seconds and notify
-    each level passed, until SIGTERM or Ctrl+C"""
-    signal.signal(signal.SIGTERM, _stop_on_signal)
-    signal.signal(signal.SIGINT, signal.default_int_handler)
-    process.setup_logging(_log_path(ladder_id))
-    ladder = ladder_get(ladder_id)
-    if ladder is None:
-        log.error("no ladder %s in ladders.csv", ladder_id)
-        sys.exit(1)
-    pid = os.getpid()
-    started = _now()
-    log.info(
-        "ladder %s starting, pid %s: %s %s every %g "
-        "from %g, next level %g",
-        ladder_id,
-        pid,
-        ladder["Stock"],
-        ladder["Direction"],
-        ladder["Step"],
-        ladder["From"],
-        next_level(ladder),
-    )
-    _status(ladder_id, pid, started, "starting")
-    try:
-        while True:
-            if tasks_owner.lost():
-                log.warning(
-                    "%s took over the background "
-                    "tasks, ladder %s stops",
-                    tasks_owner.describe(
-                        tasks_owner.owner()
-                    ),
-                    ladder_id,
-                )
-                _status(
-                    ladder_id, pid, started, "taken over"
-                )
-                break
-            if next_level(ladder) <= 0:
-                log.info("no levels left, ladder ends")
-                _status(ladder_id, pid, started, "done")
-                break
-            state, price = _check(ladder)
-            _status(ladder_id, pid, started, state, price)
-            time.sleep(INTERVAL)
-    except KeyboardInterrupt:
-        _status(ladder_id, pid, started, "stopped")
-        log.info("ladder %s stopped", ladder_id)
-    except Exception:
-        log.critical(
-            "ladder %s crashed", ladder_id, exc_info=True
-        )
-        _status(ladder_id, pid, started, "crashed")
-        sys.exit(1)
-    finally:
-        process.release_if_idle(ending_id=ladder_id)
-
-
-def _check(ladder):
-    """one check of the price; return (state, price)"""
-    try:
-        prices = get_latest_prices()
-    except (
-        requests.RequestException,
-        KeyError,
-        ValueError,
-    ) as e:
-        log.warning("price request failed: %s", e)
-        return "no price", None
-    price = prices.get(ladder["Stock"])
-    if price is None:
-        log.warning("no price for %s", ladder["Stock"])
-        return "no price", None
-    log.debug("%s %s", ladder["Stock"], price)
-
-    level = passed_level(ladder, price)
-    if level is None:
-        return "waiting", price
-    following = next_level(dict(ladder, Last=level))
-    upcoming = (
-        f"next {following:g}"
-        if following > 0
-        else "the last level"
-    )
-    text = (
-        f"{ladder['Stock']} {ladder['Direction']} to "
-        f"{price:.2f}, passed {level:g} "
-        f"(ladder {ladder['Id']}, {upcoming})"
-    )
-    try:
-        notify(text)
-    except Exception as e:
-        # the level isn't saved, so it is sent again at
-        # the next check
-        log.warning("could not send %r: %s", text, e)
-        return "no notify", price
-    ladder_set_last(ladder["Id"], level)
-    ladder["Last"] = level
-    log.info("sent: %s", text)
-    return "waiting", price
-
-
-def _status(ladder_id, pid, started, state, price=None):
+def save_status(ladder_id, pid, started, state, price=None):
     """write the heartbeat that 'ls tasks' shows"""
     previous = ladder_status_get(ladder_id) or {}
     try:
@@ -374,12 +289,3 @@ def _status(ladder_id, pid, started, state, price=None):
         )
     except Exception:
         log.exception("could not write the ladder status")
-
-
-def _stop_on_signal(signum, frame):
-    # handled like Ctrl+C: the heartbeat says 'stopped'
-    raise KeyboardInterrupt
-
-
-if __name__ == "__main__" and len(sys.argv) == 2:
-    run(int(sys.argv[1]))

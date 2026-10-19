@@ -115,7 +115,9 @@ def release_if_idle(
         if l["Id"] == ending_id:
             continue
         pid = (ladder_status_get(l["Id"]) or {}).get("pid")
-        if pid and process_runs(pid, "ladder.py", l["Id"]):
+        if pid and process_runs(
+            pid, "ladder_service.py", l["Id"]
+        ):
             return
     pid = mtsig_pid_get()
     if (

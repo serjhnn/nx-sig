@@ -30,7 +30,8 @@
 #   mtsig_pid_get()
 #       the pid in mtsig.pid, written by ./mtsig start
 #   ladders_get_all(), ladder_get(ladder_id)
-#       the saved ladders of ladders.csv (see ladder.py)
+#       the saved ladders of ladders.csv (see
+#       engines/ladder.py)
 #   ladder_add(stock_name, direction, step, from_price)
 #       save a new ladder, return its Id
 #   ladder_set_last(ladder_id, level)

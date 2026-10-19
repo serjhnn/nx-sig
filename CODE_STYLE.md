@@ -126,6 +126,10 @@ so fix what `check_style.py` still reports by hand.
   module. A name other modules import has none, like
   the shell's shared helpers in `shell/ui.py`
   (`print_wrapped`, `parse_stock`, ...).
+- A file in `services/` (a background process) is named
+  `<engine>_service.py` after the engine in `engines/`
+  that starts and stops it: `ladder_service.py` runs
+  the ladders of `engines/ladder.py`.
 
 ## Project rules
 

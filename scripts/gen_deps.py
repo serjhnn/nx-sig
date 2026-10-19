@@ -36,7 +36,13 @@ ROOT_DIR = os.path.dirname(
 SCRIPTS = os.path.join(ROOT_DIR, "scripts")
 TESTS = os.path.join(ROOT_DIR, "tests")
 PATH = os.path.join(ROOT_DIR, "assets", "modules.html")
-FOLDERS = ("", "engines", "shell", "mtsig")
+FOLDERS = (
+    "",
+    "engines",
+    "services",
+    "shell",
+    "mtsig",
+)
 BEGIN = "// BEGIN modules, written by gen_deps.py\n"
 END = "// END modules\n"
 
@@ -47,7 +53,6 @@ ENGINES = {
     "tasks_owner",
     "process",
     "chart",
-    "ladder",
     "alerts",
 }
 
@@ -178,7 +183,9 @@ def _text(tree, source):
 def _group(key, channels):
     if key in CORE:
         return "core"
-    if key in ENGINES or key.startswith("engines/"):
+    if key in ENGINES or key.startswith(
+        ("engines/", "services/")
+    ):
         return "engine"
     if key == "notifier" or key in channels:
         return "notify"

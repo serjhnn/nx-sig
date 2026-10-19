@@ -1,5 +1,5 @@
 # ladder_cmd: the shell side of the ladders, the engine
-# is scripts/ladder.py
+# is engines/ladder.py
 #
 #   add ladder <stock> <down|up> <step> from <price>
 #       [run]
@@ -13,15 +13,10 @@
 
 from datetime import datetime
 
-import ladder
 import notifier
 import tasks_owner
-from storage import (
-    Stock,
-    ladder_get,
-    ladder_status_get,
-    ladders_get_all,
-)
+from engines import ladder
+from engines.ladder import Stock
 from shell.interface import Commands
 from shell.ui import (
     BOLD,
@@ -63,7 +58,7 @@ class LadderCommands(Commands):
         if arg.split():
             print_wrapped("usage: ls ladders")
             return
-        ladders = ladders_get_all()
+        ladders = ladder.get_all()
         if not ladders:
             print_wrapped(
                 "no ladders yet, see 'help add ladder'"
@@ -161,7 +156,7 @@ class LadderCommands(Commands):
         if ladder_id is None:
             print_wrapped("usage: rm ladder <id>")
             return
-        saved = ladder_get(ladder_id)
+        saved = ladder.get(ladder_id)
         if saved is None:
             print_error(
                 f"error: no ladder {ladder_id}, "
@@ -213,7 +208,7 @@ class LadderCommands(Commands):
         return []
 
     def tasks(self):
-        tasks = [_ladder_task(l) for l in ladders_get_all()]
+        tasks = [_ladder_task(l) for l in ladder.get_all()]
         return [t for t in tasks if t]
 
     def _save(self, args):
@@ -262,7 +257,7 @@ class LadderCommands(Commands):
         except ladder.LadderError as e:
             print_error(f"error: {e}")
             return
-        saved = ladder_get(ladder_id)
+        saved = ladder.get(ladder_id)
         print_wrapped(
             f"ladder {ladder_id} started (pid {pid}), "
             f"next alert at {ladder.next_level(saved):g}"
@@ -274,7 +269,7 @@ class LadderCommands(Commands):
         don't"""
         return [
             str(l["Id"])
-            for l in ladders_get_all()
+            for l in ladder.get_all()
             if running is None
             or bool(ladder.running_pid(l["Id"])) == running
         ]
@@ -286,7 +281,7 @@ def _ladder_task(saved):
     pid = ladder.running_pid(saved["Id"])
     if not pid:
         return None
-    status = ladder_status_get(saved["Id"]) or {}
+    status = ladder.status(saved["Id"]) or {}
     started = updated = None
     try:
         started = datetime.fromisoformat(status["started"])
@@ -338,7 +333,7 @@ def _print_ladders(ladders):
         if running:
             state = "running"
         else:
-            status = ladder_status_get(saved["Id"]) or {}
+            status = ladder.status(saved["Id"]) or {}
             # done: a down ladder that has no levels left
             state = (
                 status["state"]

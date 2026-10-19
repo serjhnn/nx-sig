@@ -238,7 +238,7 @@ starting ladder 1...
 ladder 1 started (pid 366), next alert at 90
 ```
 
-Each ladder is its own process (`scripts/ladder.py`), so it keeps running when
+Each ladder is its own process (`scripts/services/ladder_service.py`), so it keeps running when
 the shell is closed. It checks the price every `ladder_interval` seconds (see
 `timing` above) and sends a message (see `notify` above) when the price passes the next level, like
 `SOXL down to 89.50, passed 90 (ladder 1, next 80)`. When the price jumps over
@@ -421,7 +421,10 @@ nx-sig/
     ├── engines/          the logic of each kind of data, used by the shell
     │   ├── trades.py         trades and their totals (count, average price)
     │   ├── rules.py          your personal rules
-    │   └── basetrades.py     the last buying price of each stock
+    │   ├── basetrades.py     the last buying price of each stock
+    │   └── ladder.py         price-step alerts, starts their processes
+    ├── services/         the background processes, <engine>_service.py
+    │   └── ladder_service.py one ladder's process: price, notify
     ├── shell/            the shell's commands, one module per feature
     │   ├── interface.py      Commands: what every *_cmd.py implements
     │   ├── ui.py             colors, width(), printing, parsers
@@ -444,7 +447,6 @@ nx-sig/
     ├── config.py         reads config.json once, typed settings with defaults
     ├── storage.py        trades, rules and mail broker state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
-    ├── ladder.py         price-step alerts, one process each
     ├── alerts.py         basetrade and gain alerts, one process for all
     ├── process.py        the helpers of the background processes
     ├── chart.py          the price chart of 'chart'

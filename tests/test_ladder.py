@@ -1,11 +1,11 @@
-# tests of scripts/ladder.py
+# tests of scripts/engines/ladder.py
 #
 #   python tests/test_ladder.py
 
 import unittest
 
 import paths  # noqa: F401, scripts/ on sys.path
-from ladder import (
+from engines.ladder import (
     LadderError,
     create,
     next_level,

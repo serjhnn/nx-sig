@@ -75,9 +75,9 @@ In this order, before metrics and strategy add more:
      add, delete)~~ (done, `scripts/engines/rules.py`)
    - ~~`base_trade_cmd.py`: a `basetrades.py` engine
      (thin)~~ (done, `scripts/engines/basetrades.py`)
-   - `ladder_cmd.py`: its reads (`ladder_get`,
+   - ~~`ladder_cmd.py`: its reads (`ladder_get`,
      `ladders_get_all`, `ladder_status_get`) through
-     `ladder.py`
+     `ladder.py`~~ (done, `scripts/engines/ladder.py`)
    - `mail_cmd.py`: `mtsig_pid_get` and
      `watcher_status_get` through a small mail broker
      function (e.g. in `mtsig/`)
@@ -179,7 +179,7 @@ for your own use first. In this order:
   it
 - **Background tasks**: ~~`run`, `stop`, `ls tasks`,
   `ls ladders` for ladders and the mail broker~~ (done,
-  `scripts/ladder.py`). Still open:
+  `scripts/engines/ladder.py`). Still open:
   - maybe start the ladders that were running before
     when the phone restarts
 - Metrics (`scripts/metrics.py`): statistics of your

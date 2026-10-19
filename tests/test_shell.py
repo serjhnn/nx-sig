@@ -36,7 +36,7 @@ import paths  # noqa: F401, scripts/ on sys.path
 import alerts
 import chart
 import config
-import ladder
+from engines import ladder
 import notifier
 import process
 import requests
@@ -2269,6 +2269,7 @@ class ShellTest(unittest.TestCase):
             "alert_cmd.py",
             "base_trade_cmd.py",
             "chart_cmd.py",
+            "ladder_cmd.py",
             "stocks_cmd.py",
             "rule_cmd.py",
             "tasks_cmd.py",
@@ -2303,8 +2304,9 @@ class ShellTest(unittest.TestCase):
 
         folder = os.path.join(storage.ROOT_DIR, "scripts")
         for name, other in (
-            ("ladder.py", "alerts"),
-            ("alerts.py", "ladder"),
+            ("engines/ladder.py", "alerts"),
+            ("services/ladder_service.py", "alerts"),
+            ("alerts.py", "engines.ladder"),
         ):
             with open(os.path.join(folder, name)) as f:
                 tree = ast.parse(f.read())
