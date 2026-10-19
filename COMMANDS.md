@@ -238,6 +238,12 @@ terminal info
     and theme are config.json "terminal"
     "width" and "theme"
 
+test notify <alert|ladder>
+    send a test message like an alert's or
+    a ladder's through config.json "notify"
+    (telegram or termux), to check that it
+    arrives
+
 strategy [run/stop/list/get]
     not implemented yet
 

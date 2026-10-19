@@ -19,6 +19,7 @@
 # and the commands of their own:
 #   status, xtop [sec] [al],
 #   chart <stock> [period ...], terminal info,
+#   test notify <alert|ladder>,
 #   strategy (not implemented yet)
 #   help [<command>], exit, quit, q
 #
@@ -39,6 +40,7 @@ import textwrap
 import shell
 from shell.interface import Commands
 from shell.chart_cmd import ChartCmd
+from shell.notify_cmd import NotifyCmd
 from shell.overview_cmd import OverviewCmd
 from shell.terminal_cmd import TerminalCmd
 from shell.ui import (
@@ -104,6 +106,7 @@ OWN_COMMANDS = [
     "xtop",
     "chart",
     "terminal",
+    "test",
     "strategy",
     "help",
     "exit",
@@ -177,7 +180,11 @@ def _usage(method):
 
 
 class NxSigShell(
-    OverviewCmd, ChartCmd, TerminalCmd, cmd.Cmd
+    OverviewCmd,
+    ChartCmd,
+    TerminalCmd,
+    NotifyCmd,
+    cmd.Cmd,
 ):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

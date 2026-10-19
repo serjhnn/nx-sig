@@ -108,6 +108,7 @@ class ShellTest(unittest.TestCase):
             mock.patch.object(
                 notifier, "channel", telegram_notify
             ),
+            mock.patch.object(notifier, "NAME", "telegram"),
             mock.patch.dict(
                 os.environ,
                 {"TOKEN": "test", "CHAT_ID": "test"},
@@ -2061,6 +2062,62 @@ class ShellTest(unittest.TestCase):
         )
 
     # ---------------- terminal ----------------
+
+    def test_test_notify(self):
+        sent = []
+        with mock.patch.object(
+            telegram_notify, "notify", sent.append
+        ):
+            self.assertEqual(
+                self.lines("test notify ladder"),
+                ["sent a test ladder message (telegram)"],
+            )
+            self.assertEqual(
+                self.lines("test NOTIFY Alert"),
+                ["sent a test alert message (telegram)"],
+            )
+        stock = storage.config["indices"][0]
+        self.assertEqual(
+            sent,
+            [
+                f"test: {stock} down to 89.50, passed 90 "
+                "(ladder 0, next 80)",
+                f"test: {stock} -10.5% at 17.90, bought "
+                "at 20 (alert 0: down 10%)",
+            ],
+        )
+        usage = ["usage: test notify <alert|ladder>"]
+        for line in ("test", "test notify", "test x y"):
+            self.assertEqual(self.lines(line), usage, line)
+        self.assertEqual(
+            self.lines("test notify mail"),
+            ["unknown kind 'mail', expected alert/ladder"],
+        )
+
+        def fail(text):
+            raise RuntimeError("no network")
+
+        with mock.patch.object(
+            telegram_notify, "notify", fail
+        ):
+            self.assertEqual(
+                self.lines("test notify alert"),
+                ["error: could not send: no network"],
+            )
+        with mock.patch.dict(os.environ, {"TOKEN": ""}):
+            self.assertEqual(
+                self.lines("test notify alert"),
+                [
+                    "error: Telegram isn't set up, add "
+                    "TOKEN and",
+                    "  CHAT_ID to .env",
+                ],
+            )
+        self.assertEqual(self.complete("test "), ["notify"])
+        self.assertEqual(
+            self.complete("test notify "),
+            ["alert", "ladder"],
+        )
 
     def test_terminal_info(self):
         name = tasks_owner.this_device()["name"]
