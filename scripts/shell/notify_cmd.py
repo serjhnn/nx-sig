@@ -38,8 +38,8 @@ class NotifyCmd:
         test notify <alert|ladder>
             send a test message like an alert's or
             a ladder's through config.json "notify"
-            (telegram or termux), to check that it
-            arrives
+            (telegram, termux or ntfy), to check
+            that it arrives
         """
         args = arg.lower().split()
         if len(args) != 2 or args[0] != "notify":

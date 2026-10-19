@@ -25,7 +25,7 @@ as narrow as 48 characters (see `terminal` `width` below).
   notifications, e.g. at 90, 80, 70, ... when a stock falls from 100
 - **Alerts**: a message each time a basetrade's stock or a held
   stock's gain crosses a level, e.g. 10% below the buying price
-- **Notifications** through Telegram or Termux:API (config `notify`), and [ntfy](https://ntfy.sh)
+- **Notifications** through Telegram, Termux:API or [ntfy](https://ntfy.sh) (config `notify`)
 
 ## Requirements
 
@@ -87,7 +87,7 @@ your bot.
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
 | `bars_feed` | the feed of the past prices for `chart` (default: `feed`, with `delayed_sip` read as `sip` and the newest 15 minutes left out); set `"iex"` if your plan refuses `sip` |
-| `notify` | where the ladders and alerts are sent: `"telegram"` (default, `TOKEN` and `CHAT_ID` in `.env`) or `"termux"`, an Android notification through Termux:API (the Termux:API app and `pkg install termux-api`, no internet or keys needed); `test notify alert` in the shell sends a test |
+| `notify` | where the ladders and alerts are sent: `"telegram"` (default, `TOKEN` and `CHAT_ID` in `.env`) or `"termux"`, an Android notification through Termux:API (the Termux:API app and `pkg install termux-api`, no internet or keys needed), or `"ntfy"`, a push through [ntfy.sh](https://ntfy.sh) (`NTFY_TOPIC` in `.env`, the ntfy app subscribed to that topic); `test notify alert` in the shell sends a test |
 | `timing` | how often the background tasks check the prices, see below |
 | `terminal` | the shell's look on the screen, see below |
 
@@ -250,7 +250,7 @@ several levels between two checks, one message names the farthest one.
   `ls ladders`).
 - If a message can't be sent, the level is not saved and is sent at the next
   check.
-- The `notify` channel (Telegram or Termux:API) must be set up to start a ladder.
+- The `notify` channel (Telegram, Termux:API or ntfy) must be set up to start a ladder.
 - In Termux a wake lock is held while a ladder or the mail broker runs.
 - Logs are in `data/logs/ladder_<id>.log`.
 

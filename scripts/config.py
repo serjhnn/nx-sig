@@ -37,7 +37,7 @@ DEFAULT_FEED = "iex"
 DEFAULT_BARS_URL = (
     "https://data.alpaca.markets/v2/stocks/bars"
 )
-NOTIFY_CHANNELS = ("telegram", "termux")
+NOTIFY_CHANNELS = ("telegram", "termux", "ntfy")
 DEFAULT_NOTIFY = "telegram"
 DEFAULT_INTERVAL = 30
 # the width the shell's tables are made for

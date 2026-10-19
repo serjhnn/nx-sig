@@ -15,7 +15,7 @@ from notifiers.notifier import (
     channel,
 )
 
-from notifiers import termux_notify
+from notifiers import ntfy_notify, termux_notify
 
 
 class NotifierTest(unittest.TestCase):
@@ -57,6 +57,52 @@ class NotifierTest(unittest.TestCase):
             self.assertFalse(termux_notify.is_configured())
         with mock.patch(which, return_value="/bin/t"):
             self.assertTrue(termux_notify.is_configured())
+
+    def test_ntfy_channel(self):
+        import sys
+
+        import notifiers
+
+        # the import sets notifiers.notifier, put the
+        # one the other tests use back after
+        with mock.patch.dict(
+            config.DATA, {"notify": "ntfy"}
+        ), mock.patch.dict(sys.modules), mock.patch.object(
+            notifiers, "notifier", notifiers.notifier
+        ):
+            sys.modules.pop("notifiers.notifier", None)
+            mod = importlib.import_module(
+                "notifiers.notifier"
+            )
+        self.assertIs(mod.channel, ntfy_notify)
+
+    def test_ntfy_notify(self):
+        env = {"NTFY_TOPIC": "nx-test"}
+        with mock.patch.dict(
+            "os.environ", env
+        ), mock.patch.object(
+            ntfy_notify.requests, "post"
+        ) as post:
+            ntfy_notify.notify("SOXL up")
+        self.assertEqual(
+            post.call_args.args[0],
+            "https://ntfy.sh/nx-test",
+        )
+        self.assertEqual(
+            post.call_args.kwargs["data"], b"SOXL up"
+        )
+        resp = post.return_value
+        resp.raise_for_status.assert_called_once()
+
+    def test_ntfy_is_configured(self):
+        with mock.patch.dict(
+            "os.environ", {"NTFY_TOPIC": ""}
+        ):
+            self.assertFalse(ntfy_notify.is_configured())
+        with mock.patch.dict(
+            "os.environ", {"NTFY_TOPIC": "t"}
+        ):
+            self.assertTrue(ntfy_notify.is_configured())
 
 
 if __name__ == "__main__":

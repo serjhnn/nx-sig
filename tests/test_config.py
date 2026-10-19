@@ -76,6 +76,8 @@ class ConfigTest(unittest.TestCase):
     def test_notify(self):
         self.patch({"notify": "termux"})
         self.assertEqual(notify(), "termux")
+        DATA["notify"] = "ntfy"
+        self.assertEqual(notify(), "ntfy")
         DATA["notify"] = "mail"
         with self.assertRaises(ValueError) as e:
             notify()

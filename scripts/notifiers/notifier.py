@@ -4,6 +4,8 @@
 #               (TOKEN, CHAT_ID in .env), the default
 #   "termux"    termux_notify.py, an Android
 #               notification through Termux:API
+#   "ntfy"      ntfy_notify.py, a push through
+#               ntfy.sh (NTFY_TOPIC in .env)
 # only the chosen module is imported.
 #
 #   python tests/test_notifier.py  the tests
@@ -20,6 +22,7 @@ import config
 CHANNELS = {
     "telegram": "telegram_notify",
     "termux": "termux_notify",
+    "ntfy": "ntfy_notify",
 }
 
 # config.notify() raises ValueError for another name
