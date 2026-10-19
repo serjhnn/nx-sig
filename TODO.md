@@ -33,7 +33,7 @@ In this order, before metrics and strategy add more:
    the trade files. Add a check that rebuilds each
    stock's total from its trades and reports (or
    fixes) a difference.~~ (done differently: the
-   cache is gone, `trades_total_get` computes the
+   cache is gone, `trades.total` computes the
    total from the trades)
 3. **Tests for the mail watcher**: `order_watcher.py`
    and `mail_reader.py` need Python 3.14 and have no
@@ -67,9 +67,10 @@ In this order, before metrics and strategy add more:
    in `tests/test_shell.py` checks the files that are done,
    add each file to its list. One step per file, the
    shell tests proving the output stays the same:
-   - `trade_cmd.py`: a `trades.py` engine (add, delete,
+   - ~~`trade_cmd.py`: a `trades.py` engine (add, delete,
      list, total); the totals math (`_total_apply`)
-     moves there from `storage.py`
+     moves there from `storage.py`~~ (done,
+     `scripts/engines/trades.py`)
    - `rule_cmd.py`: a `rules.py` engine (thin: list,
      add, delete)
    - `base_trade_cmd.py`: a `basetrades.py` engine
@@ -83,9 +84,9 @@ In this order, before metrics and strategy add more:
    - `overview_cmd.py`: `config` and `start_polling`
      through the engines (the gain alert settings, the
      xtop prices)
-   - `ui.py`: `held_positions` and `fetch_prices` call
-     `trades.py` / `trade_engine` functions, not
-     `storage` directly
+   - `ui.py`: `fetch_prices` calls a `trade_engine`
+     function through an engine, not directly
+     (`held_positions` uses `trades.total`)
    - last: the test checks every `*_cmd.py` and
      `ui.py`
 

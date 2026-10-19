@@ -91,8 +91,8 @@ from storage import (
     alerts_status_set,
     Stock,
     basetrades_get_all,
-    trades_total_get,
 )
+from engines import trades
 from trade_engine import get_latest_prices
 from notifier import notify
 
@@ -193,7 +193,7 @@ def positions_get():
     stocks held"""
     positions = []
     for stock in Stock:
-        count, avg = trades_total_get(stock)
+        count, avg = trades.total(stock)
         if count > 0:
             positions.append((stock.name, count, avg))
     return positions

@@ -3,7 +3,8 @@
 #   python scripts/check_style.py [file ...]
 #
 # without files it checks the python scripts (scripts/,
-# scripts/shell/ and scripts/mtsig/) and the shell
+# scripts/engines/, scripts/shell/, scripts/mtsig/ and
+# tests/) and the shell
 # scripts of the repo, that COMMANDS.md matches the
 # shell's help texts (scripts/gen_docs.py) and that the
 # module map matches the imports (scripts/gen_deps.py).
@@ -26,6 +27,7 @@ def default_files():
     files = []
     for folder in (
         "scripts",
+        os.path.join("scripts", "engines"),
         os.path.join("scripts", "shell"),
         os.path.join("scripts", "mtsig"),
         "tests",

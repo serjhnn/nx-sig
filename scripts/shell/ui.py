@@ -57,11 +57,8 @@ from config import (
     theme_setting,
     width_setting,
 )
-from storage import (
-    Stock,
-    TradeType,
-    trades_total_get,
-)
+from engines import trades
+from storage import Stock, TradeType
 from trade_engine import get_latest_prices
 
 # DEFAULT_WIDTH (config.py), the width the tables are
@@ -375,7 +372,7 @@ def held_positions():
     """(stock, count, average buy price) of every stock
     whose count is not 0"""
     positions = [
-        (stock, *trades_total_get(stock)) for stock in Stock
+        (stock, *trades.total(stock)) for stock in Stock
     ]
     return [p for p in positions if p[1] != 0]
 

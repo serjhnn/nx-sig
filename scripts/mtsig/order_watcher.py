@@ -8,7 +8,7 @@
 #
 # waits for emails from IMAP_SENDER (.env), parses them
 # with order_parser.py and records FILLED orders of the
-# config "indices" with storage.trade_add().
+# config "indices" with trades.add() (engines/).
 # other emails are logged and skipped.
 #
 # the last handled email is kept in
@@ -56,11 +56,11 @@ from storage import (
     TradeType,
     mail_position_get,
     mail_position_set,
-    trade_add,
     watcher_status_get,
     watcher_status_set,
 )
 from order_parser import parse_order
+from engines import trades
 
 STARTED = datetime.now().isoformat(timespec="seconds")
 LOG_MAX_BYTES = 1_000_000
@@ -116,7 +116,7 @@ def handle_email(message):
         f"{side.name} {quantity} " f"{stock.name} @ {price}"
     )
     try:
-        trade_add(stock, side, quantity, price)
+        trades.add(stock, side, quantity, price)
     except Exception:
         # the email is not handled again, so say exactly
         # what is missing and how to add it

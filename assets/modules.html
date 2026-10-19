@@ -169,8 +169,8 @@ const GROUPS = {
 // id: [group, text, imports, loaded by name]
 // BEGIN modules, written by gen_deps.py
 const MODS = {
-  "alerts": ["engine", "Price alerts for the basetrades and the gain of the held stocks, checked by one background process", ["config", "notifier", "process", "storage", "tasks_owner", "trade_engine"], []],
-  "chart": ["engine", "A price chart for the terminal, one * per price, for the shell's 'chart' command", ["config", "storage", "trade_engine"], []],
+  "alerts": ["engine", "Price alerts for the basetrades and the gain of the held stocks, checked by one background process", ["config", "engines/trades", "notifier", "process", "storage", "tasks_owner", "trade_engine"], []],
+  "chart": ["engine", "A price chart for the terminal, one * per price, for the shell's 'chart' command", ["config", "engines/trades", "trade_engine"], []],
   "check_style": ["tools", "Check the code style rules of CODE_STYLE.md", ["gen_deps", "gen_docs"], []],
   "commands": ["shell", "Interactive shell for nX-sig, started with ./nxshell", ["shell/chart_cmd", "shell/interface", "shell/notify_cmd", "shell/overview_cmd", "shell/terminal_cmd", "shell/ui"], ["shell/alert_cmd", "shell/base_trade_cmd", "shell/ladder_cmd", "shell/mail_cmd", "shell/rule_cmd", "shell/stocks_cmd", "shell/tasks_cmd", "shell/trade_cmd"]],
   "config": ["core", "Reads config.json once, at the first import, and gives every module its settings through typed accessors with their defaults", [], []],
@@ -189,6 +189,7 @@ const MODS = {
   "termux_notify": ["notify", "A message as an Android notification through Termux:API, the notify channel \"termux\" of config.json (see notifier.py)", [], []],
   "trade_engine": ["core", "Polls the latest trades for config[\"indices\"] in a background thread", ["config"], []],
   "watch_notify": ["tools", "Notification server for a Garmin watch", [], []],
+  "engines/trades": ["engine", "The trades engine, your buys and sells and what they add up to", ["storage"], []],
   "shell/alert_cmd": ["shell", "The shell side of the price alerts, the engine is scripts/alerts.py", ["alerts", "notifier", "shell/interface", "shell/ui", "tasks_owner"], []],
   "shell/base_trade_cmd": ["shell", "The basetrades, the last price you bought each stock at", ["shell/alert_cmd", "shell/interface", "shell/ui", "storage"], []],
   "shell/chart_cmd": ["shell", "The price of a stock over a period", ["chart", "shell/ui"], []],
@@ -201,11 +202,11 @@ const MODS = {
   "shell/stocks_cmd": ["shell", "The stocks you hold", ["shell/interface", "shell/ui"], []],
   "shell/tasks_cmd": ["shell", "The background tasks, every one runs as its own process", ["shell/interface", "shell/ui", "tasks_owner"], []],
   "shell/terminal_cmd": ["shell", "The terminal the shell runs in", ["shell/ui", "tasks_owner"], []],
-  "shell/trade_cmd": ["shell", "The trades, your buys and sells", ["shell/interface", "shell/ui", "storage"], []],
-  "shell/ui": ["shell", "The look of the shell and the helpers every command module shares", ["config", "storage", "trade_engine"], []],
+  "shell/trade_cmd": ["shell", "The trades, your buys and sells", ["engines/trades", "shell/interface", "shell/ui"], []],
+  "shell/ui": ["shell", "The look of the shell and the helpers every command module shares", ["config", "engines/trades", "storage", "trade_engine"], []],
   "mtsig/mail_reader": ["mtsig", "Fetch and watch messages in an IMAP mailbox", [], []],
   "mtsig/order_parser": ["mtsig", "Parse broker order emails", [], []],
-  "mtsig/order_watcher": ["mtsig", "Records broker order emails as trades", ["mtsig/mail_reader", "mtsig/order_parser", "process", "storage", "tasks_owner"], []],
+  "mtsig/order_watcher": ["mtsig", "Records broker order emails as trades", ["engines/trades", "mtsig/mail_reader", "mtsig/order_parser", "process", "storage", "tasks_owner"], []],
   "tests/test_alerts": ["tests", "Tests of scripts/alerts.py", ["alerts", "storage"], []],
   "tests/test_chart": ["tests", "Tests of scripts/chart.py", ["chart", "config"], []],
   "tests/test_config": ["tests", "Tests of scripts/config.py", ["config"], []],
@@ -213,10 +214,11 @@ const MODS = {
   "tests/test_notifier": ["tests", "Tests of scripts/notifier.py", ["config", "notifier", "termux_notify"], []],
   "tests/test_order_parser": ["tests", "Tests of scripts/mtsig/order_parser.py", ["mtsig/order_parser"], []],
   "tests/test_process": ["tests", "Tests of scripts/process.py", ["process"], []],
-  "tests/test_shell": ["tests", "Tests of the nxshell commands", ["alerts", "chart", "commands", "config", "ladder", "notifier", "process", "shell/alert_cmd", "shell/overview_cmd", "shell/terminal_cmd", "shell/ui", "storage", "tasks_owner", "telegram_notify", "termux_notify", "trade_engine"], []],
+  "tests/test_shell": ["tests", "Tests of the nxshell commands", ["alerts", "chart", "commands", "config", "engines/trades", "ladder", "notifier", "process", "shell/alert_cmd", "shell/overview_cmd", "shell/terminal_cmd", "shell/ui", "storage", "tasks_owner", "telegram_notify", "termux_notify", "trade_engine"], []],
   "tests/test_storage": ["tests", "Tests of scripts/storage.py", ["storage"], []],
   "tests/test_sync": ["tests", "Tests of scripts/sync.py", ["sync"], []],
   "tests/test_tasks_owner": ["tests", "Tests of scripts/tasks_owner.py", ["storage", "tasks_owner"], []],
+  "tests/test_trades": ["tests", "Tests of scripts/engines/trades.py", ["engines/trades", "storage"], []],
 };
 // END modules
 const GROUP_ORDER = Object.keys(GROUPS);

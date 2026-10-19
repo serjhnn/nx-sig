@@ -9,8 +9,9 @@
 # the page is a template: only the lines between
 # BEGIN and END are written, the rest is edited by
 # hand. it reads the code with ast, nothing is run:
-#   modules    the .py files of scripts/, its shell/
-#              and mtsig/, and of tests/ (group tests)
+#   modules    the .py files of scripts/, its
+#              engines/, shell/ and mtsig/, and of
+#              tests/ (group tests)
 #   imports    every import, but not the ones under
 #              if __name__ == "__main__"
 #   loaded     the modules loaded by name (importlib):
@@ -35,7 +36,7 @@ ROOT_DIR = os.path.dirname(
 SCRIPTS = os.path.join(ROOT_DIR, "scripts")
 TESTS = os.path.join(ROOT_DIR, "tests")
 PATH = os.path.join(ROOT_DIR, "assets", "modules.html")
-FOLDERS = ("", "shell", "mtsig")
+FOLDERS = ("", "engines", "shell", "mtsig")
 BEGIN = "// BEGIN modules, written by gen_deps.py\n"
 END = "// END modules\n"
 
@@ -177,7 +178,7 @@ def _text(tree, source):
 def _group(key, channels):
     if key in CORE:
         return "core"
-    if key in ENGINES:
+    if key in ENGINES or key.startswith("engines/"):
         return "engine"
     if key == "notifier" or key in channels:
         return "notify"

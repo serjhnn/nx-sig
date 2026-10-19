@@ -50,6 +50,7 @@ import telegram_notify
 import termux_notify
 import trade_engine
 from commands import NxSigShell
+from engines import trades
 from shell.alert_cmd import gain_alert_lines
 from shell.overview_cmd import _xtop_lines
 from shell.ui import width
@@ -287,7 +288,7 @@ class ShellTest(unittest.TestCase):
             ["added SELL 4 SOXL @ 22"],
         )
         self.assertEqual(
-            storage.trades_total_get(storage.Stock.SOXL),
+            trades.total(storage.Stock.SOXL),
             (6, 20.5),
         )
 
@@ -412,7 +413,7 @@ class ShellTest(unittest.TestCase):
         )
         # the total is rebuilt from the trades left
         self.assertEqual(
-            storage.trades_total_get(storage.Stock.SOXL),
+            trades.total(storage.Stock.SOXL),
             (6, 20.0),
         )
 
@@ -2269,6 +2270,7 @@ class ShellTest(unittest.TestCase):
             "chart_cmd.py",
             "stocks_cmd.py",
             "tasks_cmd.py",
+            "trade_cmd.py",
         ]
         folder = os.path.join(
             storage.ROOT_DIR, "scripts", "shell"

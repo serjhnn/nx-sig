@@ -8,14 +8,8 @@
 # TradeCommands implements them for the verb commands
 # of commands.py
 
-from storage import (
-    Stock,
-    TradeType,
-    trade_add,
-    trade_delete,
-    trades_get_all,
-    trades_total_get,
-)
+from engines import trades
+from engines.trades import Stock, TradeType
 from shell.interface import Commands
 from shell.ui import (
     BOLD,
@@ -72,15 +66,15 @@ class TradeCommands(Commands):
             print_error(f"error: {e}")
             return
 
-        trades = trades_get_all(stock)
-        if not trades:
+        found = trades.get_all(stock)
+        if not found:
             print_wrapped(f"no trades for {stock.name}")
             return
 
         color = supports_color()
         print()
         _print_trades_header(color)
-        for t in trades:
+        for t in found:
             _print_trade_row(t, color)
         separator = "-" * width()
         print(
@@ -120,13 +114,11 @@ class TradeCommands(Commands):
                 "price a number"
             )
             return
-        if count <= 0 or price <= 0:
-            print_error(
-                "error: count and price must be positive"
-            )
+        try:
+            trades.add(stock, trade_type, count, price)
+        except trades.TradeError as e:
+            print_error(f"error: {e}")
             return
-
-        trade_add(stock, trade_type, count, price)
         print_wrapped(
             f"added {trade_type.name} {count} "
             f"{stock.name} @ {price:g}"
@@ -151,14 +143,7 @@ class TradeCommands(Commands):
         except ValueError as e:
             print_error(f"error: {e}")
             return
-        trade = next(
-            (
-                t
-                for t in trades_get_all(stock)
-                if t["Id"] == trade_id
-            ),
-            None,
-        )
+        trade = trades.get(stock, trade_id)
         if trade is None:
             print_error(
                 f"error: no {stock.name} trade {trade_id}, "
@@ -176,7 +161,7 @@ class TradeCommands(Commands):
         ):
             print_wrapped("cancelled")
             return
-        trade_delete(stock, trade_id)
+        trades.delete(stock, trade_id)
         print_wrapped(
             f"deleted {stock.name} trade {trade_id}"
         )
@@ -194,11 +179,7 @@ class TradeCommands(Commands):
     def _stocks_with_trades(self):
         """the stocks that have trades: how many and the
         date of the last one"""
-        rows = []
-        for stock in Stock:
-            trades = trades_get_all(stock)
-            if trades:
-                rows.append((stock, trades))
+        rows = trades.summary()
         if not rows:
             print_wrapped(
                 "no trades yet, see 'help add trade'"
@@ -223,13 +204,13 @@ class TradeCommands(Commands):
             if color
             else separator
         )
-        for stock, trades in rows:
-            last = trades[-1]
+        for stock, found in rows:
+            last = found[-1]
             date = short_date(last["Date"])
             when = f"{date} {last['Time']}"
             cols = [
                 f"{stock.name:<5}",
-                f"{len(trades):>6}",
+                f"{len(found):>6}",
                 f"{when:<14}",
             ]
             if color:
@@ -252,7 +233,7 @@ def _trade_ids(args):
         stock = None
     if stock is None:
         return []
-    return [str(t["Id"]) for t in trades_get_all(stock)]
+    return [str(t["Id"]) for t in trades.get_all(stock)]
 
 
 def _print_trades_header(color):
@@ -315,7 +296,7 @@ def _print_trade_row(t, color):
 def _print_total(stock, color):
     """print the stock's total count, average buy price and
     position sum"""
-    total_count, avg_price = trades_total_get(stock)
+    total_count, avg_price = trades.total(stock)
     total_sum = total_count * avg_price
     if color:
         total_line = (

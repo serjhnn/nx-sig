@@ -51,11 +51,8 @@ from datetime import datetime
 
 import config
 import trade_engine
-from storage import (
-    TradeType,
-    trades_get_all,
-    trades_total_get,
-)
+from engines import trades
+from engines.trades import TradeType
 
 DEFAULT_DAYS = 5
 MAX_DAYS = 5 * 365
@@ -132,7 +129,7 @@ def stock_chart(stock, period, width, colors=None):
     bars = trade_engine.get_bars(stock.name, days, tf)
     if not bars:
         return []
-    count, avg = trades_total_get(stock)
+    count, avg = trades.total(stock)
     return chart_lines(
         stock.name,
         period,
@@ -147,8 +144,8 @@ def stock_chart(stock, period, width, colors=None):
 def _trades(stock):
     """[(time, 'B' or 'S', price)] of the stock's
     trades"""
-    trades = []
-    for t in trades_get_all(stock):
+    found = []
+    for t in trades.get_all(stock):
         try:
             when = datetime.strptime(
                 f"{t['Date']} {t['Time']}", "%d.%m.%Y %H:%M"
@@ -156,8 +153,8 @@ def _trades(stock):
         except ValueError:
             continue
         side = "B" if t["Type"] == TradeType.BUY else "S"
-        trades.append((when, side, t["Price"]))
-    return trades
+        found.append((when, side, t["Price"]))
+    return found
 
 
 def chart_lines(

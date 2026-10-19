@@ -418,6 +418,8 @@ nx-sig/
 │                         (test_shell.py: every shell command)
 └── scripts/
     ├── commands.py       the shell: actions, help, collects the modules
+    ├── engines/          the logic of each kind of data, used by the shell
+    │   └── trades.py         trades and their totals (count, average price)
     ├── shell/            the shell's commands, one module per feature
     │   ├── interface.py      Commands: what every *_cmd.py implements
     │   ├── ui.py             colors, width(), printing, parsers
@@ -438,7 +440,7 @@ nx-sig/
     │   ├── mail_reader.py    IMAP IDLE watcher with reconnects
     │   └── order_parser.py   reads an order from a broker email
     ├── config.py         reads config.json once, typed settings with defaults
-    ├── storage.py        trades, totals, rules and mail broker state on disk
+    ├── storage.py        trades, rules and mail broker state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
     ├── ladder.py         price-step alerts, one process each
     ├── alerts.py         basetrade and gain alerts, one process for all

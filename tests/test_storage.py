@@ -42,7 +42,6 @@ from storage import (
     trade_add,
     trade_delete,
     trades_get_all,
-    trades_total_get,
     watcher_status_get,
     watcher_status_set,
 )
@@ -112,54 +111,6 @@ class TradesTest(unittest.TestCase):
             2,
         )
 
-    def test_total_buy_averages_price(self):
-        trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
-        trade_add(Stock.TSMX, TradeType.BUY, 10, 270)
-
-        self.assertEqual(
-            trades_total_get(Stock.TSMX),
-            (20, 260.0),
-        )
-
-    def test_total_sell_keeps_price(self):
-        trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
-        trade_add(Stock.TSMX, TradeType.SELL, 4, 300)
-
-        self.assertEqual(
-            trades_total_get(Stock.TSMX),
-            (6, 250.0),
-        )
-
-    def test_total_of_each_stock(self):
-        trade_add(Stock.SOXL, TradeType.BUY, 1, 100)
-        trade_add(Stock.TSMX, TradeType.BUY, 2, 200)
-
-        self.assertEqual(
-            trades_total_get(Stock.SOXL),
-            (1, 100.0),
-        )
-        self.assertEqual(
-            trades_total_get(Stock.TSMX),
-            (2, 200.0),
-        )
-        self.assertEqual(
-            trades_total_get(Stock.NVDL), (0, 0.0)
-        )
-
-    def test_total_follows_edited_trades_file(self):
-        # e.g. a hand edit or a Syncthing conflict
-        trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
-        path = _trades_path(Stock.TSMX)
-        with open(path) as f:
-            text = f.read()
-        with open(path, "w") as f:
-            f.write(text.replace(",10,250", ",4,300"))
-
-        self.assertEqual(
-            trades_total_get(Stock.TSMX),
-            (4, 300.0),
-        )
-
     def test_delete_removes_row_and_keeps_ids(self):
         trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
         trade_add(Stock.TSMX, TradeType.BUY, 10, 270)
@@ -172,33 +123,6 @@ class TradesTest(unittest.TestCase):
         self.assertEqual(
             trades[1]["Type"],
             TradeType.SELL,
-        )
-
-    def test_delete_recalculates_total(self):
-        trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
-        trade_add(Stock.TSMX, TradeType.BUY, 10, 270)
-        trade_add(Stock.TSMX, TradeType.SELL, 5, 300)
-        trade_add(Stock.SOXL, TradeType.BUY, 1, 100)
-
-        trade_delete(Stock.TSMX, 2)
-
-        self.assertEqual(
-            trades_total_get(Stock.TSMX),
-            (5, 250.0),
-        )
-        self.assertEqual(
-            trades_total_get(Stock.SOXL),
-            (1, 100.0),
-        )
-
-    def test_delete_last_trade_resets_total(self):
-        trade_add(Stock.TSMX, TradeType.BUY, 10, 250)
-
-        self.assertTrue(trade_delete(Stock.TSMX, 1))
-
-        self.assertEqual(trades_get_all(Stock.TSMX), [])
-        self.assertEqual(
-            trades_total_get(Stock.TSMX), (0, 0.0)
         )
 
     def test_delete_unknown_id_returns_false(self):
@@ -441,10 +365,7 @@ class TradesTest(unittest.TestCase):
                     1,
                     100,
                 )
-        self.assertEqual(
-            trades_total_get(Stock.TSMX),
-            (1, 100.0),
-        )
+        self.assertEqual(len(trades_get_all(Stock.TSMX)), 1)
 
     @unittest.skipUnless(
         fcntl and hasattr(os, "fork"),
@@ -479,10 +400,6 @@ class TradesTest(unittest.TestCase):
         self.assertEqual(
             sorted(t["Id"] for t in trades),
             list(range(1, 101)),
-        )
-        self.assertEqual(
-            trades_total_get(Stock.TSMX),
-            (100, 100.0),
         )
 
 

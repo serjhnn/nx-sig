@@ -12,9 +12,6 @@
 #   trade_delete(stock, trade_id)
 #       delete the trade with the given Id from
 #       {stock}_trades.csv
-#   trades_total_get(stock)
-#       return (count held, average buy price) for a
-#       stock, computed from its trades
 #   rules_get_all()
 #       return all personal rules from personal_rules.json,
 #       numbered from 1
@@ -312,50 +309,6 @@ def _write_atomic(path, write):
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
         raise
-
-
-def _total_apply(
-    total_count, avg_price, trade_type, count, price
-):
-    """
-    return (total_count, avg_price) after applying one
-    trade to them
-    """
-    if trade_type == TradeType.BUY:
-        if total_count + count > 0:
-            avg_price = (
-                avg_price * total_count + price * count
-            ) / (total_count + count)
-        total_count += count
-    else:  # sell
-        total_count -= count
-    return total_count, avg_price
-
-
-def trades_total_get(stock):
-    """
-    return (total_count, avg_price) for a stock,
-    computed from its trades in {stock_name}_trades.csv
-
-    for every trade in order:
-        if BUY :
-            avg_price = (avg_price * total_count
-                         + price * count)
-                        / (total_count + count)
-            total_count += count
-        else : # sell
-            total_count -= count
-    """
-    total_count, avg_price = 0, 0.0
-    for t in trades_get_all(stock):
-        total_count, avg_price = _total_apply(
-            total_count,
-            avg_price,
-            t["Type"],
-            t["Count"],
-            t["Price"],
-        )
-    return total_count, avg_price
 
 
 def rules_get_all():
