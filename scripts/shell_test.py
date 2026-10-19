@@ -699,8 +699,11 @@ class ShellTest(unittest.TestCase):
                 "           -",
                 "SOXL       5       18.00       19.80"
                 "     +10.00%",
-                "no basetrade alerts, see 'help add alert'",
             ],
+        )
+        self.assertEqual(
+            self.lines("ls basetrades al")[4:],
+            ["no basetrade alerts, see 'help add alert'"],
         )
 
     def test_basetrade_errors(self):
@@ -744,7 +747,7 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.lines("ls basetrades all"),
-            ["usage: ls basetrades"],
+            ["usage: ls basetrades [al]"],
         )
 
     def test_rm_basetrade(self):
@@ -830,9 +833,13 @@ class ShellTest(unittest.TestCase):
         storage.alerts_status_set(
             {"pid": FAKE_PID, "updated": now.isoformat()}
         )
+        # the alerts only with al
+        self.assertEqual(
+            len(self.lines("ls basetrades")), 4
+        )
         # a ! marks the levels the price is past
         self.assertEqual(
-            self.lines("ls basetrades")[4:],
+            self.lines("ls basetrades al")[4:],
             [
                 "alert 1 down 10%: MUU 45.45, SOXL 18.00!",
                 "alert 2 up 20%: MUU 60.60!, SOXL 24.00",
@@ -843,7 +850,7 @@ class ShellTest(unittest.TestCase):
         self.prices = {"SOXL": 19}
         self.run_cmd("stop alerts")
         self.assertEqual(
-            self.lines("ls basetrades")[4:],
+            self.lines("ls basetrades al")[4:],
             [
                 "alert 1 down 10%: MUU 45.45, SOXL 18.00",
                 "alert 2 up 20%: MUU 60.60, SOXL 24.00",
@@ -852,7 +859,7 @@ class ShellTest(unittest.TestCase):
         )
         storage.tasks_owner_set(OTHER_OWNER)
         self.assertEqual(
-            self.lines("ls basetrades")[-2:],
+            self.lines("ls basetrades al")[-2:],
             [
                 "alerts: not running here, the background "
                 "tasks",
@@ -884,7 +891,7 @@ class ShellTest(unittest.TestCase):
             "SOXL": 80,
             "TSMX": 60,
         }
-        out = self.lines("ls basetrades")
+        out = self.lines("ls basetrades al")
         indent = " " * len("alert 1 down 10%: ")
         first = out.index(
             "alert 1 down 10%: ASMG 36.85, AVGG 19.53!,"
@@ -912,7 +919,7 @@ class ShellTest(unittest.TestCase):
             # color codes
             buffer = io.StringIO()
             with redirect_stdout(buffer):
-                self.shell.onecmd("ls basetrades")
+                self.shell.onecmd("ls basetrades al")
             out = buffer.getvalue()
         self.assertIn(
             "\033[2m! in alert: AVGG #1",
@@ -2235,6 +2242,9 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.complete("ls la"), ["ladders"]
+        )
+        self.assertEqual(
+            self.complete("ls basetrades "), ["al"]
         )
         self.assertEqual(
             self.complete("ls trades so"), ["SOXL"]

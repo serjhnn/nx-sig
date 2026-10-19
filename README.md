@@ -276,8 +276,8 @@ crosses the level, like `SOXL -10.5% at 17.90, bought at 20 (alert 1: down
 - `add alert` starts the process if it isn't running, `rm alert` of the last
   alert stops it; `run alerts [force]` and `stop alerts` start and stop it, and
   `ls tasks` shows it.
-- `ls basetrades` shows each alert's price per stock below the table, with a
-  `!` where the price is past it:
+- `ls basetrades al` shows each alert's price per stock below the table, with
+  a `!` where the price is past it (`ls basetrades` shows only the table):
 
 ```
 alert 1 down 10%: MUU 45.45, SOXL 18.00!

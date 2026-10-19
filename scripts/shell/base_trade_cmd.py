@@ -1,7 +1,7 @@
 # base_trade_cmd: the basetrades, the last price you
 # bought each stock at
 #
-#   ls basetrades
+#   ls basetrades [al]
 #   add basetrade <stock> price <price> count <count>
 #   rm basetrade <stock>
 #
@@ -51,17 +51,18 @@ class BaseTradeCommands(Commands):
 
     def ls(self, arg):
         """
-        ls basetrades
+        ls basetrades [al]
             the basetrades in config order, with
             the current price of each stock and its
-            change % from the buying price; below
-            it each alert's price per stock, a !
-            when the price is past it
+            change % from the buying price; with
+            al, below it each alert's price per
+            stock, a ! when the price is past it
         """
-        if arg.split():
-            print_wrapped("usage: ls basetrades")
+        args = arg.lower().split()
+        if args not in ([], ["al"]):
+            print_wrapped("usage: ls basetrades [al]")
             return
-        self._basetrades_show()
+        self._basetrades_show(alerts=bool(args))
 
     def add(self, arg):
         """
@@ -153,9 +154,11 @@ class BaseTradeCommands(Commands):
             return [
                 [b["Stock"] for b in basetrades_get_all()]
             ]
+        if action == "ls":
+            return [["al"]]
         return []
 
-    def _basetrades_show(self):
+    def _basetrades_show(self, alerts=False):
         basetrades = basetrades_get_all()
         if not basetrades:
             print_wrapped(
@@ -227,5 +230,6 @@ class BaseTradeCommands(Commands):
                 )
             )
         print()
-        print_basetrade_alerts(basetrades, prices)
-        print()
+        if alerts:
+            print_basetrade_alerts(basetrades, prices)
+            print()

@@ -10,7 +10,7 @@
 # AlertCommands implements them for the verb commands
 # of commands.py; its tasks() are the alerts process's
 # row in 'ls tasks'. print_basetrade_alerts() is the
-# part of 'ls basetrades' below its table
+# part of 'ls basetrades al' below its table
 
 import textwrap
 from datetime import datetime
@@ -62,7 +62,7 @@ class AlertCommands(Commands):
         ls alerts
             the saved alerts and whether the alerts
             process checks them; the levels per
-            stock are in 'ls basetrades'
+            stock are in 'ls basetrades al'
         """
         if arg.split():
             print_wrapped("usage: ls alerts")
@@ -288,7 +288,7 @@ class AlertCommands(Commands):
 
 
 def print_basetrade_alerts(basetrades, prices):
-    """the lines below the 'ls basetrades' table: each
+    """the lines below the 'ls basetrades al' table: each
     alert's level per stock, the stocks past one and
     whether the alerts are checked"""
     for line in _level_lines(

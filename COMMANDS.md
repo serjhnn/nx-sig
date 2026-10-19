@@ -105,12 +105,12 @@ rm rule <id>
 ## basetrades
 
 ```
-ls basetrades
+ls basetrades [al]
     the basetrades in config order, with
     the current price of each stock and its
-    change % from the buying price; below
-    it each alert's price per stock, a !
-    when the price is past it
+    change % from the buying price; with
+    al, below it each alert's price per
+    stock, a ! when the price is past it
 
 add basetrade <stock> price <price>
   count <count>
@@ -130,7 +130,7 @@ rm basetrade <stock>
 ls alerts
     the saved alerts and whether the alerts
     process checks them; the levels per
-    stock are in 'ls basetrades'
+    stock are in 'ls basetrades al'
 
 add alert basetrades <down|up> <n> percent
     a Telegram message each time the price
