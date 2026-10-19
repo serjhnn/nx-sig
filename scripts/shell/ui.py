@@ -17,9 +17,9 @@
 #
 # shared helpers:
 #   width()            the output width now
-#   terminal_config()  config.json "terminal"
 #   width_setting(), theme_setting()
-#                      (setting, where it comes from)
+#                      (setting, where it comes from),
+#                      from config.py
 #   theme()            colored or plain
 #   setting_problems() lines about settings that are
 #                      not used as they are
@@ -49,24 +49,29 @@ import shutil
 import sys
 import textwrap
 
+from config import (
+    DEFAULT_THEME,
+    DEFAULT_WIDTH,
+    THEMES,
+    theme,
+    theme_setting,
+    width_setting,
+)
 from storage import (
     Stock,
     TradeType,
-    config,
     trades_total_get,
 )
 from trade_engine import get_latest_prices
 
-# the width the tables are made for, the width of the
+# DEFAULT_WIDTH (config.py), the width the tables are
+# made for, the width of the
 # 'ls trades <stock>' table, so it fits a phone screen;
 # it is also the narrowest: the xtop table has only one
 # space between its columns
-DEFAULT_WIDTH = 48
 MIN_WIDTH = DEFAULT_WIDTH
 # so a table on a wide screen isn't spread thin
 MAX_GAP_GROWTH = 4
-THEMES = ("colored", "plain")
-DEFAULT_THEME = "colored"
 
 # 256-color gradient, one per logo line, top to bottom:
 # light blue -> dark green
@@ -87,36 +92,6 @@ PROMPT_COLOR = LOGO_COLORS[2]  # teal from the logo gradient
 RULE_COLOR = LOGO_COLORS[
     -1
 ]  # dark green, the last color of the logo gradient
-
-
-def terminal_config():
-    """the "terminal" settings of config.json"""
-    section = config.get("terminal")
-    return section if isinstance(section, dict) else {}
-
-
-def _setting(key, default):
-    """(setting, where it comes from): config.json or
-    the default"""
-    section = terminal_config()
-    if key in section:
-        return section[key], "config.json"
-    return default, "default"
-
-
-def width_setting():
-    return _setting("width", DEFAULT_WIDTH)
-
-
-def theme_setting():
-    return _setting("theme", DEFAULT_THEME)
-
-
-def theme():
-    """colored or plain; an unknown setting is the
-    default"""
-    setting = str(theme_setting()[0]).strip().lower()
-    return setting if setting in THEMES else DEFAULT_THEME
 
 
 def _width_wanted():

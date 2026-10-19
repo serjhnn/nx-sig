@@ -34,6 +34,7 @@ os.environ["NO_COLOR"] = "1"
 
 import alerts
 import chart
+import config
 import ladder
 import notifier
 import process
@@ -150,10 +151,10 @@ class ShellTest(unittest.TestCase):
         # the tables are pinned at the default width,
         # and theme, whatever config.json says
         # (test_width and test_theme change them)
-        config_patch = mock.patch.dict(storage.config)
+        config_patch = mock.patch.dict(config.DATA)
         config_patch.start()
         self._patches.append(config_patch)
-        storage.config.pop("terminal", None)
+        config.DATA.pop("terminal", None)
         self.shell = NxSigShell()
 
     def tearDown(self):
@@ -1766,7 +1767,7 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(width(), 48)
         self.assertEqual(ui.setting_problems(), [])
         with mock.patch.dict(
-            ui.config, {"terminal": {"width": 60}}
+            config.DATA, {"terminal": {"width": 60}}
         ):
             self.assertEqual(width(), 60)
             # .env has no say
@@ -1775,7 +1776,7 @@ class ShellTest(unittest.TestCase):
             ):
                 self.assertEqual(width(), 60)
         auto = mock.patch.dict(
-            ui.config, {"terminal": {"width": "auto"}}
+            config.DATA, {"terminal": {"width": "auto"}}
         )
         with auto, mock.patch.dict(
             os.environ, {"COLUMNS": "90"}
@@ -1791,7 +1792,7 @@ class ShellTest(unittest.TestCase):
                 ["the terminal is 40 wide, using 48"],
             )
         with mock.patch.dict(
-            ui.config, {"terminal": {"width": 30}}
+            config.DATA, {"terminal": {"width": 30}}
         ):
             self.assertEqual(width(), 48)
             self.assertEqual(
@@ -1803,7 +1804,7 @@ class ShellTest(unittest.TestCase):
                 NxSigShell().intro,
             )
         with mock.patch.dict(
-            ui.config, {"terminal": {"width": "wide"}}
+            config.DATA, {"terminal": {"width": "wide"}}
         ):
             self.assertEqual(width(), 48)
             self.assertEqual(
@@ -1821,7 +1822,7 @@ class ShellTest(unittest.TestCase):
         )
         self.run_cmd("add ladder SOXL down 10 from 100")
         with mock.patch.dict(
-            storage.config, {"terminal": {"width": 80}}
+            config.DATA, {"terminal": {"width": 80}}
         ):
             # run_cmd checks that every line fits 80
             status = self.lines("status")
@@ -1870,7 +1871,7 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(xtop[1], "-" * 48)
         with mock.patch.dict(
-            storage.config, {"terminal": {"width": 80}}
+            config.DATA, {"terminal": {"width": 80}}
         ):
             xtop = _xtop_lines(
                 self.prices, None, None, 5, False
@@ -1903,7 +1904,7 @@ class ShellTest(unittest.TestCase):
         # pinned with 9 rows, config "terminal"
         # "chart_height"
         with mock.patch.dict(
-            trade_engine.config,
+            config.DATA,
             {"terminal": {"chart_height": 9}},
         ):
             out = self.lines("chart soxl")
@@ -2076,7 +2077,7 @@ class ShellTest(unittest.TestCase):
                 self.lines("test NOTIFY Alert"),
                 ["sent a test alert message (telegram)"],
             )
-        stock = storage.config["indices"][0]
+        stock = config.indices()[0]
         self.assertEqual(
             sent,
             [
@@ -2206,7 +2207,8 @@ class ShellTest(unittest.TestCase):
             os.environ.pop("NO_COLOR")
             self.assertTrue(ui.supports_color())
             with mock.patch.dict(
-                ui.config, {"terminal": {"theme": "plain"}}
+                config.DATA,
+                {"terminal": {"theme": "plain"}},
             ):
                 self.assertFalse(ui.supports_color())
                 self.assertEqual(
@@ -2217,7 +2219,7 @@ class ShellTest(unittest.TestCase):
                 os.environ["NX_THEME"] = "colored"
                 self.assertFalse(ui.supports_color())
         with mock.patch.dict(
-            ui.config, {"terminal": {"theme": "dark"}}
+            config.DATA, {"terminal": {"theme": "dark"}}
         ):
             self.assertEqual(ui.theme(), "colored")
             self.assertEqual(
@@ -2491,8 +2493,14 @@ class ConfigTest(unittest.TestCase):
             self.file = json.load(f)
 
     def test_scripts_read_it(self):
-        self.assertEqual(storage.config, self.file)
-        self.assertEqual(trade_engine.config, self.file)
+        self.assertEqual(config.DATA, self.file)
+        self.assertEqual(
+            storage.DB_DIR, config.storage_dir()
+        )
+        self.assertEqual(
+            [s.name for s in storage.Stock],
+            self.file["indices"],
+        )
         self.assertTrue(self.file["indices"])
         for name in self.file["indices"]:
             self.assertIsInstance(name, str)
@@ -2531,7 +2539,7 @@ class ConfigTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {"COLUMNS": "80"}):
             self.assertEqual(ui.setting_problems(), [])
         self.assertEqual(
-            chart.chart_rows(), terminal["chart_height"]
+            config.chart_height(), terminal["chart_height"]
         )
 
 

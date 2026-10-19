@@ -4,9 +4,6 @@
 #   python scripts/process.py   run the tests
 #
 # public functions:
-#   interval(key)
-#       config "timing" key, in seconds (default
-#       DEFAULT_INTERVAL)
 #   spawn(args, out_path)
 #       start python <args> in the background, holding
 #       the Termux wake lock; return the Popen
@@ -36,27 +33,17 @@ import tasks_owner
 from storage import (
     ROOT_DIR,
     alerts_status_get,
-    config,
     ladder_status_get,
     ladders_get_all,
     mtsig_pid_get,
 )
 
-DEFAULT_INTERVAL = 30
 # how long start() watches for a crash at start
 START_CHECK_SECONDS = 2
 # how long stop() waits for SIGTERM before SIGKILL
 STOP_WAIT_SECONDS = 10
 LOG_MAX_BYTES = 200_000
 LOG_BACKUP_COUNT = 2
-
-
-def interval(key):
-    """config "timing" key, in seconds"""
-    timing = config.get("timing")
-    if not isinstance(timing, dict):
-        timing = {}
-    return timing.get(key, DEFAULT_INTERVAL)
 
 
 def spawn(args, out_path):
@@ -196,35 +183,12 @@ def setup_logging(path):
 
 if __name__ == "__main__":
     import unittest
-    from unittest import mock
 
     class ProcessTest(unittest.TestCase):
         def test_process_runs(self):
             pid = os.getpid()
             self.assertTrue(process_runs(pid, "process.py"))
             self.assertFalse(process_runs(pid, "other.py"))
-
-        def test_interval(self):
-            for timing in ({}, None, [30], {"other": 5}):
-                with mock.patch.dict(
-                    config, {"timing": timing}
-                ):
-                    self.assertEqual(
-                        interval("ladder_interval"),
-                        DEFAULT_INTERVAL,
-                    )
-            with mock.patch.dict(
-                config, {"timing": {"alert_interval": 5}}
-            ):
-                self.assertEqual(
-                    interval("alert_interval"), 5
-                )
-            with mock.patch.dict(config):
-                config.pop("timing", None)
-                self.assertEqual(
-                    interval("ladder_interval"),
-                    DEFAULT_INTERVAL,
-                )
 
         def test_last_line(self):
             import tempfile

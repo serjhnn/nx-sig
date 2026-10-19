@@ -15,20 +15,15 @@
 
 import importlib
 
-from storage import config
+import config
 
 CHANNELS = {
     "telegram": "telegram_notify",
     "termux": "termux_notify",
 }
 
-NAME = config.get("notify", "telegram")
-if NAME not in CHANNELS:
-    raise ValueError(
-        'config.json "notify" must be '
-        + " or ".join(f'"{n}"' for n in CHANNELS)
-        + f", not {NAME!r}"
-    )
+# config.notify() raises ValueError for another name
+NAME = config.notify()
 channel = importlib.import_module(CHANNELS[NAME])
 
 
@@ -63,7 +58,7 @@ if __name__ == "__main__":
             import sys
 
             with mock.patch.dict(
-                config, {"notify": "mail"}
+                config.DATA, {"notify": "mail"}
             ), mock.patch.dict(sys.modules):
                 sys.modules.pop("notifier", None)
                 with self.assertRaises(ValueError) as e:

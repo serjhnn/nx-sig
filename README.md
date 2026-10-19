@@ -435,6 +435,7 @@ nx-sig/
     │   ├── mail_reader.py    IMAP IDLE watcher with reconnects
     │   └── order_parser.py   reads an order from a broker email
     ├── shell_test.py     tests of the shell commands
+    ├── config.py         reads config.json once, typed settings with defaults
     ├── storage.py        trades, totals, rules and mail broker state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
     ├── ladder.py         price-step alerts, one process each
@@ -457,6 +458,7 @@ nx-sig/
 ## Tests
 
 ```bash
+python scripts/config.py         # config.json settings and defaults
 python scripts/storage.py        # trades, totals, rules, locking
 python scripts/mtsig/order_parser.py  # order email parsing
 python scripts/ladder.py         # ladder levels

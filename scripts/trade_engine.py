@@ -19,7 +19,6 @@
 #       endpoint (config "bars_url"); timeframe is e.g.
 #       1Hour or 1Day
 
-import json
 import os
 import threading
 from datetime import datetime, timedelta, timezone
@@ -27,20 +26,10 @@ from datetime import datetime, timedelta, timezone
 import requests
 from dotenv import load_dotenv
 
-# config.json and .env live in the repo root, one level
-# above scripts/
-ROOT_DIR = os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))
-)
+import config
 
-load_dotenv(os.path.join(ROOT_DIR, ".env"))
-with open(os.path.join(ROOT_DIR, "config.json")) as f:
-    config = json.load(f)
+load_dotenv(os.path.join(config.ROOT_DIR, ".env"))
 
-
-BARS_URL = config.get(
-    "bars_url", "https://data.alpaca.markets/v2/stocks/bars"
-)
 # the free plan's historical bars: the sip feed without
 # its newest 15 minutes (there is no delayed_sip feed for
 # bars); config "bars_feed" (e.g. iex) chooses another
@@ -95,10 +84,10 @@ def _poll(interval, stop_event, on_update, on_error):
 
 def _latest_prices(headers):
     response = requests.get(
-        config["url"],
+        config.url(),
         params={
-            "symbols": ",".join(config["indices"]),
-            "feed": config["feed"],
+            "symbols": ",".join(config.indices()),
+            "feed": config.feed(),
         },
         headers=headers,
         timeout=15,
@@ -108,7 +97,7 @@ def _latest_prices(headers):
     trades = response.json()["trades"]
     return {
         index: trades[index]["p"]
-        for index in config["indices"]
+        for index in config.indices()
         if index in trades
     }
 
@@ -118,23 +107,20 @@ def get_bars(symbol, days, timeframe):
 
 
 def _bars(headers, symbol, days, timeframe):
-    feed = config.get("bars_feed") or config["feed"]
-    if feed == "delayed_sip":
-        feed = "sip"
     end = datetime.now(timezone.utc) - BARS_DELAY
     params = {
         "symbols": symbol,
         "timeframe": timeframe,
         "start": _iso(end - timedelta(days=days)),
         "end": _iso(end),
-        "feed": feed,
+        "feed": config.bars_feed(),
         "adjustment": "split",
         "limit": 10000,
     }
     bars = []
     while True:
         response = requests.get(
-            BARS_URL,
+            config.bars_url(),
             params=params,
             headers=headers,
             timeout=15,

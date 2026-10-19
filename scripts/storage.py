@@ -80,25 +80,17 @@ from datetime import datetime
 from enum import Enum
 import json
 
+import config
+
 try:
     import fcntl
 except ImportError:  # Windows
     fcntl = None
     import msvcrt
 
-# config.json, .env and data/ live in the repo root, one
-# level above scripts/
-ROOT_DIR = os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))
-)
-
-with open(os.path.join(ROOT_DIR, "config.json")) as f:
-    config = json.load(f)
-
-# storage_dir is relative to the repo root (or absolute)
-DB_DIR = os.path.normpath(
-    os.path.join(ROOT_DIR, config["storage_dir"])
-)
+# config.json, .env and data/ live in the repo root
+ROOT_DIR = config.ROOT_DIR
+DB_DIR = config.storage_dir()
 TRADE_FIELDNAMES = [
     "Id",
     "Date",
@@ -128,7 +120,7 @@ ALERT_FIELDNAMES = [
 ]
 
 # stocks are the "indices" listed in config.json
-Stock = Enum("Stock", config["indices"])
+Stock = Enum("Stock", config.indices())
 
 
 class TradeType(Enum):
@@ -494,7 +486,7 @@ def basetrades_get_all():
     for row in rows:
         row["Price"] = float(row["Price"])
         row["Count"] = int(row["Count"])
-    order = config["indices"]
+    order = config.indices()
     return sorted(
         rows,
         key=lambda r: (

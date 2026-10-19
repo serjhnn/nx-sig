@@ -24,6 +24,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: install packages
         run: pip install -r requirements.txt
+      - name: config
+        run: python scripts/config.py
       - name: storage
         run: python scripts/storage.py
       - name: order_parser

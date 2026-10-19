@@ -1,18 +1,11 @@
 import requests
-import json
 import os
 from dotenv import load_dotenv
 from rich import print
 
-# config.json and .env live in the repo root, one level
-# above scripts/
-ROOT_DIR = os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))
-)
+import config
 
-load_dotenv(os.path.join(ROOT_DIR, ".env"))
-with open(os.path.join(ROOT_DIR, "config.json")) as f:
-    config = json.load(f)
+load_dotenv(os.path.join(config.ROOT_DIR, ".env"))
 
 
 headers = {
@@ -24,10 +17,10 @@ headers = {
 }
 
 response = requests.get(
-    config["url"],
+    config.url(),
     params={
-        "symbols": ",".join(config["indices"]),
-        "feed": config["feed"],
+        "symbols": ",".join(config.indices()),
+        "feed": config.feed(),
     },
     headers=headers,
     timeout=15,
@@ -44,6 +37,6 @@ print(
     "\n".join(
         f"[{name}]{index:5s}[/{name}]: "
         f"[{value}]{trades[index]['p']:.2f}[/{value}]"
-        for index in config["indices"]
+        for index in config.indices()
     )
 )

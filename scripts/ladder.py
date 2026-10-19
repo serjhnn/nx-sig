@@ -52,6 +52,7 @@ from datetime import datetime
 
 import requests
 
+import config
 import process
 import storage
 import tasks_owner
@@ -69,7 +70,7 @@ from notifier import notify
 
 SCRIPT = os.path.join(ROOT_DIR, "scripts", "ladder.py")
 DIRECTIONS = ("down", "up")
-INTERVAL = process.interval("ladder_interval")
+INTERVAL = config.interval("ladder_interval")
 # 'ls tasks' shows a ladder as 'no reply' when its
 # heartbeat is older than this
 STALE_SECONDS = max(3 * INTERVAL, 120)

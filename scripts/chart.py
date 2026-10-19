@@ -43,14 +43,13 @@
 #   chart_lines(stock, period, bars, width, avg=None,
 #               trades=(), colors=None, rows=None)
 #       the lines of the chart of bars, rows price rows
-#       (chart_rows() by default)
-#   chart_rows()
-#       the number of price rows of config
-#       "terminal" "chart_height"
+#       (config.chart_height() by default, config
+#       "terminal" "chart_height")
 
 import bisect
 from datetime import datetime, timedelta
 
+import config
 import trade_engine
 from storage import (
     TradeType,
@@ -68,11 +67,6 @@ UNITS = {
     "month": 30,
     "months": 30,
 }
-# the number of price rows: config "terminal"
-# "chart_height", or
-# DEFAULT_ROWS when it is missing or less than MIN_ROWS
-DEFAULT_ROWS = 15
-MIN_ROWS = 3
 # room after the chart for ' avg'
 AVG_ROOM = 4
 # the room a date label takes, with a gap
@@ -166,20 +160,6 @@ def _trades(stock):
     return trades
 
 
-def chart_rows():
-    section = trade_engine.config.get("terminal")
-    if not isinstance(section, dict):
-        section = {}
-    rows = section.get("chart_height", DEFAULT_ROWS)
-    if (
-        isinstance(rows, int)
-        and not isinstance(rows, bool)
-        and rows >= MIN_ROWS
-    ):
-        return rows
-    return DEFAULT_ROWS
-
-
 def chart_lines(
     stock,
     period,
@@ -195,9 +175,9 @@ def chart_lines(
     None; trades [(time, 'B' or 'S', price)]; colors
     {'*', 'B', 'S', '.', 'dim', 'reset': escape code},
     None for plain text; rows the number of price
-    rows, chart_rows() by default"""
+    rows, config.chart_height() by default"""
     # the price rows are 0..height
-    height = (rows or chart_rows()) - 1
+    height = (rows or config.chart_height()) - 1
     days, text = period
     tf, bar_label = timeframe(days, plot_columns(width))
     prices = [p for _, p in bars]
@@ -392,22 +372,15 @@ if __name__ == "__main__":
         def setUp(self):
             # the layouts below are pinned with 9 rows
             patch = mock.patch.dict(
-                trade_engine.config,
+                config.DATA,
                 {"terminal": {"chart_height": 9}},
             )
             patch.start()
             self.addCleanup(patch.stop)
 
         def test_chart_rows(self):
-            self.assertEqual(chart_rows(), 9)
-            terminal = trade_engine.config["terminal"]
-            for bad in (2, "15", 15.0, True, None):
-                terminal["chart_height"] = bad
-                self.assertEqual(chart_rows(), 15, bad)
-            del terminal["chart_height"]
-            self.assertEqual(chart_rows(), 15)
-            trade_engine.config["terminal"] = None
-            self.assertEqual(chart_rows(), 15)
+            self.assertEqual(config.chart_height(), 9)
+            config.DATA["terminal"] = {}
             bars = hourly([10, 12, 14, 16, 18, 16, 14])
             lines = chart_lines(
                 "SOXL", (5, "5 days"), bars, 48
