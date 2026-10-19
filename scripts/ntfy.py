@@ -1,3 +1,5 @@
+# ntfy: a push notification through ntfy.sh
+
 import urllib.request
 import os
 from dotenv import load_dotenv

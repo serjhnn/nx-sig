@@ -1,3 +1,6 @@
+# latest_trade: prints the latest prices of config
+# "indices" once
+
 import requests
 import os
 from dotenv import load_dotenv

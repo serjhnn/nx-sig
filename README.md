@@ -413,6 +413,7 @@ nx-sig/
 ├── CODE_STYLE.md         code style rules
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg
+├── assets/modules.html  the module map, open it in a browser (generated)
 └── scripts/
     ├── commands.py       the shell: actions, help, collects the modules
     ├── shell/            the shell's commands, one module per feature
@@ -452,7 +453,8 @@ nx-sig/
     ├── termux_notify.py  Android notification through Termux:API
     ├── watch_notify.py   notes for a planned Garmin watch app
     ├── gen_docs.py       writes COMMANDS.md from the help texts
-    └── check_style.py    checks the code style rules and COMMANDS.md
+    ├── gen_deps.py       writes assets/modules.html from the imports
+    └── check_style.py    checks the code style rules and the generated files
 ```
 
 ## Tests
@@ -468,7 +470,7 @@ python scripts/tasks_owner.py    # which device runs the tasks
 python scripts/chart.py          # the price chart layout
 python scripts/shell_test.py     # every shell command, faked prices
 python scripts/sync.py           # device IDs, .stignore
-python scripts/check_style.py    # code style (line width), COMMANDS.md
+python scripts/check_style.py    # code style (line width), generated files
 ```
 
 GitHub Actions runs all of these on every push and pull request,

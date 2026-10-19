@@ -113,7 +113,10 @@ so fix what `check_style.py` still reports by hand.
   `COMMANDS.md` is made from the same texts: after
   changing one, run `python scripts/gen_docs.py`
   (`check_style.py` fails while `COMMANDS.md` is out
-  of date).
+  of date). The same for the module map: after
+  adding, removing or renaming an import or a module,
+  run `python scripts/gen_deps.py` to rewrite
+  `assets/modules.html`.
 
 ## Names
 

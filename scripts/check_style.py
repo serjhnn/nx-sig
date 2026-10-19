@@ -4,11 +4,12 @@
 #
 # without files it checks the python scripts (scripts/,
 # scripts/shell/ and scripts/mtsig/) and the shell
-# scripts of the repo, and that COMMANDS.md matches the
-# shell's help texts (scripts/gen_docs.py). prints
-# every line longer than MAX_WIDTH characters and exits
-# with 1 if there are any or COMMANDS.md is out of
-# date, so it can also run before a commit.
+# scripts of the repo, that COMMANDS.md matches the
+# shell's help texts (scripts/gen_docs.py) and that the
+# module map matches the imports (scripts/gen_deps.py).
+# prints every line longer than MAX_WIDTH characters
+# and exits with 1 if there are any or a generated file
+# is out of date, so it can also run before a commit.
 
 import os
 import sys
@@ -67,7 +68,7 @@ def main(paths):
         print(
             f"ok: all lines fit in {MAX_WIDTH} characters"
         )
-    docs_ok = paths or commands_md_ok()
+    docs_ok = paths or (commands_md_ok() & module_map_ok())
     return 0 if not found and docs_ok else 1
 
 
@@ -86,6 +87,21 @@ def commands_md_ok():
     print(
         "COMMANDS.md is out of date, run "
         "python scripts/gen_docs.py"
+    )
+    return False
+
+
+def module_map_ok():
+    """True if assets/modules.html matches the
+    imports of the code"""
+    import gen_deps
+
+    if gen_deps.up_to_date():
+        print("ok: assets/modules.html is up to date")
+        return True
+    print(
+        "assets/modules.html is out of date, run "
+        "python scripts/gen_deps.py"
     )
     return False
 

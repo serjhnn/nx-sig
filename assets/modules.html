@@ -1,0 +1,425 @@
+<!doctype html>
+<!-- the module map of nX-sig, open it in a browser.
+     the modules between BEGIN and END are written by
+     scripts/gen_deps.py from the code, the rest is
+     edited by hand -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nX-sig Module Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* layout: header + controls, then the layered graph (columns = import depth, left to right) beside a detail panel */
+:root {
+  --bg: #f3f7f6;
+  --surface: #ffffff;
+  --fg: #12201c;
+  --muted: #5a6c67;
+  --line: #cfdbd7;
+  --edge: #9fb3ad;
+  --accent: #00866a;      /* what the module imports */
+  --accent-soft: #d6efe8;
+  --user: #b06a00;        /* what imports the module */
+  --user-soft: #f6e6cc;
+  --g-core: #1d6f8f;
+  --g-engine: #2f7d4c;
+  --g-notify: #7656a8;
+  --g-mtsig: #9a6418;
+  --g-shell: #2d63b0;
+  --g-tools: #6b7874;
+  --g-tests: #8c8f8e;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1614; --surface: #16201d; --fg: #e3ece9; --muted: #93a6a0;
+    --line: #2a3833; --edge: #3f524c; --accent: #3fd3ae; --accent-soft: #143a31;
+    --user: #f0a93a; --user-soft: #3a2c12;
+    --g-core: #5fb8d9; --g-engine: #6cc98d; --g-notify: #b39ae6; --g-mtsig: #e0a552;
+    --g-shell: #7ea8ef; --g-tools: #9aa8a4; --g-tests: #7b807e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1614; --surface: #16201d; --fg: #e3ece9; --muted: #93a6a0;
+  --line: #2a3833; --edge: #3f524c; --accent: #3fd3ae; --accent-soft: #143a31;
+  --user: #f0a93a; --user-soft: #3a2c12;
+  --g-core: #5fb8d9; --g-engine: #6cc98d; --g-notify: #b39ae6; --g-mtsig: #e0a552;
+  --g-shell: #7ea8ef; --g-tools: #9aa8a4; --g-tests: #7b807e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--sans);
+  font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1600px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+h1 { font-family: var(--mono); font-weight: 600; font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+h1 span { color: var(--accent); }
+.stats { color: var(--muted); font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.search { font: 13px var(--mono); color: var(--fg); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 10px; width: 220px; max-width: 100%; }
+.search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+label.toggle { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; cursor: pointer; }
+label.toggle input { accent-color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+.legend svg { overflow: visible; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+@media (max-width: 960px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.graph-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.graph { position: relative; display: flex; gap: 46px; padding: 14px 18px 18px; width: max-content; }
+.graph svg.edges { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.col { display: flex; flex-direction: column; gap: 7px; position: relative; z-index: 1; }
+.col-head { font: 500 10.5px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.node {
+  font: 500 12.5px var(--mono); color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px 4px 8px; text-align: left;
+  cursor: pointer; display: flex; align-items: center; gap: 7px; white-space: nowrap;
+  transition: opacity .15s, background-color .15s, border-color .15s;
+}
+.node i { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--gc); }
+.node small { color: var(--muted); font-weight: 400; }
+.node:hover { border-color: var(--fg); }
+.node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.node.is-focus { border-color: var(--fg); box-shadow: 0 0 0 1px var(--fg); }
+.node.is-dep { background: var(--accent-soft); border-color: var(--accent); }
+.node.is-user { background: var(--user-soft); border-color: var(--user); }
+.node.is-match { box-shadow: 0 0 0 2px var(--accent); }
+.node.is-dim { opacity: .28; }
+path.e { fill: none; stroke: var(--edge); stroke-width: 1.1; opacity: .55; transition: opacity .15s; }
+path.e.dyn { stroke-dasharray: 4 3; }
+path.e.out { stroke: var(--accent); stroke-width: 1.8; opacity: 1; }
+path.e.in { stroke: var(--user); stroke-width: 1.8; opacity: 1; }
+path.e.dim { opacity: .08; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.panel h2 { font: 600 16px var(--mono); margin: 0; display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.panel h2 i { width: 10px; height: 10px; border-radius: 50%; background: var(--gc); flex: none; }
+.panel .path { font: 12px var(--mono); color: var(--muted); margin-top: 2px; }
+.panel p { margin: 0; }
+.panel h3 { font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 6px; }
+.panel h3 b { color: var(--fg); font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { font: 12px var(--mono); border-radius: 5px; padding: 2px 7px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--fg); }
+.chip.dep { border-color: var(--accent); }
+.chip.user { border-color: var(--user); }
+.chip.dynamic { border-style: dashed; }
+.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.none { color: var(--muted); font-size: 13px; }
+.totals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.totals div { border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; }
+.totals b { font: 600 18px var(--mono); display: block; font-variant-numeric: tabular-nums; }
+.totals span { font-size: 12px; color: var(--muted); }
+.hint { color: var(--muted); font-size: 13px; }
+.foot { color: var(--muted); font-size: 12.5px; max-width: 75ch; }
+.foot code { font-family: var(--mono); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>nX-sig <span>module map</span></h1>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="controls">
+    <input class="search" id="search" type="search" placeholder="find a module…" aria-label="Find a module" autocomplete="off">
+    <label class="toggle"><input type="checkbox" id="transitive"> all levels</label>
+    <label class="toggle"><input type="checkbox" id="tests"> show shell_test</label>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="main">
+    <div class="graph-wrap">
+      <div class="graph" id="graph">
+        <svg class="edges" id="edges" aria-hidden="true"></svg>
+      </div>
+    </div>
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </div>
+
+  <p class="foot">Columns are import depth: a module sits one column right of the deepest module it imports, so every arrow points left. Solid lines are <code>import</code> statements; dashed lines are modules loaded by name at run time (<code>importlib</code>): <code>commands</code> collects every <code>shell/*_cmd.py</code>, and <code>notifier</code> loads only the channel named by config.json <code>"notify"</code>. Written from the code by <code>python scripts/gen_deps.py</code>.</p>
+</div>
+
+<script>
+const GROUPS = {
+  core:   ["core",       "config, data, prices"],
+  engine: ["engines",    "background work"],
+  notify: ["notify",     "message channels"],
+  mtsig:  ["mtsig",      "mail broker"],
+  shell:  ["shell",      "commands"],
+  tools:  ["tools",      "scripts and docs"],
+  tests:  ["tests",      ""],
+};
+
+// id: [group, text, imports, loaded by name]
+// BEGIN modules, written by gen_deps.py
+const MODS = {
+  "alerts": ["engine", "Price alerts for the basetrades and the gain of the held stocks, checked by one background process", ["config", "notifier", "process", "storage", "tasks_owner", "trade_engine"], []],
+  "chart": ["engine", "A price chart for the terminal, one * per price, for the shell's 'chart' command", ["config", "storage", "trade_engine"], []],
+  "check_style": ["tools", "Check the code style rules of CODE_STYLE.md", ["gen_deps", "gen_docs"], []],
+  "commands": ["shell", "Interactive shell for nX-sig, started with ./nxshell", ["shell/chart_cmd", "shell/interface", "shell/notify_cmd", "shell/overview_cmd", "shell/terminal_cmd", "shell/ui"], ["shell/alert_cmd", "shell/base_trade_cmd", "shell/ladder_cmd", "shell/mail_cmd", "shell/rule_cmd", "shell/stocks_cmd", "shell/tasks_cmd", "shell/trade_cmd"]],
+  "config": ["core", "Reads config.json once, at the first import, and gives every module its settings through typed accessors with their defaults", [], []],
+  "gen_deps": ["tools", "Writes the module map, assets/modules.html, from the imports of the code, so the map and the code say the same", [], []],
+  "gen_docs": ["tools", "Writes COMMANDS.md from the help texts of the shell, so the docs and 'help' say the same", ["commands", "storage"], []],
+  "ladder": ["engine", "Price-step alerts for one stock, every ladder runs as its own process", ["config", "notifier", "process", "storage", "tasks_owner", "trade_engine"], []],
+  "latest_trade": ["tools", "Prints the latest prices of config \"indices\" once", ["config"], []],
+  "metrics": ["tools", "The metrics engine of nX-sig", [], []],
+  "notifier": ["notify", "Sends the ladder and alert messages through the channel of config.json \"notify\"", ["config"], ["telegram_notify", "termux_notify"]],
+  "ntfy": ["tools", "A push notification through ntfy.sh", [], []],
+  "process": ["engine", "The helpers of the background processes (the ladders, the alerts, the mail broker)", ["storage", "tasks_owner"], []],
+  "shell_test": ["tests", "Tests of the nxshell commands", ["alerts", "chart", "commands", "config", "ladder", "notifier", "process", "shell/alert_cmd", "shell/overview_cmd", "shell/terminal_cmd", "shell/ui", "storage", "tasks_owner", "telegram_notify", "termux_notify", "trade_engine"], []],
+  "storage": ["core", "Reads and writes all nX-sig data in config \"storage_dir\" (csv files for trades, json files for rules and the watcher)", ["config"], []],
+  "sync": ["tools", "Keeps the data folder (config \"storage_dir\") the same on the phone (Termux) and the PC (Linux) with Syncthing", ["storage"], []],
+  "tasks_owner": ["engine", "Only one device runs the background tasks (the mail broker and the ladders)", ["storage"], []],
+  "telegram_notify": ["notify", "A message through a Telegram bot, the notify channel \"telegram\" of config.json (see notifier.py)", [], []],
+  "termux_notify": ["notify", "A message as an Android notification through Termux:API, the notify channel \"termux\" of config.json (see notifier.py)", [], []],
+  "trade_engine": ["core", "Polls the latest trades for config[\"indices\"] in a background thread", ["config"], []],
+  "watch_notify": ["tools", "Notification server for a Garmin watch", [], []],
+  "shell/alert_cmd": ["shell", "The shell side of the price alerts, the engine is scripts/alerts.py", ["alerts", "notifier", "shell/interface", "shell/ui", "tasks_owner"], []],
+  "shell/base_trade_cmd": ["shell", "The basetrades, the last price you bought each stock at", ["shell/alert_cmd", "shell/interface", "shell/ui", "storage"], []],
+  "shell/chart_cmd": ["shell", "The price of a stock over a period", ["chart", "shell/ui"], []],
+  "shell/interface": ["shell", "What a command module implements", [], []],
+  "shell/ladder_cmd": ["shell", "The shell side of the ladders, the engine is scripts/ladder.py", ["ladder", "notifier", "shell/interface", "shell/ui", "storage", "tasks_owner"], []],
+  "shell/mail_cmd": ["shell", "The shell side of the mail broker (order_watcher.py, started by ./mtsig)", ["process", "shell/interface", "shell/ui", "storage"], []],
+  "shell/notify_cmd": ["shell", "Sends a test message through the config \"notify\" channel (notifier.py)", ["notifier", "shell/ui"], []],
+  "shell/overview_cmd": ["shell", "The commands that span the features", ["shell/alert_cmd", "shell/mail_cmd", "shell/tasks_cmd", "shell/ui", "trade_engine"], []],
+  "shell/rule_cmd": ["shell", "Your personal trading rules", ["shell/interface", "shell/ui", "storage"], []],
+  "shell/stocks_cmd": ["shell", "The stocks you hold", ["shell/interface", "shell/ui"], []],
+  "shell/tasks_cmd": ["shell", "The background tasks, every one runs as its own process", ["shell/interface", "shell/ui", "tasks_owner"], []],
+  "shell/terminal_cmd": ["shell", "The terminal the shell runs in", ["shell/ui", "tasks_owner"], []],
+  "shell/trade_cmd": ["shell", "The trades, your buys and sells", ["shell/interface", "shell/ui", "storage"], []],
+  "shell/ui": ["shell", "The look of the shell and the helpers every command module shares", ["config", "storage", "trade_engine"], []],
+  "mtsig/mail_reader": ["mtsig", "Fetch and watch messages in an IMAP mailbox", [], []],
+  "mtsig/order_parser": ["mtsig", "Parse broker order emails", [], []],
+  "mtsig/order_watcher": ["mtsig", "Records broker order emails as trades", ["mtsig/mail_reader", "mtsig/order_parser", "process", "storage", "tasks_owner"], []],
+};
+// END modules
+const GROUP_ORDER = Object.keys(GROUPS);
+
+const $ = id => document.getElementById(id);
+const graph = $("graph"), svg = $("edges"), panel = $("panel");
+const state = { selected: null, hovered: null, transitive: false, tests: false, query: "" };
+let ids = [], edges = [], nodeEls = {}, edgeEls = [];
+
+function visible() {
+  return Object.keys(MODS).filter(id => state.tests || MODS[id][0] !== "tests");
+}
+const imports = id => MODS[id][2];
+const loads = id => MODS[id][3] || [];
+const allDeps = id => [...imports(id), ...loads(id)];
+const users = id => ids.filter(u => allDeps(u).includes(id));
+const label = id => id.includes("/") ? id.split("/")[1] : id;
+const prefix = id => id.includes("/") ? id.split("/")[0] + "/" : "";
+const fileOf = id => "scripts/" + id + ".py";
+
+function levels() {
+  const lv = {}, visiting = new Set();
+  let cycle = false;
+  const walk = id => {
+    if (id in lv) return lv[id];
+    if (visiting.has(id)) { cycle = true; return 0; }
+    visiting.add(id);
+    const d = allDeps(id).filter(x => ids.includes(x));
+    lv[id] = d.length ? 1 + Math.max(...d.map(walk)) : 0;
+    visiting.delete(id);
+    return lv[id];
+  };
+  ids.forEach(walk);
+  return { lv, cycle };
+}
+
+function closure(id, next) {
+  const seen = new Set(), stack = [...next(id)];
+  while (stack.length) {
+    const x = stack.pop();
+    if (seen.has(x) || !ids.includes(x)) continue;
+    seen.add(x);
+    stack.push(...next(x));
+  }
+  return seen;
+}
+
+function build() {
+  ids = visible();
+  edges = [];
+  ids.forEach(id => {
+    imports(id).forEach(d => ids.includes(d) && edges.push({ from: id, to: d, dyn: false }));
+    loads(id).forEach(d => ids.includes(d) && edges.push({ from: id, to: d, dyn: true }));
+  });
+  const { lv, cycle } = levels();
+  const depth = Math.max(...Object.values(lv));
+  const cols = Array.from({ length: depth + 1 }, () => []);
+  ids.forEach(id => cols[lv[id]].push(id));
+
+  // order: column 0 by group, later columns by where their imports sit
+  const pos = {};
+  cols.forEach((col, c) => {
+    col.sort((a, b) => {
+      const ga = GROUP_ORDER.indexOf(MODS[a][0]), gb = GROUP_ORDER.indexOf(MODS[b][0]);
+      if (c === 0) return ga - gb || a.localeCompare(b);
+      const bary = id => {
+        const p = allDeps(id).filter(d => d in pos).map(d => pos[d]);
+        return p.length ? p.reduce((s, v) => s + v, 0) / p.length : 99;
+      };
+      return ga - gb || bary(a) - bary(b) || a.localeCompare(b);
+    });
+    col.forEach((id, i) => pos[id] = i);
+  });
+
+  graph.querySelectorAll(".col").forEach(el => el.remove());
+  nodeEls = {};
+  cols.forEach((col, c) => {
+    const el = document.createElement("div");
+    el.className = "col";
+    el.innerHTML = `<div class="col-head">depth ${c}</div>`;
+    col.forEach(id => {
+      const b = document.createElement("button");
+      b.className = "node";
+      b.type = "button";
+      b.id = "n-" + id.replace("/", "-");
+      b.style.setProperty("--gc", `var(--g-${MODS[id][0]})`);
+      b.innerHTML = `<i></i><span>${prefix(id) ? `<small>${prefix(id)}</small>` : ""}${label(id)}</span>`;
+      b.addEventListener("mouseenter", () => { state.hovered = id; paint(); });
+      b.addEventListener("mouseleave", () => { state.hovered = null; paint(); });
+      b.addEventListener("focus", () => { state.hovered = id; paint(); });
+      b.addEventListener("blur", () => { state.hovered = null; paint(); });
+      b.addEventListener("click", () => select(state.selected === id ? null : id));
+      nodeEls[id] = b;
+      el.appendChild(b);
+    });
+    graph.appendChild(el);
+  });
+
+  $("stats").textContent =
+    `${ids.length} modules · ${edges.filter(e => !e.dyn).length} imports · ` +
+    `${edges.filter(e => e.dyn).length} loaded by name · ${depth + 1} levels · ` +
+    (cycle ? "has an import cycle" : "no cycles");
+  if (state.selected && !ids.includes(state.selected)) state.selected = null;
+  draw();
+}
+
+function draw() {
+  const g = graph.getBoundingClientRect();
+  svg.setAttribute("width", graph.scrollWidth);
+  svg.setAttribute("height", graph.scrollHeight);
+  svg.innerHTML = "";
+  edgeEls = edges.map(e => {
+    const a = nodeEls[e.from].getBoundingClientRect(), b = nodeEls[e.to].getBoundingClientRect();
+    const x1 = a.left - g.left, y1 = a.top + a.height / 2 - g.top;
+    const x2 = b.right - g.left, y2 = b.top + b.height / 2 - g.top;
+    const dx = Math.max(24, (x1 - x2) * 0.45);
+    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("d", `M${x1},${y1} C${x1 - dx},${y1} ${x2 + dx},${y2} ${x2},${y2}`);
+    p.setAttribute("class", "e" + (e.dyn ? " dyn" : ""));
+    svg.appendChild(p);
+    return p;
+  });
+  paint();
+}
+
+function paint() {
+  const f = state.hovered || state.selected;
+  const deps = f ? (state.transitive ? closure(f, allDeps) : new Set(allDeps(f))) : new Set();
+  const usr = f ? (state.transitive ? closure(f, users) : new Set(users(f))) : new Set();
+  const q = state.query;
+  ids.forEach(id => {
+    const el = nodeEls[id];
+    el.classList.toggle("is-focus", id === f);
+    el.classList.toggle("is-dep", deps.has(id));
+    el.classList.toggle("is-user", usr.has(id));
+    el.classList.toggle("is-dim", !!f && id !== f && !deps.has(id) && !usr.has(id));
+    el.classList.toggle("is-match", !!q && id.includes(q));
+    el.setAttribute("aria-pressed", id === state.selected);
+  });
+  edges.forEach((e, i) => {
+    const p = edgeEls[i];
+    if (!p) return;
+    const out = f && (state.transitive ? (e.from === f || deps.has(e.from)) && deps.has(e.to) : e.from === f);
+    const inn = f && (state.transitive ? (e.to === f || usr.has(e.to)) && usr.has(e.from) : e.to === f);
+    p.classList.toggle("out", !!out);
+    p.classList.toggle("in", !!inn && !out);
+    p.classList.toggle("dim", !!f && !out && !inn);
+  });
+  renderPanel(f);
+}
+
+function chips(list, cls) {
+  if (!list.length) return `<div class="none">none</div>`;
+  return `<div class="chips">${list.map(([id, extra]) =>
+    `<button type="button" class="chip ${cls} ${extra || ""}" data-go="${id}">${id}</button>`).join("")}</div>`;
+}
+
+function renderPanel(id) {
+  if (!id) {
+    const top = ids.map(x => [x, users(x).length]).sort((a, b) => b[1] - a[1]).slice(0, 4);
+    panel.innerHTML = `
+      <div><h3>How to read it</h3>
+      <p class="hint">Hover or click a module. <span style="color:var(--accent)">Green</span> marks what it imports, <span style="color:var(--user)">amber</span> marks the modules that import it. Turn on <b>all levels</b> to follow the chain to the end.</p></div>
+      <div><h3>Most imported</h3>${chips(top.map(([x, n]) => [x]), "")}
+      <p class="hint" style="margin-top:6px">${top.map(([x, n]) => `${label(x)} ${n}`).join(" · ")}</p></div>`;
+    bindChips();
+    return;
+  }
+  const [grp, desc] = MODS[id];
+  const imp = imports(id).filter(d => ids.includes(d)), dyn = loads(id).filter(d => ids.includes(d));
+  const usr = users(id);
+  const tDeps = closure(id, allDeps).size, tUsers = closure(id, users).size;
+  panel.innerHTML = `
+    <div>
+      <h2 style="--gc:var(--g-${grp})"><i></i>${label(id)}</h2>
+      <div class="path">${fileOf(id)} · ${GROUPS[grp][0]}</div>
+    </div>
+    <p>${desc}</p>
+    <div><h3>Imports <b>${imp.length}</b></h3>${chips(imp.map(x => [x]), "dep")}</div>
+    ${dyn.length ? `<div><h3>Loads by name <b>${dyn.length}</b></h3>${chips(dyn.map(x => [x, "dynamic"]), "dep")}</div>` : ""}
+    <div><h3>Imported by <b>${usr.length}</b></h3>${chips(usr.map(x => [x, loads(x).includes(id) ? "dynamic" : ""]), "user")}</div>
+    <div class="totals">
+      <div><b>${tDeps}</b><span>modules it needs, all levels</span></div>
+      <div><b>${tUsers}</b><span>modules that need it, all levels</span></div>
+    </div>
+    ${state.selected === id ? `<p class="hint">Click it again or press Esc to clear.</p>` : ""}`;
+  bindChips();
+}
+
+function bindChips() {
+  panel.querySelectorAll("[data-go]").forEach(c =>
+    c.addEventListener("click", () => { select(c.dataset.go); nodeEls[c.dataset.go].scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); }));
+}
+
+function select(id) { state.selected = id; state.hovered = null; paint(); }
+
+$("legend").innerHTML =
+  GROUP_ORDER.filter(g => g !== "tests").map(g => `<span class="key"><i style="background:var(--g-${g})"></i>${GROUPS[g][0]}</span>`).join("") +
+  `<span class="key"><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="4 3"/></svg>loaded by name</span>`;
+
+$("transitive").addEventListener("change", e => { state.transitive = e.target.checked; paint(); });
+$("tests").addEventListener("change", e => { state.tests = e.target.checked; build(); });
+$("search").addEventListener("input", e => { state.query = e.target.value.trim().toLowerCase(); paint(); });
+$("search").addEventListener("keydown", e => {
+  if (e.key !== "Enter" || !state.query) return;
+  const hit = ids.find(id => label(id).startsWith(state.query)) || ids.find(id => id.includes(state.query));
+  if (hit) { select(hit); nodeEls[hit].scrollIntoView({ block: "nearest", inline: "nearest" }); }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") select(null); });
+
+build();
+new ResizeObserver(() => draw()).observe(graph);
+document.fonts && document.fonts.ready.then(draw);
+</script>
+</body>
+</html>

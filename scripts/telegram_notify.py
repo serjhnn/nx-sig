@@ -1,3 +1,7 @@
+# telegram_notify: a message through a Telegram bot,
+# the notify channel "telegram" of config.json (see
+# notifier.py)
+
 import requests
 import os
 from dotenv import load_dotenv
