@@ -90,9 +90,8 @@ from storage import (
     alerts_status_get,
     alerts_status_set,
     Stock,
-    basetrades_get_all,
 )
-from engines import trades
+from engines import basetrades, trades
 from trade_engine import get_latest_prices
 from notifier import notify
 
@@ -522,7 +521,7 @@ def _check(alerts):
         return "no price", past_now
     past_now, messages = check(
         alerts,
-        basetrades_get_all(),
+        basetrades.get_all(),
         positions_get(),
         prices,
         past_now,

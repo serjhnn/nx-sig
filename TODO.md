@@ -71,10 +71,10 @@ In this order, before metrics and strategy add more:
      list, total); the totals math (`_total_apply`)
      moves there from `storage.py`~~ (done,
      `scripts/engines/trades.py`)
-   - `rule_cmd.py`: a `rules.py` engine (thin: list,
-     add, delete)
-   - `base_trade_cmd.py`: a `basetrades.py` engine
-     (thin)
+   - ~~`rule_cmd.py`: a `rules.py` engine (thin: list,
+     add, delete)~~ (done, `scripts/engines/rules.py`)
+   - ~~`base_trade_cmd.py`: a `basetrades.py` engine
+     (thin)~~ (done, `scripts/engines/basetrades.py`)
    - `ladder_cmd.py`: its reads (`ladder_get`,
      `ladders_get_all`, `ladder_status_get`) through
      `ladder.py`

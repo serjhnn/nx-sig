@@ -8,12 +8,8 @@
 # BaseTradeCommands implements them for the verb
 # commands of commands.py
 
-from storage import (
-    Stock,
-    basetrade_delete,
-    basetrade_set,
-    basetrades_get_all,
-)
+from engines import basetrades
+from engines.basetrades import Stock
 from shell.alert_cmd import print_basetrade_alerts
 from shell.interface import Commands
 from shell.ui import (
@@ -94,12 +90,11 @@ class BaseTradeCommands(Commands):
                 "count a whole number"
             )
             return
-        if price <= 0 or count <= 0:
-            print_error(
-                "error: price and count must be positive"
-            )
+        try:
+            replaced = basetrades.save(stock, price, count)
+        except basetrades.BaseTradeError as e:
+            print_error(f"error: {e}")
             return
-        replaced = basetrade_set(stock.name, price, count)
         print_wrapped(
             f"{'replaced' if replaced else 'added'} "
             f"basetrade of {stock.name}: {count} at "
@@ -117,14 +112,7 @@ class BaseTradeCommands(Commands):
             print_wrapped("usage: rm basetrade <stock>")
             return
         name = args[0].upper()
-        found = next(
-            (
-                b
-                for b in basetrades_get_all()
-                if b["Stock"] == name
-            ),
-            None,
-        )
+        found = basetrades.get(name)
         if found is None:
             print_error(
                 f"error: no basetrade of {name}, "
@@ -138,7 +126,7 @@ class BaseTradeCommands(Commands):
         ):
             print_wrapped("cancelled")
             return
-        basetrade_delete(name)
+        basetrades.delete(name)
         print_wrapped(f"deleted basetrade of {name}")
 
     def complete(self, action, args):
@@ -152,15 +140,15 @@ class BaseTradeCommands(Commands):
             ]
         if action == "rm":
             return [
-                [b["Stock"] for b in basetrades_get_all()]
+                [b["Stock"] for b in basetrades.get_all()]
             ]
         if action == "ls":
             return [["al"]]
         return []
 
     def _basetrades_show(self, alerts=False):
-        basetrades = basetrades_get_all()
-        if not basetrades:
+        found = basetrades.get_all()
+        if not found:
             print_wrapped(
                 "no basetrades yet, see 'help add "
                 "basetrade'"
@@ -191,7 +179,7 @@ class BaseTradeCommands(Commands):
             if color
             else separator
         )
-        for b in basetrades:
+        for b in found:
             current = prices.get(b["Stock"])
             name = f"{b['Stock']:<5.5}"
             qty = f"{b['Count']:>6}"
@@ -231,5 +219,5 @@ class BaseTradeCommands(Commands):
             )
         print()
         if alerts:
-            print_basetrade_alerts(basetrades, prices)
+            print_basetrade_alerts(found, prices)
             print()

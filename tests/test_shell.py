@@ -2267,8 +2267,10 @@ class ShellTest(unittest.TestCase):
 
         clean = [
             "alert_cmd.py",
+            "base_trade_cmd.py",
             "chart_cmd.py",
             "stocks_cmd.py",
+            "rule_cmd.py",
             "tasks_cmd.py",
             "trade_cmd.py",
         ]

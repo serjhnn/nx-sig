@@ -419,7 +419,9 @@ nx-sig/
 └── scripts/
     ├── commands.py       the shell: actions, help, collects the modules
     ├── engines/          the logic of each kind of data, used by the shell
-    │   └── trades.py         trades and their totals (count, average price)
+    │   ├── trades.py         trades and their totals (count, average price)
+    │   ├── rules.py          your personal rules
+    │   └── basetrades.py     the last buying price of each stock
     ├── shell/            the shell's commands, one module per feature
     │   ├── interface.py      Commands: what every *_cmd.py implements
     │   ├── ui.py             colors, width(), printing, parsers

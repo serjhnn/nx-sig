@@ -7,7 +7,7 @@
 
 import textwrap
 
-from storage import rules_add, rules_delete, rules_get_all
+from engines import rules
 from shell.interface import Commands
 from shell.ui import (
     DIM,
@@ -36,14 +36,14 @@ class RuleCommands(Commands):
         if arg.split():
             print_wrapped("usage: ls rules")
             return
-        rules = rules_get_all()
-        if not rules:
+        found = rules.get_all()
+        if not found:
             print_wrapped(
                 "no rules yet, add one with 'add rule "
                 "<rule>'"
             )
             return
-        _print_rules(rules)
+        _print_rules(found)
 
     def add(self, arg):
         """
@@ -55,7 +55,7 @@ class RuleCommands(Commands):
         if not rule:
             print_wrapped("usage: add rule <rule>")
             return
-        rule_id = rules_add(rule)
+        rule_id = rules.add(rule)
         print_wrapped(f"added rule {rule_id}")
 
     def rm(self, arg):
@@ -71,14 +71,7 @@ class RuleCommands(Commands):
         if rule_id is None:
             print_wrapped("usage: rm rule <id>")
             return
-        rule = next(
-            (
-                r
-                for r in rules_get_all()
-                if r["Id"] == rule_id
-            ),
-            None,
-        )
+        rule = rules.get(rule_id)
         if rule is None:
             print_error(
                 f"error: no rule {rule_id}, see 'ls rules'"
@@ -88,16 +81,16 @@ class RuleCommands(Commands):
         if not confirm(f"delete rule {rule_id}? [y/N] "):
             print_wrapped("cancelled")
             return
-        rules_delete(rule_id)
+        rules.delete(rule_id)
         print_wrapped(f"deleted rule {rule_id}")
 
     def complete(self, action, args):
         if action == "rm":
-            return [[str(r["Id"]) for r in rules_get_all()]]
+            return [[str(r["Id"]) for r in rules.get_all()]]
         return []
 
 
-def _print_rules(rules):
+def _print_rules(found):
     """the rules table: Id and Rule, long rules wrap
     inside the Rule column"""
     color = supports_color()
@@ -116,7 +109,7 @@ def _print_rules(rules):
     print(
         f"{DIM}{separator}{RESET}" if color else separator
     )
-    for rule in rules:
+    for rule in found:
         lines = textwrap.wrap(
             rule["Rule"],
             rule_width,
