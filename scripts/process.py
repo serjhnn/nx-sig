@@ -130,7 +130,7 @@ def release_if_idle(
     if (
         not alerts_ending
         and alerts
-        and process_runs(alerts, "alerts.py", "run")
+        and process_runs(alerts, "alert_service.py", "run")
     ):
         return
     wake_lock("termux-wake-unlock")

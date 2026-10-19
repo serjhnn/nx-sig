@@ -33,10 +33,9 @@ from unittest import mock
 os.environ["NO_COLOR"] = "1"
 
 import paths  # noqa: F401, scripts/ on sys.path
-import alerts
 import chart
 import config
-from engines import ladder
+from engines import alerts, ladder
 import notifier
 import process
 import requests
@@ -2306,7 +2305,8 @@ class ShellTest(unittest.TestCase):
         for name, other in (
             ("engines/ladder.py", "alerts"),
             ("services/ladder_service.py", "alerts"),
-            ("alerts.py", "engines.ladder"),
+            ("engines/alerts.py", "ladder"),
+            ("services/alert_service.py", "ladder"),
         ):
             with open(os.path.join(folder, name)) as f:
                 tree = ast.parse(f.read())

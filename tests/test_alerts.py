@@ -1,4 +1,5 @@
-# tests of scripts/alerts.py
+# tests of scripts/engines/alerts.py
+# and scripts/services/alert_service.py
 #
 #   python tests/test_alerts.py
 
@@ -10,11 +11,11 @@ from unittest import mock
 import paths  # noqa: F401, scripts/ on sys.path
 from storage import Stock, alerts_get_all
 import storage
-from alerts import (
+from services.alert_service import _check
+from engines.alerts import (
     AlertError,
-    _check,
     _now,
-    _status,
+    save_status,
     basetrade_levels,
     check,
     create,
@@ -247,9 +248,12 @@ class ProcessTest(unittest.TestCase):
         self.sent = []
         self.prices = {"MRVU": 89.0}
         for p in (
-            mock.patch("alerts.notify", self.sent.append),
             mock.patch(
-                "alerts.get_latest_prices",
+                "services.alert_service.notify",
+                self.sent.append,
+            ),
+            mock.patch(
+                "services.alert_service.get_latest_prices",
                 lambda: dict(self.prices),
             ),
         ):
@@ -267,7 +271,7 @@ class ProcessTest(unittest.TestCase):
         self.assertEqual(state, "waiting")
         self.assertEqual(len(self.sent), 1)
         self.assertEqual(past_now, {"1": {"MRVU": 100}})
-        _status(1, _now(), state, past_now)
+        save_status(1, _now(), state, past_now)
         # the next check knows it was sent
         _check(alerts_get_all())
         self.assertEqual(len(self.sent), 1)
@@ -297,7 +301,9 @@ class ProcessTest(unittest.TestCase):
 
         storage.basetrade_set("MRVU", 100.0, 1)
         create("basetrades", "down", 10)
-        with mock.patch("alerts.notify", fail):
+        with mock.patch(
+            "services.alert_service.notify", fail
+        ):
             state, past_now = _check(alerts_get_all())
         self.assertEqual(state, "no notify")
         self.assertEqual(past_now, {"1": {}})

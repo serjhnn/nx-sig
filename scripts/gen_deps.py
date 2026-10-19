@@ -53,7 +53,6 @@ ENGINES = {
     "tasks_owner",
     "process",
     "chart",
-    "alerts",
 }
 
 

@@ -1,9 +1,7 @@
-# alerts: price alerts for the basetrades and the gain
-# of the held stocks, checked by one background process
+# alerts: the alerts engine, price alerts for the
+# basetrades and the gain of the held stocks, checked by
+# one background process, services/alert_service.py
 #
-#   python scripts/alerts.py run    the process ('run
-#                                   alert' in the shell
-#                                   starts it)
 #   python tests/test_alerts.py     the tests
 #
 # an alert is a change from the buying price of every
@@ -66,17 +64,16 @@
 #       them over (the helpers are in process.py)
 #   status()
 #       its heartbeat, or None
-#   run()
-#       the process: check the prices and notify
+#   save_status(pid, started, state, past_now=None)
+#       write the heartbeat that 'ls tasks' shows
+#   log_path()
+#       the log file of the process
 
 import logging
 import os
 import signal
-import sys
 import time
 from datetime import datetime
-
-import requests
 
 import config
 import process
@@ -91,11 +88,12 @@ from storage import (
     alerts_status_set,
     Stock,
 )
-from engines import basetrades, trades
-from trade_engine import get_latest_prices
-from notifier import notify
+from engines import trades
 
-SCRIPT = os.path.join(ROOT_DIR, "scripts", "alerts.py")
+SERVICE = "alert_service.py"
+SCRIPT = os.path.join(
+    ROOT_DIR, "scripts", "services", SERVICE
+)
 TARGETS = ("basetrades", "gain")
 DIRECTIONS = ("down", "up")
 INTERVAL = config.interval("alert_interval")
@@ -357,9 +355,7 @@ def status():
 
 def running_pid():
     pid = (alerts_status_get() or {}).get("pid")
-    if pid and process.process_runs(
-        pid, "alerts.py", "run"
-    ):
+    if pid and process.process_runs(pid, SERVICE, "run"):
         return pid
     return None
 
@@ -385,7 +381,7 @@ def start(force=False):
     child = process.spawn([SCRIPT, "run"], _out_path())
     # so running_pid() knows it before the process writes
     # its first heartbeat
-    _status(child.pid, _now(), "starting")
+    save_status(child.pid, _now(), "starting")
     deadline = (
         time.monotonic() + process.START_CHECK_SECONDS
     )
@@ -396,7 +392,7 @@ def start(force=False):
                 "the alerts process stopped right after "
                 "starting: "
                 + process.last_line(
-                    [_out_path(), _log_path()]
+                    [_out_path(), log_path()]
                 )
             )
         time.sleep(0.2)
@@ -418,7 +414,7 @@ def stop():
         time.sleep(0.2)
     else:
         os.kill(pid, signal.SIGKILL)
-        _status(pid, None, "stopped")
+        save_status(pid, None, "stopped")
     process.release_if_idle()
     return True
 
@@ -429,7 +425,7 @@ def _out_path():
     )
 
 
-def _log_path():
+def log_path():
     return os.path.join(
         storage.DB_DIR, "logs", "alerts.log"
     )
@@ -439,7 +435,7 @@ def _now():
     return datetime.now().isoformat(timespec="seconds")
 
 
-def _status(pid, started, state, past_now=None):
+def save_status(pid, started, state, past_now=None):
     """write the heartbeat that 'ls tasks' shows, with
     the stocks past each alert"""
     previous = alerts_status_get() or {}
@@ -460,91 +456,3 @@ def _status(pid, started, state, past_now=None):
         )
     except Exception:
         log.exception("could not write the alerts status")
-
-
-# ---------------- the alerts process ----------------
-
-
-def run():
-    """check the prices every INTERVAL seconds and
-    notify each crossing, until SIGTERM or Ctrl+C"""
-    signal.signal(signal.SIGTERM, _stop_on_signal)
-    signal.signal(signal.SIGINT, signal.default_int_handler)
-    process.setup_logging(_log_path())
-    pid = os.getpid()
-    started = _now()
-    log.info("alerts starting, pid %s", pid)
-    _status(pid, started, "starting")
-    try:
-        while True:
-            if tasks_owner.lost():
-                log.warning(
-                    "%s took over the background "
-                    "tasks, alerts stop",
-                    tasks_owner.describe(
-                        tasks_owner.owner()
-                    ),
-                )
-                _status(pid, started, "taken over")
-                break
-            alerts = alerts_get_all()
-            if not alerts:
-                log.info("no alerts left, alerts end")
-                _status(pid, started, "done")
-                break
-            state, past_now = _check(alerts)
-            _status(pid, started, state, past_now)
-            time.sleep(INTERVAL)
-    except KeyboardInterrupt:
-        _status(pid, started, "stopped")
-        log.info("alerts stopped")
-    except Exception:
-        log.critical("alerts crashed", exc_info=True)
-        _status(pid, started, "crashed")
-        sys.exit(1)
-    finally:
-        process.release_if_idle(alerts_ending=True)
-
-
-def _check(alerts):
-    """one check of the prices; return (state, the
-    stocks past each alert)"""
-    past_now = (alerts_status_get() or {}).get("past") or {}
-    try:
-        prices = get_latest_prices()
-    except (
-        requests.RequestException,
-        KeyError,
-        ValueError,
-    ) as e:
-        log.warning("price request failed: %s", e)
-        return "no price", past_now
-    past_now, messages = check(
-        alerts,
-        basetrades.get_all(),
-        positions_get(),
-        prices,
-        past_now,
-    )
-    state = "waiting"
-    for alert_id, name, key, text in messages:
-        try:
-            notify(text)
-        except Exception as e:
-            # not saved as past, so it is sent again at
-            # the next check
-            log.warning("could not send %r: %s", text, e)
-            state = "no notify"
-            continue
-        past_now[str(alert_id)][name] = key
-        log.info("sent: %s", text)
-    return state, past_now
-
-
-def _stop_on_signal(signum, frame):
-    # handled like Ctrl+C: the heartbeat says 'stopped'
-    raise KeyboardInterrupt
-
-
-if __name__ == "__main__" and sys.argv[1:] == ["run"]:
-    run()

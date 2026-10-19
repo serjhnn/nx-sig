@@ -1,5 +1,5 @@
 # alert_cmd: the shell side of the price alerts, the
-# engine is scripts/alerts.py
+# engine is engines/alerts.py
 #
 #   add alert basetrades <down|up> <n> percent
 #   add alert gain <stock|all> <n> [percent]
@@ -15,9 +15,9 @@
 import textwrap
 from datetime import datetime
 
-import alerts
 import notifier
 import tasks_owner
+from engines import alerts
 from shell.interface import Commands
 from shell.ui import (
     BOLD,

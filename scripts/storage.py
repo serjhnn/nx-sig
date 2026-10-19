@@ -51,7 +51,8 @@
 #   alert_add(target, direction, percent=None,
 #             stock="", amount=None)
 #   alert_delete(alert_id)
-#       the price alerts of alerts.csv (see alerts.py)
+#       the price alerts of alerts.csv (see
+#       engines/alerts.py)
 #   alerts_status_get(), alerts_status_set(status)
 #       heartbeat of the alerts process (dict), with the
 #       stocks past each alert, in alerts_status.json

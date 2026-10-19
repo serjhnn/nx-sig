@@ -264,7 +264,7 @@ alerts started (pid 412)
 
 An alert is a change from the buying price of every basetrade: `down 10
 percent` is 90 for a basetrade bought at 100, and 18 for one bought at 20.
-One process (`scripts/alerts.py`) checks all alerts every `alert_interval`
+One process (`scripts/services/alert_service.py`) checks all alerts every `alert_interval`
 seconds (see `timing` above) and sends a message (see `notify`) each time a stock
 crosses the level, like `SOXL -10.5% at 17.90, bought at 20 (alert 1: down
 10%)`. `up` works the same way above the buying price.
@@ -422,9 +422,11 @@ nx-sig/
     │   ├── trades.py         trades and their totals (count, average price)
     │   ├── rules.py          your personal rules
     │   ├── basetrades.py     the last buying price of each stock
-    │   └── ladder.py         price-step alerts, starts their processes
+    │   ├── ladder.py         price-step alerts, starts their processes
+    │   └── alerts.py         basetrade and gain alerts, starts their process
     ├── services/         the background processes, <engine>_service.py
-    │   └── ladder_service.py one ladder's process: price, notify
+    │   ├── ladder_service.py one ladder's process: price, notify
+    │   └── alert_service.py  the alerts process, one for all alerts
     ├── shell/            the shell's commands, one module per feature
     │   ├── interface.py      Commands: what every *_cmd.py implements
     │   ├── ui.py             colors, width(), printing, parsers
@@ -447,7 +449,6 @@ nx-sig/
     ├── config.py         reads config.json once, typed settings with defaults
     ├── storage.py        trades, rules and mail broker state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
-    ├── alerts.py         basetrade and gain alerts, one process for all
     ├── process.py        the helpers of the background processes
     ├── chart.py          the price chart of 'chart'
     ├── tasks_owner.py    one device runs the background tasks
