@@ -48,7 +48,7 @@ END = "// END modules\n"
 
 # the folders and the notify channels give the other
 # groups, every module left is a tool
-CORE = {"config", "storage", "trade_engine"}
+CORE = {"config", "storage"}
 ENGINES = {
     "tasks_owner",
     "process",

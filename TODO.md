@@ -58,7 +58,8 @@ In this order, before metrics and strategy add more:
 7. **One engine per kind of data**: a `*_cmd.py` file
    only reads the command, calls one engine function
    and prints the result; only engines import
-   `storage` and `trade_engine`, and `storage.py` stays
+   `storage` (and only `engines/prices.py` requests
+   the prices), and `storage.py` stays
    the only file that reads and writes the data files.
    So a bot, a web page or the setup wizard can use the
    same functions, and the shell tests fake one
@@ -81,12 +82,13 @@ In this order, before metrics and strategy add more:
    - `mail_cmd.py`: `mtsig_pid_get` and
      `watcher_status_get` through a small mail broker
      function (e.g. in `mtsig/`)
-   - `overview_cmd.py`: `config` and `start_polling`
-     through the engines (the gain alert settings, the
-     xtop prices)
-   - `ui.py`: `fetch_prices` calls a `trade_engine`
-     function through an engine, not directly
-     (`held_positions` uses `trades.total`)
+   - `overview_cmd.py`: `config` through the engines
+     (the gain alert settings); ~~`start_polling`~~
+     (done, `scripts/engines/prices.py`)
+   - ~~`ui.py`: `fetch_prices` calls a `trade_engine`
+     function through an engine, not directly~~ (done,
+     `scripts/engines/prices.py`; `held_positions`
+     uses `trades.total`)
    - last: the test checks every `*_cmd.py` and
      `ui.py`
 

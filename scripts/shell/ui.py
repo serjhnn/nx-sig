@@ -59,7 +59,7 @@ from config import (
 )
 from engines import trades
 from storage import Stock, TradeType
-from trade_engine import get_latest_prices
+from engines.prices import get_latest_prices
 
 # DEFAULT_WIDTH (config.py), the width the tables are
 # made for, the width of the

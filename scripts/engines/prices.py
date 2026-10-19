@@ -1,5 +1,7 @@
-# trade engine: polls the latest trades for
-# config["indices"] in a background thread
+# prices: the prices engine, the market prices of
+# config["indices"] from Alpaca (the latest trade of
+# each, and their bars), once or polled in a background
+# thread; the only module that requests prices
 #
 # public functions:
 #   start_polling(interval=5, on_update=print, on_error=...)
@@ -37,7 +39,7 @@ BARS_DELAY = timedelta(minutes=16)
 
 
 def _print_error(e):
-    print(f"trade engine: request failed: {e}")
+    print(f"prices: request failed: {e}")
 
 
 def start_polling(

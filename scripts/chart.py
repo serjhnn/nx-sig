@@ -4,7 +4,7 @@
 #   python tests/test_chart.py   the tests
 #
 # stock_chart() is what the shell calls: it gets the
-# bars (trade_engine.get_bars), the average buy price
+# bars (prices.get_bars), the average buy price
 # and the trades (storage) and draws them. the drawing
 # itself, chart_lines(), has no network and no files.
 #
@@ -50,7 +50,7 @@ import bisect
 from datetime import datetime
 
 import config
-import trade_engine
+from engines import prices
 from engines import trades
 from engines.trades import TradeType
 
@@ -126,7 +126,7 @@ def stock_chart(stock, period, width, colors=None):
     with its average buy price and trades"""
     days, _ = period
     tf, _ = timeframe(days, plot_columns(width))
-    bars = trade_engine.get_bars(stock.name, days, tf)
+    bars = prices.get_bars(stock.name, days, tf)
     if not bars:
         return []
     count, avg = trades.total(stock)

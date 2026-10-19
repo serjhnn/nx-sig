@@ -420,6 +420,7 @@ nx-sig/
     ├── commands.py       the shell: actions, help, collects the modules
     ├── engines/          the logic of each kind of data, used by the shell
     │   ├── trades.py         trades and their totals (count, average price)
+    │   ├── prices.py         market prices from Alpaca (one-off and polling)
     │   ├── rules.py          your personal rules
     │   ├── basetrades.py     the last buying price of each stock
     │   ├── ladder.py         price-step alerts, starts their processes
@@ -448,7 +449,6 @@ nx-sig/
     │   └── order_parser.py   reads an order from a broker email
     ├── config.py         reads config.json once, typed settings with defaults
     ├── storage.py        trades, rules and mail broker state on disk
-    ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
     ├── process.py        the helpers of the background processes
     ├── chart.py          the price chart of 'chart'
     ├── tasks_owner.py    one device runs the background tasks

@@ -14,7 +14,7 @@ import queue
 import sys
 from datetime import datetime
 
-from trade_engine import start_polling
+from engines.prices import start_polling
 from shell.ui import (
     BOLD,
     BUY_COLOR,

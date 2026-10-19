@@ -9,7 +9,7 @@
 # started and nothing is sent. every printed line is
 # also checked to fit width().
 #
-# the fakes replace the engines (trade_engine, ladder,
+# the fakes replace the engines (prices, ladder,
 # subprocess, the .env keys), not names inside the
 # shell, so they work wherever the shell code lives.
 #
@@ -35,7 +35,7 @@ os.environ["NO_COLOR"] = "1"
 import paths  # noqa: F401, scripts/ on sys.path
 import chart
 import config
-from engines import alerts, ladder
+from engines import alerts, ladder, prices
 import notifier
 import process
 import requests
@@ -47,7 +47,6 @@ import storage
 import tasks_owner
 import telegram_notify
 import termux_notify
-import trade_engine
 from commands import NxSigShell
 from engines import trades
 from shell.alert_cmd import gain_alert_lines
@@ -56,7 +55,7 @@ from shell.ui import width
 
 FAKE_PID = 4242
 # the real bars request, setUp fakes it
-REAL_BARS = trade_engine._bars
+REAL_BARS = prices._bars
 # another device that runs the background tasks
 OTHER_OWNER = {
     "id": "other",
@@ -95,15 +94,15 @@ class ShellTest(unittest.TestCase):
             ),
             # the API keys and the request
             mock.patch.object(
-                trade_engine, "_headers", lambda: {}
+                prices, "_headers", lambda: {}
             ),
             mock.patch.object(
-                trade_engine,
+                prices,
                 "_latest_prices",
                 lambda headers: dict(self.prices),
             ),
             mock.patch.object(
-                trade_engine, "_bars", self._fake_bars
+                prices, "_bars", self._fake_bars
             ),
             # Telegram, whatever config.json "notify"
             # is, set up but never called
@@ -480,7 +479,7 @@ class ShellTest(unittest.TestCase):
             raise KeyError("APCA_API_KEY_ID")
 
         with mock.patch.object(
-            trade_engine, "_headers", missing_key
+            prices, "_headers", missing_key
         ):
             out = self.lines("ls stocks")
         self.assertEqual(
@@ -1969,7 +1968,7 @@ class ShellTest(unittest.TestCase):
             raise KeyError("APCA_API_KEY_ID")
 
         with mock.patch.object(
-            trade_engine, "_headers", missing_key
+            prices, "_headers", missing_key
         ):
             self.assertEqual(
                 self.lines("chart SOXL"),
@@ -2022,7 +2021,7 @@ class ShellTest(unittest.TestCase):
             return response
 
         with mock.patch.object(
-            trade_engine.requests, "get", fake_get
+            prices.requests, "get", fake_get
         ):
             bars = REAL_BARS({}, "SOXL", 5, "1Hour")
         first = datetime(
@@ -2258,10 +2257,10 @@ class ShellTest(unittest.TestCase):
     # ---------------- the command modules ----------------
 
     def test_cmd_files_use_engines(self):
-        # these *_cmd.py files reach the data and the
-        # prices only through engines, never storage or
-        # trade_engine; the others follow (TODO.md, "One
-        # engine per kind of data")
+        # these *_cmd.py files reach the data only
+        # through engines, never storage; the others
+        # follow (TODO.md, "One engine per kind of
+        # data")
         import ast
 
         clean = [
@@ -2292,7 +2291,7 @@ class ShellTest(unittest.TestCase):
                         (node.module or "").split(".")[0]
                     )
             self.assertFalse(
-                imported & {"storage", "trade_engine"},
+                imported & {"storage"},
                 f"{name} imports {imported}",
             )
 
