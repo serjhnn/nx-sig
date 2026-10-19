@@ -432,6 +432,7 @@ nx-sig/
     │   ├── notifier.py       sends through the chosen channel
     │   ├── telegram_notify.py message through a Telegram bot
     │   ├── termux_notify.py  Android notification through Termux:API
+    │   ├── ntfy_notify.py    push notification through ntfy.sh
     │   └── watch_notify.py   notes for a planned Garmin watch app
     ├── shell/            the shell's commands, one module per feature
     │   ├── interface.py      Commands: what every *_cmd.py implements
@@ -460,7 +461,6 @@ nx-sig/
     ├── sync.py           syncs data/ between phone and PC (Syncthing)
     ├── metrics.py        metrics engine: statistics of your actions (planned)
     ├── latest_trade.py   prints the latest prices once
-    ├── ntfy.py           push notification through ntfy.sh
     ├── gen_docs.py       writes COMMANDS.md from the help texts
     ├── gen_deps.py       writes assets/modules.html from the imports
     └── check_style.py    checks the code style rules and the generated files

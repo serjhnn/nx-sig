@@ -7,7 +7,7 @@ that run in the background, and show it in the names:
 
 - **`nx` prefix: the shell and user interaction**
   - `nxshell` (the shell, `scripts/commands.py`)
-  - the notifiers (`ntfy.py`, `telegram_notify.py`,
+  - the notifiers (`ntfy_notify.py`, `telegram_notify.py`,
     the planned Garmin watch notifications)
 - **`mtsig`: mail trades service**
   - ~~rename `watcher` to `mtsig`~~ (done)
