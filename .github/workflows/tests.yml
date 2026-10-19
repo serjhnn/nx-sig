@@ -25,27 +25,27 @@ jobs:
       - name: install packages
         run: pip install -r requirements.txt
       - name: config
-        run: python scripts/config.py
+        run: python tests/test_config.py
       - name: storage
-        run: python scripts/storage.py
+        run: python tests/test_storage.py
       - name: order_parser
-        run: python scripts/mtsig/order_parser.py
+        run: python tests/test_order_parser.py
       - name: process
-        run: python scripts/process.py
+        run: python tests/test_process.py
       - name: ladder
-        run: python scripts/ladder.py
+        run: python tests/test_ladder.py
       - name: alerts
-        run: python scripts/alerts.py
+        run: python tests/test_alerts.py
       - name: notifier
-        run: python scripts/notifier.py
-      - name: shell_test
-        run: python scripts/shell_test.py
+        run: python tests/test_notifier.py
+      - name: shell
+        run: python tests/test_shell.py
       - name: sync
-        run: python scripts/sync.py
+        run: python tests/test_sync.py
       - name: tasks_owner
-        run: python scripts/tasks_owner.py
+        run: python tests/test_tasks_owner.py
       - name: chart
-        run: python scripts/chart.py
+        run: python tests/test_chart.py
       - name: check_style
         run: python scripts/check_style.py
       # no tests yet, so at least check that they

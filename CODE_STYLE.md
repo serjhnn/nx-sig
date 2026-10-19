@@ -145,19 +145,17 @@ so fix what `check_style.py` still reports by hand.
   `supports_color()` each time, not once at start.
 - Python 3.12+ for everything except
   `order_watcher.py` / `mail_reader.py`, which need 3.14+.
-- Tests live at the end of their module, under
-  `if __name__ == "__main__":`, except the shell's: they
-  are in `scripts/shell_test.py`, so they stay the same
-  while the shell is split into modules. Run them after
-  a change:
+- Tests live in `tests/`, one file per module:
+  `tests/test_storage.py` tests `scripts/storage.py`,
+  `tests/test_shell.py` every shell command (so they
+  stay the same while the shell is split into
+  modules). `tests/paths.py` puts `scripts/` on
+  `sys.path`, import it before the modules. Run them
+  after a change:
 
   ```bash
-  python scripts/storage.py
-  python scripts/mtsig/order_parser.py
-  python scripts/ladder.py
-  python scripts/tasks_owner.py
-  python scripts/chart.py
-  python scripts/shell_test.py
+  python -m unittest discover tests
+  python tests/test_storage.py
   ```
 
 ## Pre-commit check

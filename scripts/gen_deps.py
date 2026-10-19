@@ -9,8 +9,10 @@
 # the page is a template: only the lines between
 # BEGIN and END are written, the rest is edited by
 # hand. it reads the code with ast, nothing is run:
-#   imports    every import, but not the ones of the
-#              tests under if __name__ == "__main__"
+#   modules    the .py files of scripts/, its shell/
+#              and mtsig/, and of tests/ (group tests)
+#   imports    every import, but not the ones under
+#              if __name__ == "__main__"
 #   loaded     the modules loaded by name (importlib):
 #              commands loads every shell/*_cmd.py,
 #              notifier the values of its CHANNELS
@@ -31,6 +33,7 @@ ROOT_DIR = os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))
 )
 SCRIPTS = os.path.join(ROOT_DIR, "scripts")
+TESTS = os.path.join(ROOT_DIR, "tests")
 PATH = os.path.join(ROOT_DIR, "assets", "modules.html")
 FOLDERS = ("", "shell", "mtsig")
 BEGIN = "// BEGIN modules, written by gen_deps.py\n"
@@ -50,14 +53,19 @@ ENGINES = {
 
 def _paths():
     """{id: path}, the id is the path in scripts/
-    without .py, e.g. shell/ui"""
+    without .py, e.g. shell/ui, or tests/ and the
+    name for a test, e.g. tests/test_storage"""
     found = {}
-    for folder in FOLDERS:
-        full = os.path.join(SCRIPTS, folder)
+    folders = [
+        (f, os.path.join(SCRIPTS, f)) for f in FOLDERS
+    ]
+    folders.append(("tests", TESTS))
+    for folder, full in folders:
         for name in sorted(os.listdir(full)):
             if not name.endswith(".py"):
                 continue
-            if name == "__init__.py":
+            # paths.py only sets sys.path for the tests
+            if name in ("__init__.py", "paths.py"):
                 continue
             stem = name[: -len(".py")]
             key = f"{folder}/{stem}" if folder else stem
@@ -88,10 +96,12 @@ def _import_nodes(node):
 def _resolve(dotted, folder, known):
     """the id of an imported name, or None for a
     package outside scripts/; a bare name in mtsig/
-    is its neighbor first (sys.path)"""
+    is its neighbor first (sys.path), in tests/ a
+    name in mtsig/ too (tests/paths.py)"""
     key = dotted.replace(".", "/")
+    near = "mtsig" if folder == "tests" else folder
     while key:
-        for found in (f"{folder}/{key}", key):
+        for found in (f"{near}/{key}", key):
             if found in known:
                 return found
         key = key.rpartition("/")[0]
@@ -175,7 +185,7 @@ def _group(key, channels):
         return "mtsig"
     if key.startswith("shell/") or key == "commands":
         return "shell"
-    if key.endswith("_test"):
+    if key.startswith("tests/"):
         return "tests"
     return "tools"
 

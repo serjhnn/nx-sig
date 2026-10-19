@@ -28,6 +28,7 @@ def default_files():
         "scripts",
         os.path.join("scripts", "shell"),
         os.path.join("scripts", "mtsig"),
+        "tests",
     ):
         folder = os.path.join(ROOT_DIR, folder)
         files += [

@@ -355,7 +355,7 @@ place.
 
 ## Tests
 
-`scripts/shell_test.py` (done) runs every command
+`tests/test_shell.py` (done) runs every command
 through `NxSigShell.onecmd()` against a temporary data
 folder, with faked prices, Telegram, ladder processes
 and `./mtsig`, and checks the output and that every

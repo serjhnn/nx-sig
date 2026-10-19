@@ -414,6 +414,8 @@ nx-sig/
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg
 ├── assets/modules.html  the module map, open it in a browser (generated)
+├── tests/              the tests, test_<module>.py for scripts/<module>.py
+│                         (test_shell.py: every shell command)
 └── scripts/
     ├── commands.py       the shell: actions, help, collects the modules
     ├── shell/            the shell's commands, one module per feature
@@ -435,7 +437,6 @@ nx-sig/
     │   ├── order_watcher.py  email -> parsed order -> trade
     │   ├── mail_reader.py    IMAP IDLE watcher with reconnects
     │   └── order_parser.py   reads an order from a broker email
-    ├── shell_test.py     tests of the shell commands
     ├── config.py         reads config.json once, typed settings with defaults
     ├── storage.py        trades, totals, rules and mail broker state on disk
     ├── trade_engine.py   latest prices from Alpaca (one-off and polling)
@@ -460,17 +461,18 @@ nx-sig/
 ## Tests
 
 ```bash
-python scripts/config.py         # config.json settings and defaults
-python scripts/storage.py        # trades, totals, rules, locking
-python scripts/mtsig/order_parser.py  # order email parsing
-python scripts/ladder.py         # ladder levels
-python scripts/alerts.py         # alert levels and crossings
-python scripts/notifier.py       # the notify channel
-python scripts/tasks_owner.py    # which device runs the tasks
-python scripts/chart.py          # the price chart layout
-python scripts/shell_test.py     # every shell command, faked prices
-python scripts/sync.py           # device IDs, .stignore
-python scripts/check_style.py    # code style (line width), generated files
+python -m unittest discover tests  # all of them
+python tests/test_config.py        # config.json settings and defaults
+python tests/test_storage.py       # trades, totals, rules, locking
+python tests/test_order_parser.py  # order email parsing
+python tests/test_ladder.py        # ladder levels
+python tests/test_alerts.py        # alert levels and crossings
+python tests/test_notifier.py      # the notify channel
+python tests/test_tasks_owner.py   # which device runs the tasks
+python tests/test_chart.py         # the price chart layout
+python tests/test_shell.py         # every shell command, faked prices
+python tests/test_sync.py          # device IDs, .stignore
+python scripts/check_style.py      # code style (line width), generated files
 ```
 
 GitHub Actions runs all of these on every push and pull request,

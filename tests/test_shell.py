@@ -1,6 +1,6 @@
-# shell_test: tests of the nxshell commands
+# test_shell: tests of the nxshell commands
 #
-#   python scripts/shell_test.py
+#   python tests/test_shell.py
 #
 # every test runs commands through NxSigShell.onecmd()
 # against a temporary data folder, so the real data is
@@ -32,6 +32,7 @@ from unittest import mock
 # plain output without color codes
 os.environ["NO_COLOR"] = "1"
 
+import paths  # noqa: F401, scripts/ on sys.path
 import alerts
 import chart
 import config

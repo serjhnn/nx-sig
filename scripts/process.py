@@ -1,7 +1,7 @@
 # process: the helpers of the background processes
 # (the ladders, the alerts, the mail broker)
 #
-#   python scripts/process.py   run the tests
+#   python tests/test_process.py  the tests
 #
 # public functions:
 #   spawn(args, out_path)
@@ -179,33 +179,3 @@ def setup_logging(path):
     for handler in handlers:
         handler.setFormatter(formatter)
         root.addHandler(handler)
-
-
-if __name__ == "__main__":
-    import unittest
-
-    class ProcessTest(unittest.TestCase):
-        def test_process_runs(self):
-            pid = os.getpid()
-            self.assertTrue(process_runs(pid, "process.py"))
-            self.assertFalse(process_runs(pid, "other.py"))
-
-        def test_last_line(self):
-            import tempfile
-
-            with tempfile.TemporaryDirectory() as tmp:
-                empty = os.path.join(tmp, "a.out")
-                log = os.path.join(tmp, "a.log")
-                open(empty, "w").close()
-                with open(log, "w") as f:
-                    f.write("one\ntwo\n\n")
-                missing = os.path.join(tmp, "none")
-                self.assertEqual(
-                    last_line([missing, empty, log]), "two"
-                )
-                self.assertEqual(
-                    last_line([empty]),
-                    "no output, see the log",
-                )
-
-    unittest.main()

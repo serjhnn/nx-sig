@@ -64,7 +64,7 @@ In this order, before metrics and strategy add more:
    same functions, and the shell tests fake one
    function per command. `chart` is done
    (`chart.stock_chart`); `test_cmd_files_use_engines`
-   in `shell_test.py` checks the files that are done,
+   in `tests/test_shell.py` checks the files that are done,
    add each file to its list. One step per file, the
    shell tests proving the output stays the same:
    - `trade_cmd.py`: a `trades.py` engine (add, delete,

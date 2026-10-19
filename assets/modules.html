@@ -139,7 +139,7 @@ path.e.dim { opacity: .08; }
   <div class="controls">
     <input class="search" id="search" type="search" placeholder="find a module…" aria-label="Find a module" autocomplete="off">
     <label class="toggle"><input type="checkbox" id="transitive"> all levels</label>
-    <label class="toggle"><input type="checkbox" id="tests"> show shell_test</label>
+    <label class="toggle"><input type="checkbox" id="tests"> show tests</label>
     <div class="legend" id="legend"></div>
   </div>
 
@@ -182,7 +182,6 @@ const MODS = {
   "notifier": ["notify", "Sends the ladder and alert messages through the channel of config.json \"notify\"", ["config"], ["telegram_notify", "termux_notify"]],
   "ntfy": ["tools", "A push notification through ntfy.sh", [], []],
   "process": ["engine", "The helpers of the background processes (the ladders, the alerts, the mail broker)", ["storage", "tasks_owner"], []],
-  "shell_test": ["tests", "Tests of the nxshell commands", ["alerts", "chart", "commands", "config", "ladder", "notifier", "process", "shell/alert_cmd", "shell/overview_cmd", "shell/terminal_cmd", "shell/ui", "storage", "tasks_owner", "telegram_notify", "termux_notify", "trade_engine"], []],
   "storage": ["core", "Reads and writes all nX-sig data in config \"storage_dir\" (csv files for trades, json files for rules and the watcher)", ["config"], []],
   "sync": ["tools", "Keeps the data folder (config \"storage_dir\") the same on the phone (Termux) and the PC (Linux) with Syncthing", ["storage"], []],
   "tasks_owner": ["engine", "Only one device runs the background tasks (the mail broker and the ladders)", ["storage"], []],
@@ -207,6 +206,17 @@ const MODS = {
   "mtsig/mail_reader": ["mtsig", "Fetch and watch messages in an IMAP mailbox", [], []],
   "mtsig/order_parser": ["mtsig", "Parse broker order emails", [], []],
   "mtsig/order_watcher": ["mtsig", "Records broker order emails as trades", ["mtsig/mail_reader", "mtsig/order_parser", "process", "storage", "tasks_owner"], []],
+  "tests/test_alerts": ["tests", "Tests of scripts/alerts.py", ["alerts", "storage"], []],
+  "tests/test_chart": ["tests", "Tests of scripts/chart.py", ["chart", "config"], []],
+  "tests/test_config": ["tests", "Tests of scripts/config.py", ["config"], []],
+  "tests/test_ladder": ["tests", "Tests of scripts/ladder.py", ["ladder"], []],
+  "tests/test_notifier": ["tests", "Tests of scripts/notifier.py", ["config", "notifier", "termux_notify"], []],
+  "tests/test_order_parser": ["tests", "Tests of scripts/mtsig/order_parser.py", ["mtsig/order_parser"], []],
+  "tests/test_process": ["tests", "Tests of scripts/process.py", ["process"], []],
+  "tests/test_shell": ["tests", "Tests of the nxshell commands", ["alerts", "chart", "commands", "config", "ladder", "notifier", "process", "shell/alert_cmd", "shell/overview_cmd", "shell/terminal_cmd", "shell/ui", "storage", "tasks_owner", "telegram_notify", "termux_notify", "trade_engine"], []],
+  "tests/test_storage": ["tests", "Tests of scripts/storage.py", ["storage"], []],
+  "tests/test_sync": ["tests", "Tests of scripts/sync.py", ["sync"], []],
+  "tests/test_tasks_owner": ["tests", "Tests of scripts/tasks_owner.py", ["storage", "tasks_owner"], []],
 };
 // END modules
 const GROUP_ORDER = Object.keys(GROUPS);
@@ -225,7 +235,8 @@ const allDeps = id => [...imports(id), ...loads(id)];
 const users = id => ids.filter(u => allDeps(u).includes(id));
 const label = id => id.includes("/") ? id.split("/")[1] : id;
 const prefix = id => id.includes("/") ? id.split("/")[0] + "/" : "";
-const fileOf = id => "scripts/" + id + ".py";
+const fileOf = id =>
+  (id.startsWith("tests/") ? "" : "scripts/") + id + ".py";
 
 function levels() {
   const lv = {}, visiting = new Set();
