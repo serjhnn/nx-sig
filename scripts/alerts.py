@@ -8,14 +8,14 @@
 #
 # an alert is a change from the buying price of every
 # basetrade: 'down 10 percent' is 90 for a basetrade
-# bought at 100. the process sends a Telegram message
-# each time a stock's price crosses the level: when it
-# reaches 90, and again after the price went back over
-# it and falls to 90 once more. the price has to go
-# back REARM_PERCENT of the buying price past the level
-# first, so a price that wobbles around it doesn't send
-# a message every check. a new basetrade (a new buying
-# price) starts the stock over.
+# bought at 100. the process sends a message (see
+# notifier.py) each time a stock's price crosses the
+# level: when it reaches 90, and again after the price
+# went back over it and falls to 90 once more. the
+# price has to go back REARM_PERCENT of the buying
+# price past the level first, so a price that wobbles
+# around it doesn't send a message every check. a new
+# basetrade (a new buying price) starts the stock over.
 #
 # a gain alert is the gain of a held stock, from its
 # trades like in xtop: 'gain TSMX 100' when the gain of
@@ -93,7 +93,7 @@ from storage import (
     trades_total_get,
 )
 from trade_engine import get_latest_prices
-from telegram_notify import notify
+from notifier import notify
 
 SCRIPT = os.path.join(ROOT_DIR, "scripts", "alerts.py")
 TARGETS = ("basetrades", "gain")
@@ -218,7 +218,7 @@ def _targets(alert, basetrades, positions):
 
 
 def _text(alert, name, base, price, positions):
-    """the Telegram message of a crossing"""
+    """the message of a crossing"""
     label = f"(alert {alert['Id']}: "
     if alert.get("For", "basetrades") == "basetrades":
         change = (price - base) / base * 100

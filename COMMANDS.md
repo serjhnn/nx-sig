@@ -65,7 +65,7 @@ ls ladders
 
 add ladder <stock> <down|up> <step>
   from <price> [run]
-    save a ladder: a Telegram message each
+    save a ladder: a notification each
     time the price moves another <step>
     down (or up) from <price>, e.g. 'add
     ladder SOXL down 10 from 100' at 90,
@@ -133,7 +133,7 @@ ls alerts
     stock are in 'ls basetrades al'
 
 add alert basetrades <down|up> <n> percent
-    a Telegram message each time the price
+    a notification each time the price
     of a basetrade's stock crosses <n>
     percent below (down) or above (up) its
     buying price, e.g. 'add alert basetrades

@@ -21,11 +21,11 @@ as narrow as 48 characters (see `terminal` `width` below).
   records FILLED orders as trades, running in the background
 - **Plain files** for storage: CSV for trades, JSON for rules and state,
   written atomically and locked, so the shell and the mail broker can run together
-- **Ladders**: background price-step alerts on Telegram, e.g. at 90, 80, 70, ...
-  when a stock falls from 100
-- **Alerts**: a Telegram message each time a basetrade's stock or a held
+- **Ladders**: background price-step alerts on Telegram or as Termux
+  notifications, e.g. at 90, 80, 70, ... when a stock falls from 100
+- **Alerts**: a message each time a basetrade's stock or a held
   stock's gain crosses a level, e.g. 10% below the buying price
-- **Notifications** through [ntfy](https://ntfy.sh) and Telegram
+- **Notifications** through Telegram or Termux:API (config `notify`), and [ntfy](https://ntfy.sh)
 
 ## Requirements
 
@@ -87,6 +87,7 @@ your bot.
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
 | `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
 | `bars_feed` | the feed of the past prices for `chart` (default: `feed`, with `delayed_sip` read as `sip` and the newest 15 minutes left out); set `"iex"` if your plan refuses `sip` |
+| `notify` | where the ladders and alerts are sent: `"telegram"` (default, `TOKEN` and `CHAT_ID` in `.env`) or `"termux"`, an Android notification through Termux:API (the Termux:API app and `pkg install termux-api`, no internet or keys needed) |
 | `timing` | how often the background tasks check the prices, see below |
 | `terminal` | the shell's look on the screen, see below |
 
@@ -238,7 +239,7 @@ ladder 1 started (pid 366), next alert at 90
 
 Each ladder is its own process (`scripts/ladder.py`), so it keeps running when
 the shell is closed. It checks the price every `ladder_interval` seconds (see
-`timing` above) and sends a Telegram message when the price passes the next level, like
+`timing` above) and sends a message (see `notify` above) when the price passes the next level, like
 `SOXL down to 89.50, passed 90 (ladder 1, next 80)`. When the price jumps over
 several levels between two checks, one message names the farthest one.
 
@@ -248,7 +249,7 @@ several levels between two checks, one message names the farthest one.
   `ls ladders`).
 - If a message can't be sent, the level is not saved and is sent at the next
   check.
-- Telegram (`TOKEN`, `CHAT_ID` in `.env`) must be set up to start a ladder.
+- The `notify` channel (Telegram or Termux:API) must be set up to start a ladder.
 - In Termux a wake lock is held while a ladder or the mail broker runs.
 - Logs are in `data/logs/ladder_<id>.log`.
 
@@ -263,7 +264,7 @@ alerts started (pid 412)
 An alert is a change from the buying price of every basetrade: `down 10
 percent` is 90 for a basetrade bought at 100, and 18 for one bought at 20.
 One process (`scripts/alerts.py`) checks all alerts every `alert_interval`
-seconds (see `timing` above) and sends a Telegram message each time a stock
+seconds (see `timing` above) and sends a message (see `notify`) each time a stock
 crosses the level, like `SOXL -10.5% at 17.90, bought at 20 (alert 1: down
 10%)`. `up` works the same way above the buying price.
 
@@ -285,7 +286,7 @@ alert 1 down 10%: MUU 45.45, SOXL 18.00!
 alerts: running, last check 14:30
 ```
 
-- Like the ladders, it needs Telegram and runs only on the device that runs
+- Like the ladders, it needs the `notify` channel and runs only on the device that runs
   the background tasks. Logs are in `data/logs/alerts.log`.
 
 #### Gain alerts
@@ -443,7 +444,9 @@ nx-sig/
     ├── metrics.py        metrics engine: statistics of your actions (planned)
     ├── latest_trade.py   prints the latest prices once
     ├── ntfy.py           push notification through ntfy.sh
+    ├── notifier.py       sends through the config "notify" channel
     ├── telegram_notify.py  message through a Telegram bot
+    ├── termux_notify.py  Android notification through Termux:API
     ├── watch_notify.py   notes for a planned Garmin watch app
     ├── gen_docs.py       writes COMMANDS.md from the help texts
     └── check_style.py    checks the code style rules and COMMANDS.md
@@ -456,6 +459,7 @@ python scripts/storage.py        # trades, totals, rules, locking
 python scripts/mtsig/order_parser.py  # order email parsing
 python scripts/ladder.py         # ladder levels
 python scripts/alerts.py         # alert levels and crossings
+python scripts/notifier.py       # the notify channel
 python scripts/tasks_owner.py    # which device runs the tasks
 python scripts/chart.py          # the price chart layout
 python scripts/shell_test.py     # every shell command, faked prices

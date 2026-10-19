@@ -35,6 +35,7 @@ os.environ["NO_COLOR"] = "1"
 import alerts
 import chart
 import ladder
+import notifier
 import process
 import requests
 import shell.alert_cmd
@@ -43,6 +44,8 @@ import shell.terminal_cmd
 import shell.ui
 import storage
 import tasks_owner
+import telegram_notify
+import termux_notify
 import trade_engine
 from commands import NxSigShell
 from shell.alert_cmd import gain_alert_lines
@@ -100,7 +103,11 @@ class ShellTest(unittest.TestCase):
             mock.patch.object(
                 trade_engine, "_bars", self._fake_bars
             ),
-            # Telegram is set up, but never called
+            # Telegram, whatever config.json "notify"
+            # is, set up but never called
+            mock.patch.object(
+                notifier, "channel", telegram_notify
+            ),
             mock.patch.dict(
                 os.environ,
                 {"TOKEN": "test", "CHAT_ID": "test"},
@@ -1295,6 +1302,20 @@ class ShellTest(unittest.TestCase):
                     "  CHAT_ID to .env",
                 ],
             )
+        with mock.patch.object(
+            notifier, "channel", termux_notify
+        ), mock.patch.object(
+            termux_notify.shutil, "which", lambda n: None
+        ):
+            self.assertEqual(
+                self.lines("add ladder SOXL up 5 from 100"),
+                [
+                    "error: Termux:API isn't set up, "
+                    "install the",
+                    "  Termux:API app and run 'pkg install",
+                    "  termux-api'",
+                ],
+            )
         self.assertEqual(storage.ladders_get_all(), [])
 
     def test_run_and_stop_ladder(self):
@@ -2432,6 +2453,11 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(
             alerts.INTERVAL, timing["alert_interval"]
         )
+
+    def test_notify(self):
+        name = self.file["notify"]
+        self.assertIn(name, notifier.CHANNELS)
+        self.assertEqual(notifier.NAME, name)
 
     def test_terminal(self):
         from shell import ui

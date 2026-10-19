@@ -16,10 +16,8 @@ import textwrap
 from datetime import datetime
 
 import alerts
+import notifier
 import tasks_owner
-from telegram_notify import (
-    is_configured as telegram_configured,
-)
 from shell.interface import Commands
 from shell.ui import (
     BOLD,
@@ -79,7 +77,7 @@ class AlertCommands(Commands):
     def add(self, arg):
         """
         add alert basetrades <down|up> <n> percent
-            a Telegram message each time the price
+            a notification each time the price
             of a basetrade's stock crosses <n>
             percent below (down) or above (up) its
             buying price, e.g. 'add alert basetrades
@@ -117,7 +115,7 @@ class AlertCommands(Commands):
                 else "error: <n> must be a number"
             )
             return
-        if not _telegram_ready():
+        if not _notify_ready():
             return
         try:
             alert_id = alerts.create(
@@ -143,7 +141,7 @@ class AlertCommands(Commands):
         except ValueError:
             print_error("error: <n> must be a number")
             return
-        if not _telegram_ready():
+        if not _notify_ready():
             return
         stock = (
             args[0] if args[0] == "all" else args[0].upper()
@@ -347,14 +345,12 @@ def _level_lines(rows, kind, levels=True):
     return lines + _list_lines(_task_line(), [])
 
 
-def _telegram_ready():
-    """True if Telegram is set up, else print why"""
-    if telegram_configured():
+def _notify_ready():
+    """True if the notify channel is set up, else
+    print why"""
+    if notifier.is_configured():
         return True
-    print_error(
-        "error: Telegram isn't set up, add TOKEN and "
-        "CHAT_ID to .env"
-    )
+    print_error(notifier.setup_error())
     return False
 
 

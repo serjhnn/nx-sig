@@ -12,6 +12,11 @@ load_dotenv(
     )
 )
 
+SETUP_ERROR = (
+    "error: Telegram isn't set up, add TOKEN and "
+    "CHAT_ID to .env"
+)
+
 
 def is_configured():
     """True if TOKEN and CHAT_ID are set in .env"""

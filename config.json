@@ -4,6 +4,7 @@
     "bars_feed": "delayed_sip",
     "storage_dir": "./data/",
     "indices": [ "ASMG", "AVGG", "NVDL", "TSMX", "MUU", "MRVU", "SOXL"],
+    "notify": "telegram",
     "timing": {
         "ladder_interval": 30,
         "alert_interval": 30

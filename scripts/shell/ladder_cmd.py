@@ -14,15 +14,13 @@
 from datetime import datetime
 
 import ladder
+import notifier
 import tasks_owner
 from storage import (
     Stock,
     ladder_get,
     ladder_status_get,
     ladders_get_all,
-)
-from telegram_notify import (
-    is_configured as telegram_configured,
 )
 from shell.interface import Commands
 from shell.ui import (
@@ -77,7 +75,7 @@ class LadderCommands(Commands):
         """
         add ladder <stock> <down|up> <step>
           from <price> [run]
-            save a ladder: a Telegram message each
+            save a ladder: a notification each
             time the price moves another <step>
             down (or up) from <price>, e.g. 'add
             ladder SOXL down 10 from 100' at 90,
@@ -236,11 +234,8 @@ class LadderCommands(Commands):
                 "error: step and price must be numbers"
             )
             return None
-        if not telegram_configured():
-            print_error(
-                "error: Telegram isn't set up, add TOKEN "
-                "and CHAT_ID to .env"
-            )
+        if not notifier.is_configured():
+            print_error(notifier.setup_error())
             return None
         try:
             ladder_id = ladder.create(
