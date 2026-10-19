@@ -29,8 +29,8 @@ as narrow as 48 characters (see `terminal` `width` below).
 
 ## Requirements
 
-- Python **3.12+** for the shell, **3.14+** for the mail broker
-  (it uses IMAP IDLE, added to `imaplib` in 3.14)
+- Python **3.14+** (the mail broker uses IMAP IDLE, added to
+  `imaplib` in 3.14)
 - Python packages: `requests`, `python-dotenv` (and `rich` for `latest_trade.py`)
 - An Alpaca account for prices, and an email account with IMAP access
   (e.g. Gmail with an app password) for the mail broker

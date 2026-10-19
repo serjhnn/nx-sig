@@ -143,8 +143,8 @@ so fix what `check_style.py` still reports by hand.
   output must still work without color (`NO_COLOR`, the
   plain theme, or output that is not a terminal): check
   `supports_color()` each time, not once at start.
-- Python 3.12+ for everything except
-  `order_watcher.py` / `mail_reader.py`, which need 3.14+.
+- Python 3.14+ (`order_watcher.py` / `mail_reader.py`
+  need it for IMAP IDLE, CI tests only 3.14).
 - Tests live in `tests/`, one file per module:
   `tests/test_storage.py` tests `scripts/storage.py`,
   `tests/test_shell.py` every shell command (so they
