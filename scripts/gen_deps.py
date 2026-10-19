@@ -10,7 +10,8 @@
 # BEGIN and END are written, the rest is edited by
 # hand. it reads the code with ast, nothing is run:
 #   modules    the .py files of scripts/, its
-#              engines/, shell/ and mtsig/, and of
+#              engines/, services/, notifiers/,
+#              shell/ and mtsig/, and of
 #              tests/ (group tests)
 #   imports    every import, but not the ones under
 #              if __name__ == "__main__"
@@ -40,14 +41,15 @@ FOLDERS = (
     "",
     "engines",
     "services",
+    "notifiers",
     "shell",
     "mtsig",
 )
 BEGIN = "// BEGIN modules, written by gen_deps.py\n"
 END = "// END modules\n"
 
-# the folders and the notify channels give the other
-# groups, every module left is a tool
+# the folders give the other groups, every module
+# left is a tool
 CORE = {"config", "storage"}
 ENGINES = {
     "tasks_owner",
@@ -153,8 +155,12 @@ def _loaded(key, tree, known):
             for k in known
             if k.startswith("shell/") and k.endswith("_cmd")
         )
-    if key == "notifier":
-        return [k for k in _channels(tree) if k in known]
+    if key == "notifiers/notifier":
+        return [
+            f"notifiers/{k}"
+            for k in _channels(tree)
+            if f"notifiers/{k}" in known
+        ]
     return []
 
 
@@ -179,14 +185,14 @@ def _text(tree, source):
     return text[:1].upper() + text[1:] if text else ""
 
 
-def _group(key, channels):
+def _group(key):
     if key in CORE:
         return "core"
     if key in ENGINES or key.startswith(
         ("engines/", "services/")
     ):
         return "engine"
-    if key == "notifier" or key in channels:
+    if key.startswith("notifiers/"):
         return "notify"
     if key.startswith("mtsig/"):
         return "mtsig"
@@ -205,7 +211,6 @@ def modules():
         with open(path, encoding="utf-8") as f:
             sources[key] = f.read()
         trees[key] = ast.parse(sources[key], path)
-    channels = _loaded("notifier", trees["notifier"], known)
     found = {}
     for key, tree in trees.items():
         folder = key.rpartition("/")[0]
@@ -218,7 +223,7 @@ def modules():
             if k not in imports
         ]
         found[key] = [
-            _group(key, channels),
+            _group(key),
             _text(tree, sources[key]),
             sorted(imports),
             loaded,

@@ -15,7 +15,7 @@
 import textwrap
 from datetime import datetime
 
-import notifier
+from notifiers import notifier
 import tasks_owner
 from engines import alerts
 from shell.interface import Commands

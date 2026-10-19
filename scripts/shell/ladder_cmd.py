@@ -13,7 +13,7 @@
 
 from datetime import datetime
 
-import notifier
+from notifiers import notifier
 import tasks_owner
 from engines import ladder
 from engines.ladder import Stock

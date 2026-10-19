@@ -4,11 +4,12 @@
 #
 #   python tests/test_ladder.py     the tests
 #
-# a ladder sends a message (notifier.py: Telegram or a
-# Termux notification) each time the price passes its
-# next level: 'SOXL down 10 from 100' at 90, 80, 70,
-# ... When the price jumps over several levels between
-# two checks, one message names the farthest.
+# a ladder sends a message (notifiers/notifier.py:
+# Telegram or a Termux notification) each time the
+# price passes its next level: 'SOXL down 10 from 100'
+# at 90, 80, 70, ... When the price jumps over several
+# levels between two checks, one message names the
+# farthest.
 # the last level sent is saved in ladders.csv, so after
 # a restart no level is sent twice. a down ladder ends
 # when its next level would be 0 or less.

@@ -29,6 +29,7 @@ def default_files():
         "scripts",
         os.path.join("scripts", "engines"),
         os.path.join("scripts", "services"),
+        os.path.join("scripts", "notifiers"),
         os.path.join("scripts", "shell"),
         os.path.join("scripts", "mtsig"),
         "tests",

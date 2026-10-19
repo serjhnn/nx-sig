@@ -36,7 +36,7 @@ import paths  # noqa: F401, scripts/ on sys.path
 import chart
 import config
 from engines import alerts, ladder, prices
-import notifier
+from notifiers import notifier
 import process
 import requests
 import shell.alert_cmd
@@ -45,8 +45,7 @@ import shell.terminal_cmd
 import shell.ui
 import storage
 import tasks_owner
-import telegram_notify
-import termux_notify
+from notifiers import telegram_notify, termux_notify
 from commands import NxSigShell
 from engines import trades
 from shell.alert_cmd import gain_alert_lines

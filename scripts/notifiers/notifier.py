@@ -24,7 +24,9 @@ CHANNELS = {
 
 # config.notify() raises ValueError for another name
 NAME = config.notify()
-channel = importlib.import_module(CHANNELS[NAME])
+channel = importlib.import_module(
+    f"notifiers.{CHANNELS[NAME]}"
+)
 
 
 def notify(text):

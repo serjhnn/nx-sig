@@ -3,7 +3,7 @@
 # config.json (see notifier.py). needs the Termux:API
 # app and 'pkg install termux-api'; no internet, no keys
 #
-#   python scripts/termux_notify.py   send a test
+#   python scripts/notifiers/termux_notify.py   send a test
 #
 #   is_configured()  True if termux-notification is
 #                    installed

@@ -1,4 +1,4 @@
-# tests of scripts/notifier.py
+# tests of scripts/notifiers/notifier.py
 #
 #   python tests/test_notifier.py
 
@@ -9,18 +9,21 @@ from unittest import mock
 
 import paths  # noqa: F401, scripts/ on sys.path
 import config
-from notifier import (
+from notifiers.notifier import (
     CHANNELS,
     NAME,
     channel,
 )
 
-import termux_notify
+from notifiers import termux_notify
 
 
 class NotifierTest(unittest.TestCase):
     def test_channel_of_config(self):
-        self.assertEqual(channel.__name__, CHANNELS[NAME])
+        self.assertEqual(
+            channel.__name__,
+            f"notifiers.{CHANNELS[NAME]}",
+        )
 
     def test_unknown_channel(self):
         import sys
@@ -28,9 +31,11 @@ class NotifierTest(unittest.TestCase):
         with mock.patch.dict(
             config.DATA, {"notify": "mail"}
         ), mock.patch.dict(sys.modules):
-            sys.modules.pop("notifier", None)
+            sys.modules.pop("notifiers.notifier", None)
             with self.assertRaises(ValueError) as e:
-                importlib.import_module("notifier")
+                importlib.import_module(
+                    "notifiers.notifier"
+                )
         self.assertIn("'mail'", str(e.exception))
 
     def test_termux_notify(self):
@@ -47,7 +52,7 @@ class NotifierTest(unittest.TestCase):
         self.assertTrue(run.call_args.kwargs["check"])
 
     def test_termux_is_configured(self):
-        which = "termux_notify.shutil.which"
+        which = "notifiers.termux_notify.shutil.which"
         with mock.patch(which, return_value=None):
             self.assertFalse(termux_notify.is_configured())
         with mock.patch(which, return_value="/bin/t"):

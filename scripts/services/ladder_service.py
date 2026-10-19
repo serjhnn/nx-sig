@@ -29,7 +29,7 @@ sys.path.insert(
 import process
 import tasks_owner
 from engines import ladder
-from notifier import notify
+from notifiers.notifier import notify
 from engines.prices import get_latest_prices
 
 log = logging.getLogger("ladder")

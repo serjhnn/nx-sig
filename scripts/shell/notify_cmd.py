@@ -1,12 +1,12 @@
 # notify_cmd: sends a test message through the config
-# "notify" channel (notifier.py)
+# "notify" channel (notifiers/notifier.py)
 #
 #   test notify <alert|ladder>
 #
 # NotifyCmd is mixed into NxSigShell: a command of its
 # own, not a kind of data
 
-import notifier
+from notifiers import notifier
 from shell.ui import (
     complete_options,
     print_error,

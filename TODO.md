@@ -191,7 +191,7 @@ for your own use first. In this order:
   mirrors Android notifications to the watch, so the
   local notifications (Privacy, item 3) may already be
   enough, without a watch app
-  (see `scripts/watch_notify.py`)
+  (see `scripts/notifiers/watch_notify.py`)
 - Send a notification when the watcher records an order
 - ~~**Price chart in the terminal**~~ (done: `chart
   <stock> [period <n> <unit>]`, one `*` per price, the
