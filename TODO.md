@@ -193,10 +193,12 @@ for your own use first. In this order:
   enough, without a watch app
   (see `scripts/notifiers/watch_notify.py`)
 - **Status on a smart watch as 7 colored cubes**: one
-  cube per stock (7 in all) that lights up green for a
-  gain and red for a loss (maybe yellow when flat), so
-  the state of all positions can be read at a glance
-  without opening a message. Open: which watch and
+  cube per stock (7 in all) that lights up in a color
+  for its state: green for a gain, red for a loss, and
+  more colors for in-between levels (e.g. strong or
+  small gain or loss, flat), so the state of all
+  positions can be read at a glance without opening a
+  message. Open: the color scale and which watch and
   how to push the colors to it (a watch face or app
   fed by a small status file / endpoint, since plain
   notifications can't show colors), and how the 7
