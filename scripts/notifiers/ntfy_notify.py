@@ -6,7 +6,12 @@
 #   python scripts/notifiers/ntfy_notify.py  send a test
 #
 #   is_configured()  True if NTFY_TOPIC is set
-#   notify(text)     send text, raises if it fails
+#   notify(text, title, key=None)
+#                    send text, raises if it fails. with a
+#                    key it is posted to <topic>/<key>, the
+#                    sequence id, which updates the earlier
+#                    message (needs a recent ntfy server
+#                    and app)
 #   SETUP_ERROR      what to do when it isn't set up
 
 import requests
@@ -32,10 +37,13 @@ def is_configured():
     return bool(os.getenv("NTFY_TOPIC"))
 
 
-def notify(text, title="nX-sig"):
+def notify(text, title="nX-sig", key=None):
     """send text to the topic, raises if it fails"""
+    url = f"https://ntfy.sh/{os.environ["NTFY_TOPIC"]}"
+    if key:
+        url += f"/{key}"
     resp = requests.post(
-        f"https://ntfy.sh/{os.environ["NTFY_TOPIC"]}",
+        url,
         data=text.encode(),
         headers={"Title": title, "Priority": "default"},
         timeout=10,

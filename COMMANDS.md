@@ -238,11 +238,15 @@ terminal info
     and theme are config.json "terminal"
     "width" and "theme"
 
-test notify <alert|ladder>
+test notify <alert|ladder> [repeat <n>]
     send a test message like an alert's or
     a ladder's through config.json "notify"
     (telegram, termux or ntfy), to check
-    that it arrives
+    that it arrives. with 'repeat <n>' it
+    is sent n times, 5 seconds apart, all
+    with the same id: termux and ntfy then
+    update one notification, to see how a
+    watch shows an updated one
 
 strategy [run/stop/list/get]
     not implemented yet

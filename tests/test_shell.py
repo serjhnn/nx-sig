@@ -40,6 +40,7 @@ from notifiers import notifier
 import process
 import requests
 import shell.alert_cmd
+import shell.notify_cmd
 import shell.overview_cmd
 import shell.terminal_cmd
 import shell.ui
@@ -61,6 +62,11 @@ OTHER_OWNER = {
     "name": "pc",
     "since": "2026-10-16T14:30:00",
 }
+
+
+USAGE_NOTIFY = (
+    "usage: test notify <alert|ladder> [repeat <n>]"
+)
 
 
 class ShellTest(unittest.TestCase):
@@ -2086,7 +2092,7 @@ class ShellTest(unittest.TestCase):
                 "at 20 (alert 0: down 10%)",
             ],
         )
-        usage = ["usage: test notify <alert|ladder>"]
+        usage = [USAGE_NOTIFY]
         for line in ("test", "test notify", "test x y"):
             self.assertEqual(self.lines(line), usage, line)
         self.assertEqual(
@@ -2117,6 +2123,47 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.complete("test notify "),
             ["alert", "ladder"],
+        )
+        self.assertEqual(
+            self.complete("test notify alert "), ["repeat"]
+        )
+
+    def test_test_notify_repeat(self):
+        sent = []
+        with mock.patch.object(
+            telegram_notify,
+            "notify",
+            lambda text, key=None: sent.append((text, key)),
+        ), mock.patch.object(
+            shell.notify_cmd.time, "sleep"
+        ) as sleep:
+            out = self.lines("test notify alert repeat 3")
+        self.assertEqual(
+            out,
+            [
+                "sent 1/3",
+                "sent 2/3",
+                "sent 3/3",
+                "sent a test alert message (telegram) 3 "
+                "times, id",
+                "  test",
+            ],
+        )
+        self.assertEqual(
+            [(t[-5:], k) for t, k in sent],
+            [("[1/3]", "test"), ("[2/3]", "test"),
+             ("[3/3]", "test")],
+        )
+        self.assertEqual(sleep.call_count, 2)
+        for bad in ("0", "21", "x"):
+            line = f"test notify alert repeat {bad}"
+            self.assertEqual(
+                self.lines(line),
+                [f"repeat must be 1-20, not '{bad}'"],
+            )
+        self.assertEqual(
+            self.lines("test notify alert repeat"),
+            [USAGE_NOTIFY],
         )
 
     def test_terminal_info(self):

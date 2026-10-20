@@ -51,6 +51,18 @@ class NotifierTest(unittest.TestCase):
         )
         self.assertTrue(run.call_args.kwargs["check"])
 
+    def test_termux_key_replaces(self):
+        with mock.patch.object(
+            termux_notify.subprocess, "run"
+        ) as run:
+            termux_notify.notify("a", key="test")
+            termux_notify.notify("b", key="test")
+        ids = [
+            c.args[0][c.args[0].index("--id") + 1]
+            for c in run.call_args_list
+        ]
+        self.assertEqual(ids, ["nx-sig-test"] * 2)
+
     def test_termux_is_configured(self):
         which = "notifiers.termux_notify.shutil.which"
         with mock.patch(which, return_value=None):
@@ -93,6 +105,18 @@ class NotifierTest(unittest.TestCase):
         )
         resp = post.return_value
         resp.raise_for_status.assert_called_once()
+
+    def test_ntfy_key_is_sequence_id(self):
+        with mock.patch.dict(
+            "os.environ", {"NTFY_TOPIC": "nx-test"}
+        ), mock.patch.object(
+            ntfy_notify.requests, "post"
+        ) as post:
+            ntfy_notify.notify("SOXL up", key="test")
+        self.assertEqual(
+            post.call_args.args[0],
+            "https://ntfy.sh/nx-test/test",
+        )
 
     def test_ntfy_is_configured(self):
         with mock.patch.dict(

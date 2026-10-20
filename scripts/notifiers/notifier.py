@@ -11,7 +11,11 @@
 #   python tests/test_notifier.py  the tests
 #
 #   NAME             the channel name
-#   notify(text)     send text, raises if it fails
+#   notify(text, key=None)
+#                    send text, raises if it fails. the
+#                    same key again replaces the earlier
+#                    message where the channel can
+#                    (termux, ntfy), else it is a new one
 #   is_configured()  True if the channel can send
 #   setup_error()    why it can't, for the shell
 
@@ -32,9 +36,12 @@ channel = importlib.import_module(
 )
 
 
-def notify(text):
-    """send text through the chosen channel"""
-    return channel.notify(text)
+def notify(text, key=None):
+    """send text through the chosen channel; with a key
+    the channel replaces the message of that key"""
+    if key is None:
+        return channel.notify(text)
+    return channel.notify(text, key=key)
 
 
 def is_configured():

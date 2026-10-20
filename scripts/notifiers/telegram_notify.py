@@ -26,7 +26,9 @@ def is_configured():
     return bool(os.getenv("TOKEN") and os.getenv("CHAT_ID"))
 
 
-def notify(text):
+def notify(text, key=None):
+    """send text; key is ignored, every message is
+    a new one"""
     resp = requests.post(
         "https://api.telegram.org/bot"
         f"{os.environ["TOKEN"]}/sendMessage",

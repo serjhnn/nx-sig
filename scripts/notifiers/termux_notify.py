@@ -7,8 +7,10 @@
 #
 #   is_configured()  True if termux-notification is
 #                    installed
-#   notify(text)     one new notification per message,
-#                    raises if it can't be shown
+#   notify(text, title, key=None)
+#                    one new notification per message, or
+#                    with a key the one of that key is
+#                    replaced; raises if it can't be shown
 #   SETUP_ERROR      what to do when it isn't set up
 
 import shutil
@@ -26,14 +28,14 @@ def is_configured():
     return shutil.which("termux-notification") is not None
 
 
-def notify(text, title="nX-sig"):
+def notify(text, title="nX-sig", key=None):
     """show text as its own notification; it hangs
     without the Termux:API app, so it has a timeout"""
     subprocess.run(
         [
             "termux-notification",
             "--id",
-            f"nx-sig-{time.time_ns()}",
+            f"nx-sig-{key or time.time_ns()}",
             "--title",
             title,
             "--content",
