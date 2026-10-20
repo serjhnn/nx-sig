@@ -192,6 +192,15 @@ for your own use first. In this order:
   local notifications (Privacy, item 3) may already be
   enough, without a watch app
   (see `scripts/notifiers/watch_notify.py`)
+- **Status on a smart watch as 7 colored cubes**: one
+  cube per stock (7 in all) that lights up green for a
+  gain and red for a loss (maybe yellow when flat), so
+  the state of all positions can be read at a glance
+  without opening a message. Open: which watch and
+  how to push the colors to it (a watch face or app
+  fed by a small status file / endpoint, since plain
+  notifications can't show colors), and how the 7
+  stocks are picked.
 - Send a notification when the watcher records an order
 - ~~**Price chart in the terminal**~~ (done: `chart
   <stock> [period <n> <unit>]`, one `*` per price, the
