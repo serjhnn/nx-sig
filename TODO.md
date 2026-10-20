@@ -198,9 +198,11 @@ for your own use first. In this order:
   more colors for in-between levels (e.g. strong or
   small gain or loss, flat), so the state of all
   positions can be read at a glance without opening a
-  message. Open: the color scale and which watch and
-  how to push the colors to it (a watch face or app
-  fed by a small status file / endpoint, since plain
+  message. Idea: the watch side updates the status by
+  requests to localhost, answered by a small Termux
+  service (colors as JSON), if Android can redirect
+  those requests to it. Open: the color scale, which
+  watch, whether that redirect works (plain
   notifications can't show colors), and how the 7
   stocks are picked.
 - Send a notification when the watcher records an order
