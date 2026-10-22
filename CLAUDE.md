@@ -40,6 +40,19 @@ and the output must fit a phone screen.
 - Running ladders and alerts keep the code they
   started with until they are restarted.
 
+## Plan first
+
+For any change that isn't small (more than a quick
+fix in one place), don't start coding right away:
+
+1. Describe what has to be done as a numbered list
+   of steps, and wait for confirmation.
+2. Do one step, report what changed, and wait for
+   confirmation before the next step.
+
+Small changes (a rename, a one-line fix, a doc
+line) can be done directly.
+
 ## Rules
 
 - Code lines at most 60 characters, shell output at
