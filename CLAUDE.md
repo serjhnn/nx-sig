@@ -90,6 +90,33 @@ These pyflakes warnings are expected, leave them:
 - `'storage.Stock' imported but unused` in
   `engines/ladder.py`
 
+## Check that the change works
+
+Don't stop at "the tests pass". After every change:
+
+1. Run the tests (see Tests below) and read the
+   result; a failing test is fixed, never skipped.
+2. Run the changed code itself and read its output.
+   Run it from a copy of the repo in the scratchpad,
+   so it gets its own empty `data/` and the real one
+   isn't changed. Shell commands can be piped in:
+
+   ```bash
+   R=<scratchpad>/run
+   rm -rf $R && mkdir $R
+   git ls-files -co --exclude-standard \
+     | tar -cf - -T - | tar -xf - -C $R
+   printf 'add rule test\nls rules\nexit\n' \
+     | NO_COLOR=1 NXSHELL_PYTHON=$V $R/nxshell
+   ```
+
+   Check the output with and without `NO_COLOR=1`,
+   that it fits `width()`, and the error messages
+   for wrong input. Don't send real notifications
+   or orders unless asked.
+3. In the report, say what was run and what it
+   printed; if something couldn't be run, say so.
+
 ## Tests on Python 3.14
 
 Test only on 3.14 (CI uses it, the mail broker needs
