@@ -411,6 +411,7 @@ nx-sig/
 ├── .github/workflows/tests.yml
 │                         CI: the tests on every push
 ├── CODE_STYLE.md         code style rules
+├── CLAUDE.md             notes for Claude Code sessions
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg
 ├── assets/modules.html  the module map, open it in a browser (generated)
