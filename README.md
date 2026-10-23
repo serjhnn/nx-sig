@@ -399,6 +399,11 @@ shell. The script is temporary and will be removed later.
 
 ## Project layout
 
+The module map shows how the modules import each
+other: [open it online](https://serjhnn.github.io/nx-sig/assets/modules.html)
+(GitHub Pages, from `main`) or open
+`assets/modules.html` in a browser.
+
 ```
 nx-sig/
 ├── nxshell               start the shell
@@ -414,7 +419,8 @@ nx-sig/
 ├── CLAUDE.md             notes for Claude Code sessions
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg
-├── assets/modules.html  the module map, open it in a browser (generated)
+├── assets/modules.html  the module map (generated), also online:
+│                         serjhnn.github.io/nx-sig/assets/modules.html
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
 │                         (test_shell.py: every shell command)
 └── scripts/
