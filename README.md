@@ -85,7 +85,7 @@ your bot.
 |---|---|
 | `indices` | the stocks you track; only these can be used in commands and are recorded by the mail broker |
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
-| `url`, `feed` | the Alpaca latest-trades endpoint and data feed |
+| `url`, `feed` | the Alpaca latest-trades endpoint and data feed (`ls basetrades sip` or `iex` chooses `delayed_sip` or `iex` for one listing) |
 | `bars_feed` | the feed of the past prices for `chart` (default: `feed`, with `delayed_sip` read as `sip` and the newest 15 minutes left out); set `"iex"` if your plan refuses `sip` |
 | `notify` | where the ladders and alerts are sent: `"telegram"` (default, `TOKEN` and `CHAT_ID` in `.env`) or `"termux"`, an Android notification through Termux:API (the Termux:API app and `pkg install termux-api`, no internet or keys needed), or `"ntfy"`, a push through [ntfy.sh](https://ntfy.sh) (`NTFY_TOPIC` in `.env`, the ntfy app subscribed to that topic); `test notify alert` in the shell sends a test |
 | `timing` | how often the background tasks check the prices, see below |

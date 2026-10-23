@@ -353,11 +353,12 @@ def complete_options(text, line, options_per_position):
     return []
 
 
-def fetch_prices():
-    """{stock: current price} from the API, or {} after
-    printing why the prices could not be fetched"""
+def fetch_prices(feed=None):
+    """{stock: current price} from the API (feed, or
+    config "feed"), or {} after printing why the prices
+    could not be fetched"""
     try:
-        return get_latest_prices()
+        return get_latest_prices(feed)
     except KeyError as e:
         print_error(
             f"error: missing {e.args[0]} in .env, "

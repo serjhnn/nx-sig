@@ -105,12 +105,15 @@ rm rule <id>
 ## basetrades
 
 ```
-ls basetrades [al]
+ls basetrades [sip|iex] [al]
     the basetrades in config order, with
     the current price of each stock and its
-    change % from the buying price; with
-    al, below it each alert's price per
-    stock, a ! when the price is past it
+    change % from the buying price; sip
+    takes the prices from the delayed_sip
+    feed, iex from iex (default: config
+    "feed"); with al, below it each
+    alert's price per stock, a ! when the
+    price is past it
 
 add basetrade <stock> price <price>
   count <count>

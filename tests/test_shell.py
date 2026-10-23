@@ -54,8 +54,10 @@ from shell.overview_cmd import _xtop_lines
 from shell.ui import width
 
 FAKE_PID = 4242
-# the real bars request, setUp fakes it
+# the real bars and latest prices requests, setUp
+# fakes them
 REAL_BARS = prices._bars
+REAL_LATEST = prices._latest_prices
 # another device that runs the background tasks
 OTHER_OWNER = {
     "id": "other",
@@ -76,6 +78,8 @@ class ShellTest(unittest.TestCase):
         storage.DB_DIR = self._tmp.name
         # {stock name: price}, what the fake API returns
         self.prices = {}
+        # the feed of each latest prices request
+        self.feeds = []
         # the ids of the ladders that "run"
         self.running = set()
         # what ./mtsig was called with
@@ -104,7 +108,7 @@ class ShellTest(unittest.TestCase):
             mock.patch.object(
                 prices,
                 "_latest_prices",
-                lambda headers: dict(self.prices),
+                self._fake_latest,
             ),
             mock.patch.object(
                 prices, "_bars", self._fake_bars
@@ -178,6 +182,10 @@ class ShellTest(unittest.TestCase):
             )
         self.running.add(ladder_id)
         return FAKE_PID
+
+    def _fake_latest(self, headers, feed=None):
+        self.feeds.append(feed)
+        return dict(self.prices)
 
     def _fake_bars(self, headers, symbol, days, timeframe):
         self.bars_calls.append((symbol, days, timeframe))
@@ -765,6 +773,54 @@ class ShellTest(unittest.TestCase):
             ["no basetrade alerts, see 'help add alert'"],
         )
 
+    def test_basetrades_feed(self):
+        self.lines("add basetrade SOXL price 18 count 5")
+        self.prices = {"SOXL": 19.8}
+        table = self.lines("ls basetrades")
+        self.assertEqual(self.feeds, [None])
+        # sip is the delayed one, in either order with al
+        for line, feed in (
+            ("ls basetrades sip", "delayed_sip"),
+            ("ls basetrades IEX", "iex"),
+            ("ls basetrades sip al", "delayed_sip"),
+            ("ls basetrades al iex", "iex"),
+        ):
+            self.feeds = []
+            out = self.lines(line)
+            self.assertEqual(out[:3], table, line)
+            self.assertEqual(self.feeds, [feed], line)
+        for line in (
+            "ls basetrades sip iex",
+            "ls basetrades al al",
+            "ls basetrades delayed_sip",
+        ):
+            self.assertEqual(
+                self.lines(line),
+                ["usage: ls basetrades [sip|iex] [al]"],
+                line,
+            )
+
+    def test_latest_prices_feed(self):
+        calls = []
+
+        def fake_get(url, params, headers, timeout):
+            calls.append(dict(params))
+            response = mock.Mock()
+            response.json.return_value = {
+                "trades": {"SOXL": {"p": 19.8}}
+            }
+            return response
+
+        with mock.patch.object(
+            prices.requests, "get", fake_get
+        ), mock.patch.dict(config.DATA, {"feed": "iex"}):
+            self.assertEqual(REAL_LATEST({})["SOXL"], 19.8)
+            REAL_LATEST({}, "delayed_sip")
+        self.assertEqual(
+            [c["feed"] for c in calls],
+            ["iex", "delayed_sip"],
+        )
+
     def test_basetrade_errors(self):
         usage = [
             "usage: add basetrade <stock> price <price> "
@@ -806,7 +862,7 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.lines("ls basetrades all"),
-            ["usage: ls basetrades [al]"],
+            ["usage: ls basetrades [sip|iex] [al]"],
         )
 
     def test_rm_basetrade(self):
@@ -2151,8 +2207,11 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             [(t[-5:], k) for t, k in sent],
-            [("[1/3]", "test"), ("[2/3]", "test"),
-             ("[3/3]", "test")],
+            [
+                ("[1/3]", "test"),
+                ("[2/3]", "test"),
+                ("[3/3]", "test"),
+            ],
         )
         self.assertEqual(sleep.call_count, 2)
         for bad in ("0", "21", "x"):
@@ -2421,7 +2480,11 @@ class ShellTest(unittest.TestCase):
             self.complete("ls la"), ["ladders"]
         )
         self.assertEqual(
-            self.complete("ls basetrades "), ["al"]
+            self.complete("ls basetrades "),
+            ["sip", "iex", "al"],
+        )
+        self.assertEqual(
+            self.complete("ls basetrades sip "), ["al"]
         )
         self.assertEqual(
             self.complete("ls trades so"), ["SOXL"]

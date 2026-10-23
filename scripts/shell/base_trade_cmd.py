@@ -1,7 +1,7 @@
 # base_trade_cmd: the basetrades, the last price you
 # bought each stock at
 #
-#   ls basetrades [al]
+#   ls basetrades [sip|iex] [al]
 #   add basetrade <stock> price <price> count <count>
 #   rm basetrade <stock>
 #
@@ -31,6 +31,11 @@ from shell.ui import (
     supports_color,
 )
 
+LS_USAGE = "usage: ls basetrades [sip|iex] [al]"
+# the 'ls basetrades' feed words, the Alpaca feed of
+# each; the free plan's sip is the delayed one
+FEEDS = {"sip": "delayed_sip", "iex": "iex"}
+
 ADD_USAGE = (
     "usage: add basetrade <stock> price <price> "
     "count <count>"
@@ -47,18 +52,26 @@ class BaseTradeCommands(Commands):
 
     def ls(self, arg):
         """
-        ls basetrades [al]
+        ls basetrades [sip|iex] [al]
             the basetrades in config order, with
             the current price of each stock and its
-            change % from the buying price; with
-            al, below it each alert's price per
-            stock, a ! when the price is past it
+            change % from the buying price; sip
+            takes the prices from the delayed_sip
+            feed, iex from iex (default: config
+            "feed"); with al, below it each
+            alert's price per stock, a ! when the
+            price is past it
         """
         args = arg.lower().split()
-        if args not in ([], ["al"]):
-            print_wrapped("usage: ls basetrades [al]")
+        feeds = [a for a in args if a in FEEDS]
+        rest = [a for a in args if a not in FEEDS]
+        if len(feeds) > 1 or rest not in ([], ["al"]):
+            print_wrapped(LS_USAGE)
             return
-        self._basetrades_show(alerts=bool(args))
+        self._basetrades_show(
+            alerts=bool(rest),
+            feed=FEEDS[feeds[0]] if feeds else None,
+        )
 
     def add(self, arg):
         """
@@ -143,10 +156,13 @@ class BaseTradeCommands(Commands):
                 [b["Stock"] for b in basetrades.get_all()]
             ]
         if action == "ls":
-            return [["al"]]
+            # al after a feed word
+            if args and args[0].lower() in FEEDS:
+                return [list(FEEDS), ["al"]]
+            return [[*FEEDS, "al"]]
         return []
 
-    def _basetrades_show(self, alerts=False):
+    def _basetrades_show(self, alerts=False, feed=None):
         found = basetrades.get_all()
         if not found:
             print_wrapped(
@@ -154,7 +170,7 @@ class BaseTradeCommands(Commands):
                 "basetrade'"
             )
             return
-        prices = fetch_prices()
+        prices = fetch_prices(feed)
 
         color = supports_color()
         # laid out like the xtop table, the columns

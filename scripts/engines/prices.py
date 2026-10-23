@@ -11,10 +11,12 @@
 #       it by default). failed requests go to on_error.
 #       returns a threading.Event, call .set() on it to stop
 #       the thread
-#   get_latest_prices()
+#   get_latest_prices(feed=None)
 #       request config["url"] once and return {index: price}
 #       for config["indices"], raises
-#       requests.RequestException if the request fails
+#       requests.RequestException if the request fails;
+#       feed (e.g. iex or delayed_sip) replaces config
+#       "feed" for this request
 #   get_bars(symbol, days, timeframe)
 #       [(local time, close price)] of symbol's bars of
 #       the last days, oldest first, from Alpaca's bars
@@ -55,8 +57,8 @@ def start_polling(
     return stop_event
 
 
-def get_latest_prices():
-    return _latest_prices(_headers())
+def get_latest_prices(feed=None):
+    return _latest_prices(_headers(), feed)
 
 
 def _headers():
@@ -84,12 +86,12 @@ def _poll(interval, stop_event, on_update, on_error):
             break
 
 
-def _latest_prices(headers):
+def _latest_prices(headers, feed=None):
     response = requests.get(
         config.url(),
         params={
             "symbols": ",".join(config.indices()),
-            "feed": config.feed(),
+            "feed": feed or config.feed(),
         },
         headers=headers,
         timeout=15,
