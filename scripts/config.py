@@ -15,6 +15,9 @@
 #   DATA             config.json as read
 #   indices()        [symbol] of the tracked stocks
 #   demo()           True in the demo
+#   demo_prices()    {symbol: starting price}
+#   demo_number(key) a positive "demo" setting
+#   demo_seed()      the random seed or None
 #   storage_dir()    the data folder, absolute
 #   url(), feed()    the latest trades endpoint, its feed
 #   bars_url()       the bars endpoint (chart)
@@ -56,6 +59,15 @@ DEFAULT_INTERVAL = 30
 DEFAULT_WIDTH = 48
 THEMES = ("colored", "plain")
 DEFAULT_THEME = "colored"
+# the demo's "demo" settings: daily volatility, how
+# many times faster than real time the prices move,
+# seconds between two moves
+DEMO_DEFAULTS = {
+    "volatility": 0.05,
+    "speed": 300,
+    "interval": 2,
+}
+DEMO_START_PRICE = 50.0
 # the chart's price rows, at least MIN_ROWS
 DEFAULT_ROWS = 15
 MIN_ROWS = 3
@@ -86,6 +98,38 @@ def indices():
 def demo():
     """True in the demo, started with ./nxdemo"""
     return DEMO
+
+
+def demo_prices():
+    """{symbol: starting price} of the demo, for every
+    symbol of indices(); DEMO_START_PRICE where
+    "demo" "prices" has no positive number"""
+    given = _section("demo").get("prices")
+    given = given if isinstance(given, dict) else {}
+    found = {}
+    for symbol in indices():
+        price = given.get(symbol)
+        ok = _is_number(price) and price > 0
+        found[symbol] = price if ok else DEMO_START_PRICE
+    return found
+
+
+def demo_number(key):
+    """the "demo" key of DEMO_DEFAULTS: a positive
+    number, else its default"""
+    value = _section("demo").get(key)
+    if _is_number(value) and value > 0:
+        return value
+    return DEMO_DEFAULTS[key]
+
+
+def demo_seed():
+    """the "demo" "seed", an int, or None for other
+    prices each time"""
+    seed = _section("demo").get("seed")
+    if isinstance(seed, int) and not isinstance(seed, bool):
+        return seed
+    return None
 
 
 def storage_dir():

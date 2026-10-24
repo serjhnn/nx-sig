@@ -37,6 +37,8 @@ class DemoTest(unittest.TestCase):
         names = set(os.listdir(self._tmp.name))
         seed = set(os.listdir(config.DEMO_SEED_DIR))
         self.assertTrue(seed <= names)
+        self.assertIn("demo_prices.json", names)
+        self.assertIn("demo_bars.json", names)
         # a change stays: the next start copies nothing
         rules.add("my rule")
         self.assertFalse(demo.prepare())

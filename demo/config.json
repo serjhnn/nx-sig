@@ -5,6 +5,17 @@
         "ladder_interval": 5,
         "alert_interval": 5
     },
+    "demo": {
+        "prices": {
+            "ASMG": 18.4, "AVGG": 46.2, "NVDL": 88.0,
+            "TSMX": 40.5, "MUU": 61.3, "MRVU": 24.8,
+            "SOXL": 35.0
+        },
+        "volatility": 0.05,
+        "speed": 300,
+        "interval": 2,
+        "seed": null
+    },
     "terminal": {
         "width": "auto",
         "theme": "colored",

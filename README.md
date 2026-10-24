@@ -138,7 +138,19 @@ starts the same shell as a demo, to learn the features without keys or
 accounts: it reads `demo/config.json` instead of `config.json` and keeps its
 data in `demo_data/` (not in git), so the real `data/` is never touched. The
 first start fills it with the sample trades, basetrades, rules, a ladder and
-an alert of `demo/seed/`. The demo is being built, see [TODO.md](TODO.md).
+an alert of `demo/seed/`, and makes the prices: a random walk per stock that
+wobbles around its starting price, with a year of made-up history for `chart`.
+The demo is being built, see [TODO.md](TODO.md).
+
+`demo/config.json` has the settings of the demo's prices in `"demo"`:
+
+| Key | Meaning |
+|---|---|
+| `prices` | the starting price of each stock (`50` for a stock without one) |
+| `volatility` | how much a price moves in a day, `0.05` is about 5% |
+| `speed` | how many times faster than real time the prices move (`300`: 2 minutes are 10 hours) |
+| `interval` | seconds between two moves (`2`) |
+| `seed` | a number for the same prices every time, `null` for other ones |
 
 Commands are `<action> <object> [arguments]`. The actions are `ls` (list or
 show), `add` (save), `rm` (delete, after confirmation), `run` and `stop`
@@ -447,7 +459,8 @@ nx-sig/
     │   ├── basetrades.py     the last buying price of each stock
     │   ├── ladder.py         price-step alerts, starts their processes
     │   ├── alerts.py         basetrade and gain alerts, starts their process
-    │   └── demo.py           the demo's sample data (./nxdemo)
+    │   ├── demo.py           the demo's sample data (./nxdemo)
+    │   └── demo_prices.py    the demo's prices, a random walk
     ├── services/         the background processes, <engine>_service.py
     │   ├── ladder_service.py one ladder's process: price, notify
     │   └── alert_service.py  the alerts process, one for all alerts
@@ -502,6 +515,7 @@ python tests/test_notifier.py      # the notify channel
 python tests/test_tasks_owner.py   # which device runs the tasks
 python tests/test_chart.py         # the price chart layout
 python tests/test_demo.py          # the demo settings and sample data
+python tests/test_demo_prices.py   # the demo's random walk prices
 python tests/test_shell.py         # every shell command, faked prices
 python tests/test_sync.py          # device IDs, .stignore
 python scripts/check_style.py      # code style (line width), generated files

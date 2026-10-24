@@ -156,10 +156,10 @@ channel. In this order:
    `config.py` then reads `demo/config.json` (data in
    `demo_data/`), the first start copies the sample
    data of `demo/seed/` (`engines/demo.py`)~~ (done)
-2. **Price generator** `engines/demo_prices.py`: a
+2. ~~**Price generator** `engines/demo_prices.py`: a
    random walk per stock from the starting prices in
    `demo/config.json`, saved in `demo_data/`, with a
-   generated history for `chart`
+   generated history for `chart`~~ (done)
 3. **Price service** `services/demo_prices_service.py`:
    moves the prices every few seconds, started and
    stopped by the demo shell

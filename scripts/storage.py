@@ -63,6 +63,10 @@
 #   demo_fill(seed_dir, reset=False)
 #       copy the demo's sample data into the data folder
 #       (only in the demo)
+#   demo_prices_get(), demo_prices_set(state)
+#       the demo's prices now (dict), demo_prices.json
+#   demo_bars_get(), demo_bars_set(bars)
+#       the demo's price history (dict), demo_bars.json
 #
 # all writes take an exclusive lock on {storage_dir}/.lock,
 # so the CLI and order_watcher.py running at the same time
@@ -730,6 +734,38 @@ def tasks_owner_set(owner):
 
 def _tasks_owner_path():
     return os.path.join(DB_DIR, "tasks_owner.json")
+
+
+def demo_prices_get():
+    return _json_get(_demo_prices_path())
+
+
+@_locked
+def demo_prices_set(state):
+    _json_set(_demo_prices_path(), state)
+
+
+def _demo_prices_path():
+    return os.path.join(DB_DIR, "demo_prices.json")
+
+
+def demo_bars_get():
+    return _json_get(_demo_bars_path())
+
+
+@_locked
+def demo_bars_set(bars):
+    # thousands of points: without indent, so it stays
+    # small
+    os.makedirs(DB_DIR, exist_ok=True)
+    _write_atomic(
+        _demo_bars_path(),
+        lambda f: json.dump(bars, f, separators=(",", ":")),
+    )
+
+
+def _demo_bars_path():
+    return os.path.join(DB_DIR, "demo_bars.json")
 
 
 def _ladders_save(rows):
