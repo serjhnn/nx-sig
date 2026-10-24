@@ -21,6 +21,7 @@
 import io
 import json
 import os
+import re
 import subprocess
 import tempfile
 import threading
@@ -41,6 +42,7 @@ from notifiers import notifier
 import process
 import requests
 import shell.alert_cmd
+import shell.demo_cmd
 import shell.notify_cmd
 import shell.overview_cmd
 import shell.terminal_cmd
@@ -1620,6 +1622,28 @@ class ShellTest(unittest.TestCase):
             found[0], r"^\[DEMO\] \d\d:\d\d:\d\d SOXL up$"
         )
         self.assertEqual(after_command(), [])
+
+    def test_demo_messages_colored(self):
+        # the color codes don't count when wrapping
+        self.demo()
+        text = "SOXL down to 33.26, passed 34 (ladder 1)"
+        demo.message_add(text)
+        out = io.StringIO()
+        with redirect_stdout(out), mock.patch.object(
+            shell.demo_cmd, "supports_color", lambda: True
+        ):
+            self.shell.postcmd(False, "")
+        lines = [
+            re.sub(r"\x1b\[[0-9;]*m", "", l)
+            for l in out.getvalue().splitlines()
+        ]
+        # as wrapped without colors
+        clock = lines[0].split()[1]
+        self.assertEqual(
+            "\n".join(lines),
+            shell.ui.wrap(f"[DEMO] {clock} {text}"),
+        )
+        self.assertEqual(len(lines), 2)
 
     def test_demo_outside(self):
         self.assertEqual(

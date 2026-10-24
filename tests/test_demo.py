@@ -5,9 +5,11 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -167,6 +169,114 @@ class DemoConfigTest(unittest.TestCase):
                 out[1],
                 os.path.join(config.ROOT_DIR, folder),
             )
+
+
+class DemoRunTest(unittest.TestCase):
+    """./nxdemo for real, from a fresh copy of the repo
+    with no .env, as a new user starts it"""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = os.path.join(self._tmp.name, "nx-sig")
+        ignore = shutil.ignore_patterns("__pycache__")
+        shutil.copytree(
+            os.path.join(config.ROOT_DIR, "scripts"),
+            os.path.join(self.root, "scripts"),
+            ignore=ignore,
+        )
+        shutil.copytree(
+            config.DEMO_DIR, os.path.join(self.root, "demo")
+        )
+        for name in ("nxdemo", "config.json"):
+            shutil.copy2(
+                os.path.join(config.ROOT_DIR, name),
+                self.root,
+            )
+
+    def tearDown(self):
+        # the prices process may still be ending
+        for _ in range(50):
+            if not self.prices_run():
+                break
+            time.sleep(0.1)
+        self._tmp.cleanup()
+
+    def prices_run(self):
+        path = os.path.join(
+            self.root,
+            "demo_data",
+            "demo_prices_status.json",
+        )
+        try:
+            with open(path) as f:
+                pid = json.load(f)["pid"]
+            os.kill(pid, 0)
+        except (OSError, ValueError, KeyError):
+            return False
+        return True
+
+    def test_run(self):
+        env = {
+            k: v
+            for k, v in os.environ.items()
+            if k
+            not in (
+                "APCA_API_KEY_ID",
+                "APCA_API_SECRET_KEY",
+                "TOKEN",
+                "CHAT_ID",
+                "NTFY_TOPIC",
+            )
+        }
+        # a request would fail: no network for the demo
+        dead = "http://127.0.0.1:9"
+        env.update(
+            NO_COLOR="1",
+            NXSHELL_PYTHON=sys.executable,
+            HTTP_PROXY=dead,
+            HTTPS_PROXY=dead,
+        )
+        commands = [
+            "ls stocks",
+            "demo set SOXL 30",
+            "status",
+            "demo move SOXL -10%",
+            "ls basetrades al",
+            "chart SOXL",
+            "test notify alert",
+            "",
+            "q",
+        ]
+        out = subprocess.run(
+            [os.path.join(self.root, "nxdemo")],
+            input="\n".join(commands) + "\n",
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=60,
+        )
+        text = out.stdout + out.stderr
+        self.assertEqual(out.returncode, 0, text)
+        for found in (
+            "nX-sig demo:",
+            "SOXL: 30.00 -> 27.00",
+            "mail broker: not in the demo",
+            "demo: made-up prices, moving",
+            "SOXL 5 days",
+            "[DEMO]",
+        ):
+            self.assertIn(found, text)
+        self.assertNotIn("error", text.lower())
+        self.assertNotIn("Traceback", text)
+        self.assertFalse(
+            os.path.exists(os.path.join(self.root, "data"))
+        )
+        # the prices process ends with the shell
+        for _ in range(50):
+            if not self.prices_run():
+                break
+            time.sleep(0.1)
+        self.assertFalse(self.prices_run())
 
 
 if __name__ == "__main__":

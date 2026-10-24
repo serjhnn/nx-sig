@@ -30,6 +30,7 @@
 #                      spaces between the columns
 #   print_dim(text), print_wrapped(text),
 #   print_error(text)
+#   wrap(text)         text wrapped to width()
 #   confirm(question)  True if answered y/yes
 #   key_reader()       with it, read() is the key
 #                      pressed or None, not waiting
@@ -209,16 +210,19 @@ def print_dim(text):
 
 def print_wrapped(text):
     """print plain text wrapped to width(), dimmed"""
-    print_dim(_wrap(text))
+    print_dim(wrap(text))
 
 
 def print_error(text):
     """print an error wrapped to width(), not dimmed so
     it stands out"""
-    print(_wrap(text))
+    print(wrap(text))
 
 
-def _wrap(text):
+def wrap(text):
+    """text wrapped to width(), the lines after the
+    first indented 2 spaces; plain text, a color
+    code would count as characters"""
     return textwrap.fill(
         text,
         width(),

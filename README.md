@@ -26,6 +26,79 @@ as narrow as 48 characters (see `terminal` `width` below).
 - **Alerts**: a message each time a basetrade's stock or a held
   stock's gain crosses a level, e.g. 10% below the buying price
 - **Notifications** through Telegram, Termux:API or [ntfy](https://ntfy.sh) (config `notify`)
+- **A demo** (`./nxdemo`) with sample data and made-up prices, to try it all
+  without any account, see [Try the demo](#try-the-demo)
+
+## Try the demo
+
+```bash
+git clone https://github.com/serjhnn/nx-sig.git
+cd nx-sig
+pip install -r requirements.txt
+./nxdemo
+```
+
+`./nxdemo` starts the shell with sample trades, basetrades, rules, a ladder
+and an alert, and with made-up prices that move by themselves, so every
+feature can be tried without an Alpaca account, a mail account, a `.env` file
+or the internet. Type `demo tour` for the commands to try, in order.
+
+<p align="center">
+  <img src="assets/demo-start.svg" alt="./nxdemo: ls stocks and status" width="520">
+</p>
+
+`chart` draws the made-up price history, with the average buy price:
+
+<p align="center">
+  <img src="assets/demo-chart.svg" alt="chart SOXL in the demo" width="520">
+</p>
+
+A ladder or an alert sends its messages to the shell, marked `[DEMO]`, after
+the next command. `demo move` moves a price at once, so you don't have to wait
+for one:
+
+<p align="center">
+  <img src="assets/demo-ladder.svg" alt="a ladder message after demo move" width="520">
+</p>
+
+The `demo` command works only in the demo:
+
+| Command | What it does |
+|---|---|
+| `demo tour` | the commands to try, in order |
+| `demo set NVDL 70` | sets a price; it moves on from there |
+| `demo move SOXL -5%` | moves one stock, or `all`, by a percent (-90% to +1000%) |
+| `demo speed [<n>]` | shows or sets how many times faster than real time the prices move (1 to 10000), until a reset |
+| `demo reset` | stops the demo's ladders and alerts and starts over with the sample data and new prices |
+
+### How the demo works
+
+- **Its own settings and data**: it reads `demo/config.json` instead of
+  `config.json` and keeps its data in `demo_data/` (not in git), so the real
+  `data/` is never touched. The first start copies the sample data of
+  `demo/seed/` there.
+- **The prices** are a random walk per stock that wobbles around its starting
+  price, with a year of made-up history for `chart`. A background process
+  (`services/demo_prices_service.py`) moves them every `interval` seconds while
+  the demo shell is open, or after it is closed while a ladder or the alerts of
+  the demo still run, and ends by itself when nothing needs them (log:
+  `demo_data/logs/demo_prices.log`). Every command that shows or checks prices
+  uses them, with no keys and no network.
+- **Messages** of the ladders and alerts don't go to `notify`: the shell
+  prints them (the last 100 are kept in `demo_data/demo_messages.json`), and
+  `test notify` works the same way.
+- **Not in the demo**: the mail broker (`run mail-broker`), as it would record
+  real broker emails, and syncing.
+
+`demo/config.json` has the settings of the demo's prices in `"demo"`:
+
+| Key | Meaning |
+|---|---|
+| `prices` | the starting price of each stock (`50` for a stock without one) |
+| `volatility` | how much a price moves in a day, `0.05` is about 5% |
+| `speed` | how many times faster than real time the prices move (`300`: 2 minutes are 10 hours); `demo speed` changes it until a reset |
+| `interval` | seconds between two moves (`2`) |
+| `seed` | a number for the same prices every time, `null` for other ones |
 
 ## Requirements
 
@@ -130,53 +203,7 @@ also turns them off.
 It starts from the repo folder by itself, so `~/nx-sig/nxshell` works from
 anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 
-```bash
-./nxdemo
-```
-
-starts the same shell as a demo, to learn the features without keys or
-accounts: it reads `demo/config.json` instead of `config.json` and keeps its
-data in `demo_data/` (not in git), so the real `data/` is never touched. The
-first start fills it with the sample trades, basetrades, rules, a ladder and
-an alert of `demo/seed/`, and makes the prices: a random walk per stock that
-wobbles around its starting price, with a year of made-up history for `chart`.
-A background process (`services/demo_prices_service.py`) moves them every
-`interval` seconds while the demo shell is open, or after it is closed while a
-ladder or the alerts of the demo still run; it ends by itself when nothing
-needs the prices any more (log: `demo_data/logs/demo_prices.log`). Every
-command that shows or checks prices (`ls stocks`, `ls basetrades`, `status`,
-`xtop`, `chart`, the ladders and alerts) uses these, with no keys and no
-network.
-
-The ladders' and alerts' messages don't go to `notify` in the demo: they are
-printed in the shell after the next command, marked `[DEMO]` (the last 100 are
-kept in `demo_data/demo_messages.json`), and `test notify` works the same way.
-The prompt is `nX-sig demo>` and `status` has a line about the prices. The
-mail broker (`run mail-broker`) is not in the demo, as it would record real
-broker emails, and neither is syncing.
-
-The `demo` command (only in the demo) changes the prices by hand, to see a
-ladder or an alert send a message without waiting:
-
-| Command | What it does |
-|---|---|
-| `demo tour` | the commands to try, in order |
-| `demo set NVDL 70` | sets a price; it moves on from there |
-| `demo move SOXL -5%` | moves one stock, or `all`, by a percent (-90% to +1000%) |
-| `demo speed [<n>]` | shows or sets how many times faster than real time the prices move (1 to 10000), until a reset |
-| `demo reset` | stops the demo's ladders and alerts and starts over with the sample data and new prices |
-
-Still to do: see [TODO.md](TODO.md).
-
-`demo/config.json` has the settings of the demo's prices in `"demo"`:
-
-| Key | Meaning |
-|---|---|
-| `prices` | the starting price of each stock (`50` for a stock without one) |
-| `volatility` | how much a price moves in a day, `0.05` is about 5% |
-| `speed` | how many times faster than real time the prices move (`300`: 2 minutes are 10 hours); `demo speed` changes it until a reset |
-| `interval` | seconds between two moves (`2`) |
-| `seed` | a number for the same prices every time, `null` for other ones |
+To try it without keys or accounts first, see [Try the demo](#try-the-demo).
 
 Commands are `<action> <object> [arguments]`. The actions are `ls` (list or
 show), `add` (save), `rm` (delete, after confirmation), `run` and `stop`
@@ -472,6 +499,7 @@ nx-sig/
 ├── CLAUDE.md             notes for Claude Code sessions
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg
+├── assets/demo-*.svg     the demo pictures of this README
 ├── assets/modules.html  the module map (generated), also online:
 │                         serjhnn.github.io/nx-sig/assets/modules.html
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
@@ -544,7 +572,7 @@ python tests/test_alerts.py        # alert levels and crossings
 python tests/test_notifier.py      # the notify channel
 python tests/test_tasks_owner.py   # which device runs the tasks
 python tests/test_chart.py         # the price chart layout
-python tests/test_demo.py          # the demo settings and sample data
+python tests/test_demo.py          # the demo data, and a run of ./nxdemo
 python tests/test_demo_prices.py   # the demo's prices and their process
 python tests/test_shell.py         # every shell command, faked prices
 python tests/test_sync.py          # device IDs, .stignore

@@ -35,9 +35,11 @@
 #   speed(), set_speed(value)
 #       how many times faster than real time they move,
 #       until create() (config "demo" "speed" by default)
-#   bars(symbol, days, now=None)
+#   bars(symbol, days, now=None, timeframe=None)
 #       [(local time, price)] of the last days, oldest
-#       first, ending with the price now
+#       first, ending with the price now; with a
+#       timeframe (1Day, 1Hour, 15Min) evenly spaced,
+#       like market bars
 #   start(shell_pid), stop(), running_pid()
 #       the process that moves the prices,
 #       services/demo_prices_service.py; it runs while
@@ -52,6 +54,7 @@
 #   log_path()
 #       the log file of the process
 
+import bisect
 import logging
 import math
 import os
@@ -80,6 +83,8 @@ HISTORY = TIERS[-1][0]
 # after a longer pause (the demo was closed) the
 # prices move as much as after MAX_GAP seconds
 MAX_GAP = 60
+# the seconds of the chart's timeframes (chart.py)
+TIMEFRAMES = {"1Day": DAY, "1Hour": 3600, "15Min": 900}
 # the limits of shift() in percent and of set_speed()
 MIN_SHIFT = -90
 MAX_SHIFT = 1000
@@ -227,19 +232,44 @@ def latest():
     return dict(state["prices"]) if state else {}
 
 
-def bars(symbol, days, now=None):
+def bars(symbol, days, now=None, timeframe=None):
     now = time.time() if now is None else now
     since = now - days * DAY
-    points = (storage.demo_bars_get() or {}).get(symbol, [])
-    found = [
-        (datetime.fromtimestamp(t), price)
-        for t, price in points
+    history = storage.demo_bars_get() or {}
+    points = [
+        (t, price)
+        for t, price in history.get(symbol, [])
         if since <= t < now
     ]
     price = latest().get(symbol)
     if price is not None:
-        found.append((datetime.fromtimestamp(now), price))
-    return found
+        points.append((now, price))
+    step = TIMEFRAMES.get(timeframe)
+    if step and len(points) > 1:
+        points = _even(points, step)
+    return [
+        (datetime.fromtimestamp(t), price)
+        for t, price in points
+    ]
+
+
+def _even(points, step):
+    """points every step seconds back from the last;
+    a price between two points on the straight line
+    between them"""
+    times = [t for t, _ in points]
+    found = []
+    when = times[-1]
+    while when >= times[0]:
+        i = bisect.bisect_left(times, when)
+        if times[i] == when:
+            price = points[i][1]
+        else:
+            (t0, p0), (t1, p1) = points[i - 1], points[i]
+            price = p0 + (p1 - p0) * (when - t0) / (t1 - t0)
+        found.append((when, round(price, 2)))
+        when -= step
+    return found[::-1]
 
 
 def _step(log, start, days, rng):

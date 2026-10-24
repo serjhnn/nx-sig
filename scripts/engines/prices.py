@@ -5,7 +5,7 @@
 #
 # in the demo (config.demo()) the prices are the made
 # up ones of engines/demo_prices.py instead: no keys,
-# no network, the feed and timeframe are not used
+# no network, the feed is not used
 #
 # public functions:
 #   start_polling(interval=5, on_update=print, on_error=...)
@@ -130,7 +130,9 @@ def _demo_latest():
 
 def get_bars(symbol, days, timeframe):
     if config.demo():
-        return demo_prices.bars(symbol, days)
+        return demo_prices.bars(
+            symbol, days, timeframe=timeframe
+        )
     return _bars(_headers(), symbol, days, timeframe)
 
 

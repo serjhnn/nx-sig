@@ -211,6 +211,43 @@ class DemoPricesTest(unittest.TestCase):
         self.assertEqual(times, sorted(times))
         self.assertEqual(demo_prices.bars("XX", 5), [])
 
+    def test_bars_timeframe(self):
+        # evenly spaced like market bars, so the chart's
+        # columns are the same time apart
+        for timeframe, step in (
+            ("15Min", 900),
+            ("1Hour", 3600),
+            ("1Day", DAY),
+        ):
+            found = demo_prices.bars(
+                "SOXL", 5, NOW + 1, timeframe
+            )
+            gaps = {
+                (b[0] - a[0]).total_seconds()
+                for a, b in zip(found, found[1:])
+            }
+            self.assertEqual(gaps, {step}, timeframe)
+            self.assertEqual(
+                found[-1][1], self.start["SOXL"]
+            )
+
+    def test_even(self):
+        points = [(0, 10.0), (100, 20.0), (300, 0.0)]
+        self.assertEqual(
+            demo_prices._even(points, 100),
+            [
+                (0, 10.0),
+                (100, 20.0),
+                (200, 10.0),
+                (300, 0.0),
+            ],
+        )
+        # a step that misses the first point
+        self.assertEqual(
+            demo_prices._even(points, 250),
+            [(50, 15.0), (300, 0.0)],
+        )
+
     def test_ensure(self):
         demo_prices.move(NOW + 2, random.Random(2))
         moved = demo_prices.latest()

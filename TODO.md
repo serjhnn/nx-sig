@@ -145,7 +145,7 @@ see some of it. Say so, and let alerts say less:
    phone and the PC and keeps alerts that were missed
    or swiped away.
 
-## Demo: try nX-sig without keys
+## ~~Demo: try nX-sig without keys~~ (done)
 
 `./nxdemo` runs the shell with sample data and random
 walk prices, so a new user can learn the features
@@ -172,8 +172,10 @@ channel. In this order:
    `status`~~ (done)
 6. ~~**`demo` command**: `demo reset`, `demo set`,
    `demo move`, `demo speed`, `demo tour`~~ (done)
-7. **Tests and docs**: `tests/test_demo.py` without
-   `.env`, a "Try the demo" README section
+7. ~~**Tests and docs**: `tests/test_demo.py` without
+   `.env`, a "Try the demo" README section~~ (done,
+   with pictures; `test_demo.py` runs `./nxdemo` from
+   a copy of the repo)
 
 ## Later: open it up for other people
 

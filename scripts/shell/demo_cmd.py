@@ -27,6 +27,7 @@ from shell.ui import (
     print_wrapped,
     stock_names,
     supports_color,
+    wrap,
 )
 
 USAGE = (
@@ -190,12 +191,15 @@ def print_messages():
     if not config.demo():
         return
     for message in demo.messages_new():
-        tag = TAG
+        text = wrap(
+            f"{TAG} {message['Time']} {message['Text']}"
+        )
+        # colored after wrapping, so the color codes
+        # don't count as characters
         if supports_color():
             tag = f"{BOLD}{PRICE_COLOR}{TAG}{RESET}"
-        print_error(
-            f"{tag} {message['Time']} {message['Text']}"
-        )
+            text = tag + text[len(TAG) :]
+        print(text)
 
 
 def demo_status():
