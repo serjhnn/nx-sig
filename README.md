@@ -4,6 +4,39 @@
 
 [![tests](https://github.com/serjhnn/nx-sig/actions/workflows/tests.yml/badge.svg)](https://github.com/serjhnn/nx-sig/actions/workflows/tests.yml)
 
+[Features](#features) · [Demo](#try-the-demo) ·
+[Requirements](#requirements) · [Setup](#setup) ·
+[Running](#running) · [Data](#data) ·
+[Layout](#project-layout) · [Tests](#tests) ·
+[Code style](#code-style) · [Planned](#planned) ·
+[venv](#python-virtual-environment)
+
+<details>
+<summary>Contents</summary>
+
+- [Features](#features)
+- [Try the demo](#try-the-demo)
+  - [How the demo works](#how-the-demo-works)
+- [Requirements](#requirements)
+- [Setup](#setup)
+- [Running](#running)
+  - [The shell](#the-shell)
+  - [The mail broker (mtsig, mail trades service)](#the-mail-broker-mtsig-mail-trades-service)
+  - [Price chart](#price-chart)
+  - [Ladders](#ladders)
+  - [Alerts](#alerts)
+    - [Gain alerts](#gain-alerts)
+  - [Syncing the phone and the PC](#syncing-the-phone-and-the-pc)
+    - [One device runs the background tasks](#one-device-runs-the-background-tasks)
+- [Data](#data)
+- [Project layout](#project-layout)
+- [Tests](#tests)
+- [Code style](#code-style)
+- [Planned](#planned)
+- [Python virtual environment](#python-virtual-environment)
+
+</details>
+
 **nX-sig** is a small terminal tool for tracking stock positions. It records
 your buy and sell trades, keeps the count and average buy price of every
 stock, shows live prices and your gain or loss, and can record broker orders
@@ -601,7 +634,7 @@ The code is written to be read on a phone: lines are at most
 
 See [TODO.md](TODO.md).
 
-## Python virtual environment 
+## Python virtual environment
 
 git clone <repo-url>
 
