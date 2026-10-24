@@ -1621,6 +1621,125 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(after_command(), [])
 
+    def test_demo_outside(self):
+        self.assertEqual(
+            self.lines("demo tour"),
+            ["only in the demo, start it with ./nxdemo"],
+        )
+
+    def test_demo_usage(self):
+        self.demo()
+        for line in ("demo", "demo fly"):
+            self.assertTrue(
+                self.lines(line)[0].startswith(
+                    "usage: demo set"
+                ),
+                line,
+            )
+        for line, usage in (
+            ("demo set SOXL", "set <stock> <price>"),
+            ("demo move SOXL 5", "move <stock|all> <n>%"),
+            ("demo speed 1 2", "speed [<n>]"),
+            ("demo reset now", "reset"),
+            ("demo tour now", "tour"),
+        ):
+            self.assertEqual(
+                self.lines(line), [f"usage: demo {usage}"]
+            )
+
+    def test_demo_set_move(self):
+        self.demo()
+        demo_prices.create()
+        self.assertEqual(
+            self.lines("demo set soxl 30"),
+            ["SOXL: 50.00 -> 30.00"],
+        )
+        self.assertEqual(
+            self.lines("demo move SOXL -10%"),
+            ["SOXL: 30.00 -> 27.00"],
+        )
+        moved = self.lines("demo move all +10%")
+        self.assertEqual(len(moved), len(config.indices()))
+        self.assertIn("SOXL: 27.00 -> 29.70", moved)
+        self.assertEqual(
+            self.lines("demo set SOXL x"),
+            ["error: the price must be a number, not 'x'"],
+        )
+        self.assertEqual(
+            self.lines("demo set SOXL 0"),
+            ["error: the price must be above 0"],
+        )
+        self.assertEqual(
+            self.lines("demo move SOXL -95%"),
+            ["error: the change must be -90% to +1000%"],
+        )
+        self.assertTrue(
+            self.lines("demo set XX 1")[0].startswith(
+                "error: unknown stock 'XX'"
+            )
+        )
+        self.assertEqual(demo_prices.latest()["SOXL"], 29.7)
+
+    def test_demo_speed(self):
+        self.demo()
+        demo_prices.create()
+        self.assertEqual(
+            self.lines("demo speed"),
+            ["speed: 300 times real time, a move every 2s"],
+        )
+        self.assertEqual(
+            self.lines("demo speed 20"),
+            ["speed: 20 times real time, a move every 2s"],
+        )
+        self.assertEqual(
+            self.lines("demo speed 0"),
+            ["error: the speed must be 1 to 10000"],
+        )
+        self.assertEqual(demo_prices.speed(), 20)
+
+    def test_demo_reset(self):
+        self.demo()
+        demo.prepare()
+        self.running.add(1)
+        self.alerts_running = True
+        self.run_cmd("add rule my rule")
+        self.assertEqual(
+            self.lines("demo reset", answer="n")[-1],
+            "not reset",
+        )
+        self.assertEqual(self.running, {1})
+        found = self.lines("demo reset", answer="y")
+        self.assertEqual(found[2], "start over? [y/N] y")
+        self.assertEqual(
+            " ".join(l.strip() for l in found[3:]),
+            "the demo starts over: sample data, new "
+            "prices; 2 tasks stopped",
+        )
+        self.assertEqual(self.running, set())
+        self.assertFalse(self.alerts_running)
+        self.assertNotIn(
+            "my rule", self.run_cmd("ls rules")
+        )
+
+    def test_demo_tour(self):
+        self.demo()
+        found = self.lines("demo tour")
+        self.assertEqual(
+            found[0], "things to try, in this order:"
+        )
+        self.assertTrue(
+            found[1].startswith(" 1. ls stocks")
+        )
+
+    def test_demo_complete(self):
+        self.assertEqual(
+            self.complete("demo s"), ["set", "speed"]
+        )
+        self.assertIn("all", self.complete("demo move "))
+        self.assertNotIn("all", self.complete("demo set "))
+        self.assertIn("SOXL", self.complete("demo set "))
+        self.assertEqual(self.complete("demo tour "), [])
+
     def test_ls_tasks(self):
         self.assertEqual(
             self.lines("ls tasks"),

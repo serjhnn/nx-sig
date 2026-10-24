@@ -21,6 +21,7 @@
 #   chart <stock> [period ...], terminal info,
 #   test notify <alert|ladder>,
 #   strategy (not implemented yet)
+#   demo <set|move|speed|reset|tour> (only in ./nxdemo)
 #   help [<command>], exit, quit, q
 #
 # the objects live in scripts/shell/: every *_cmd.py
@@ -48,7 +49,7 @@ import shell
 from engines import demo, demo_prices
 from shell.interface import Commands
 from shell.chart_cmd import ChartCmd
-from shell.demo_cmd import print_messages
+from shell.demo_cmd import DemoCmd, print_messages
 from shell.notify_cmd import NotifyCmd
 from shell.overview_cmd import OverviewCmd
 from shell.terminal_cmd import TerminalCmd
@@ -124,6 +125,7 @@ OWN_COMMANDS = [
     "terminal",
     "test",
     "strategy",
+    "demo",
     "help",
     "exit",
 ]
@@ -200,6 +202,7 @@ class NxSigShell(
     ChartCmd,
     TerminalCmd,
     NotifyCmd,
+    DemoCmd,
     cmd.Cmd,
 ):
     def __init__(self, *args, **kwargs):

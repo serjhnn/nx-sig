@@ -254,6 +254,21 @@ test notify <alert|ladder> [repeat <n>]
 strategy [run/stop/list/get]
     not implemented yet
 
+demo set <stock> <price>
+demo move <stock|all> <n>%
+demo speed [<n>]
+demo reset
+demo tour
+    only in the demo (./nxdemo): set a
+    price, or move one or all by n percent,
+    e.g. 'demo move SOXL -5%', to see a
+    ladder or an alert send a message;
+    speed shows or sets how many times
+    faster than real time the prices move;
+    reset stops the demo's tasks and starts
+    over with the sample data; tour lists
+    what to try
+
 help [<command>]
     all commands, or the details of one,
     e.g. 'help add trade', 'help rm' or

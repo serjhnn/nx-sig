@@ -30,6 +30,11 @@
 #       move (at most MAX_GAP), return {symbol: price}
 #   latest()
 #       {symbol: price} now, {} before create()
+#   set_price(symbol, price), shift(symbols, percent)
+#       change prices by hand, return {symbol: price}
+#   speed(), set_speed(value)
+#       how many times faster than real time they move,
+#       until create() (config "demo" "speed" by default)
 #   bars(symbol, days, now=None)
 #       [(local time, price)] of the last days, oldest
 #       first, ending with the price now
@@ -75,6 +80,10 @@ HISTORY = TIERS[-1][0]
 # after a longer pause (the demo was closed) the
 # prices move as much as after MAX_GAP seconds
 MAX_GAP = 60
+# the limits of shift() in percent and of set_speed()
+MIN_SHIFT = -90
+MAX_SHIFT = 1000
+MAX_SPEED = 10_000
 # a point is kept when the one after it is at least
 # its tier's gap less THIN_SLACK seconds later (the
 # moves come a second or two late)
@@ -120,29 +129,97 @@ def ensure():
 def move(now=None, rng=None):
     now = time.time() if now is None else now
     rng = rng or _rng
-    state = storage.demo_prices_get()
-    if not state:
+    if not storage.demo_prices_get():
         create(now, rng)
         return latest()
-    gap = min(max(now - state["time"], 0), MAX_GAP)
-    days = gap * config.demo_number("speed") / DAY
-    prices = {}
-    for symbol, start in config.demo_prices().items():
-        price = state["prices"].get(symbol, start)
-        log = _step(
-            math.log(price), math.log(start), days, rng
+
+    def change(state):
+        gap = min(max(now - state["time"], 0), MAX_GAP)
+        days = gap * speed(state) / DAY
+        prices = {}
+        for symbol, start in config.demo_prices().items():
+            price = state["prices"].get(symbol, start)
+            log = _step(
+                math.log(price), math.log(start), days, rng
+            )
+            prices[symbol] = round(math.exp(log), 4)
+        state = {**state, "time": now, "prices": prices}
+        if now - state.get("recorded", 0) >= TIERS[0][1]:
+            _record(prices, now)
+            state["recorded"] = now
+        return state
+
+    return storage.demo_prices_change(change)["prices"]
+
+
+def set_price(symbol, price):
+    """set symbol's price now; it moves on from there"""
+    if not price > 0:
+        raise DemoPricesError("the price must be above 0")
+
+    def change(prices):
+        prices[symbol] = price
+
+    return _change_prices(change)
+
+
+def shift(symbols, percent):
+    """move the prices of symbols by percent"""
+    if not MIN_SHIFT <= percent <= MAX_SHIFT:
+        raise DemoPricesError(
+            f"the change must be {MIN_SHIFT}% to "
+            f"+{MAX_SHIFT}%"
         )
-        prices[symbol] = round(math.exp(log), 4)
-    state = {
-        "time": now,
-        "recorded": state.get("recorded", 0),
-        "prices": prices,
-    }
-    if now - state["recorded"] >= TIERS[0][1]:
-        _record(prices, now)
-        state["recorded"] = now
-    storage.demo_prices_set(state)
-    return prices
+
+    def change(prices):
+        for symbol in symbols:
+            moved = prices[symbol] * (1 + percent / 100)
+            prices[symbol] = round(moved, 4)
+
+    return _change_prices(change)
+
+
+def speed(state=None):
+    """how many times faster than real time the prices
+    move: the one of set_speed(), else the config"""
+    if state is None:
+        state = storage.demo_prices_get() or {}
+    value = state.get("speed")
+    if isinstance(value, (int, float)) and value > 0:
+        return value
+    return config.demo_number("speed")
+
+
+def set_speed(value):
+    if not 1 <= value <= MAX_SPEED:
+        raise DemoPricesError(
+            f"the speed must be 1 to {MAX_SPEED}"
+        )
+
+    def change(state):
+        return {**_existing(state), "speed": value}
+
+    storage.demo_prices_change(change)
+
+
+def _change_prices(change):
+    """change(prices) on a copy of the prices now,
+    saved; return the new prices"""
+
+    def change_state(state):
+        prices = dict(_existing(state)["prices"])
+        change(prices)
+        return {**state, "prices": prices}
+
+    return storage.demo_prices_change(change_state)[
+        "prices"
+    ]
+
+
+def _existing(state):
+    if not state:
+        raise DemoPricesError("there are no prices yet")
+    return state
 
 
 def latest():

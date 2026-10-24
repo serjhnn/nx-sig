@@ -153,8 +153,20 @@ printed in the shell after the next command, marked `[DEMO]` (the last 100 are
 kept in `demo_data/demo_messages.json`), and `test notify` works the same way.
 The prompt is `nX-sig demo>` and `status` has a line about the prices. The
 mail broker (`run mail-broker`) is not in the demo, as it would record real
-broker emails, and neither is syncing. The demo is being built, see
-[TODO.md](TODO.md).
+broker emails, and neither is syncing.
+
+The `demo` command (only in the demo) changes the prices by hand, to see a
+ladder or an alert send a message without waiting:
+
+| Command | What it does |
+|---|---|
+| `demo tour` | the commands to try, in order |
+| `demo set NVDL 70` | sets a price; it moves on from there |
+| `demo move SOXL -5%` | moves one stock, or `all`, by a percent (-90% to +1000%) |
+| `demo speed [<n>]` | shows or sets how many times faster than real time the prices move (1 to 10000), until a reset |
+| `demo reset` | stops the demo's ladders and alerts and starts over with the sample data and new prices |
+
+Still to do: see [TODO.md](TODO.md).
 
 `demo/config.json` has the settings of the demo's prices in `"demo"`:
 
@@ -162,7 +174,7 @@ broker emails, and neither is syncing. The demo is being built, see
 |---|---|
 | `prices` | the starting price of each stock (`50` for a stock without one) |
 | `volatility` | how much a price moves in a day, `0.05` is about 5% |
-| `speed` | how many times faster than real time the prices move (`300`: 2 minutes are 10 hours) |
+| `speed` | how many times faster than real time the prices move (`300`: 2 minutes are 10 hours); `demo speed` changes it until a reset |
 | `interval` | seconds between two moves (`2`) |
 | `seed` | a number for the same prices every time, `null` for other ones |
 

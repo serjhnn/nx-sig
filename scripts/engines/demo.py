@@ -13,8 +13,9 @@
 #   prepare()   at the demo's first start, fill its data
 #               folder with the sample data and make
 #               the prices; True if it did
-#   reset()     replace the demo data with the sample
-#               data and new prices again
+#   reset()     stop the demo's ladders and alerts,
+#               then the sample data and new prices
+#               again; return how many tasks stopped
 #   message_add(text)
 #               keep a message of a ladder or an alert
 #               (notifiers/demo_notify.py), the last
@@ -24,7 +25,7 @@
 
 import config
 import storage
-from engines import demo_prices
+from engines import alerts, demo_prices, ladder
 
 KEEP_MESSAGES = 100
 
@@ -36,8 +37,16 @@ def prepare():
 
 
 def reset():
+    if not config.demo():
+        raise RuntimeError("reset outside the demo")
+    stopped = sum(
+        ladder.stop(saved["Id"])
+        for saved in ladder.get_all()
+    )
+    stopped += alerts.stop()
     storage.demo_fill(config.DEMO_SEED_DIR, reset=True)
     demo_prices.create()
+    return stopped
 
 
 def message_add(text):

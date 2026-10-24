@@ -65,6 +65,9 @@
 #       (only in the demo)
 #   demo_prices_get(), demo_prices_set(state)
 #       the demo's prices now (dict), demo_prices.json
+#   demo_prices_change(change)
+#       save change(state) of the prices now, under the
+#       lock, and return it
 #   demo_bars_get(), demo_bars_set(bars)
 #       the demo's price history (dict), demo_bars.json
 #   demo_prices_status_get(), demo_prices_status_set(s)
@@ -753,6 +756,19 @@ def demo_prices_set(state):
     _json_set(_demo_prices_path(), state)
 
 
+@_locked
+def demo_prices_change(change):
+    """
+    replace the demo's prices state with change(state),
+    the read and the write under one lock, so the
+    prices process and the shell don't undo each
+    other's change; return the new state
+    """
+    state = change(demo_prices_get())
+    demo_prices_set(state)
+    return state
+
+
 def _demo_prices_path():
     return os.path.join(DB_DIR, "demo_prices.json")
 
@@ -895,6 +911,11 @@ def demo_fill(seed_dir, reset=False):
     return _demo_fill(seed_dir, reset)
 
 
+# kept by a reset: the lock, and the heartbeat of the
+# prices process, which goes on running
+DEMO_KEEP = (".lock", "demo_prices_status.json")
+
+
 @_locked
 def _demo_fill(seed_dir, reset):
     marker = os.path.join(DB_DIR, ".demo")
@@ -904,7 +925,9 @@ def _demo_fill(seed_dir, reset):
     if reset:
         for name in os.listdir(DB_DIR):
             path = os.path.join(DB_DIR, name)
-            if name != ".lock" and os.path.isfile(path):
+            if name not in DEMO_KEEP and os.path.isfile(
+                path
+            ):
                 os.remove(path)
     for name in sorted(os.listdir(seed_dir)):
         source = os.path.join(seed_dir, name)

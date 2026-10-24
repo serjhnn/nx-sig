@@ -170,8 +170,8 @@ channel. In this order:
    the shell with `[DEMO]`; `mtsig`, `syncnx` and the
    mail commands refused; `DEMO` in the prompt and
    `status`~~ (done)
-6. **`demo` command**: `demo reset`, `demo set`,
-   `demo move`, `demo speed`, `demo tour`
+6. ~~**`demo` command**: `demo reset`, `demo set`,
+   `demo move`, `demo speed`, `demo tour`~~ (done)
 7. **Tests and docs**: `tests/test_demo.py` without
    `.env`, a "Try the demo" README section
 

@@ -58,6 +58,27 @@ class DemoTest(unittest.TestCase):
             [r["Rule"] for r in rules.get_all()],
         )
 
+    def test_reset_stops_tasks(self):
+        demo.prepare()
+        stopped = []
+        status = os.path.join(
+            self._tmp.name, "demo_prices_status.json"
+        )
+        storage.demo_prices_status_set({"pid": 7})
+        with mock.patch.object(
+            ladder,
+            "stop",
+            lambda i: stopped.append(i) or True,
+        ), mock.patch.object(
+            alerts,
+            "stop",
+            lambda: stopped.append("a") or False,
+        ):
+            self.assertEqual(demo.reset(), 1)
+        self.assertEqual(stopped, [1, "a"])
+        # the prices process goes on: its heartbeat stays
+        self.assertTrue(os.path.exists(status))
+
     def test_seed_reads(self):
         # every sample file reads through the engines
         demo.prepare()

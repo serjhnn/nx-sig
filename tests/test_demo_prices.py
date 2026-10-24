@@ -139,6 +139,66 @@ class DemoPricesTest(unittest.TestCase):
             demo_prices._thin(history, NOW), history
         )
 
+    def test_set_and_shift(self):
+        self.assertEqual(
+            demo_prices.set_price("SOXL", 20)["SOXL"], 20
+        )
+        moved = demo_prices.shift(["SOXL", "MUU"], -10)
+        self.assertEqual(moved["SOXL"], 18)
+        self.assertAlmostEqual(
+            moved["MUU"], self.start["MUU"] * 0.9, 3
+        )
+        self.assertEqual(demo_prices.latest(), moved)
+        for bad in (
+            lambda: demo_prices.set_price("SOXL", 0),
+            lambda: demo_prices.shift(["SOXL"], -91),
+            lambda: demo_prices.shift(["SOXL"], 1001),
+        ):
+            with self.assertRaises(
+                demo_prices.DemoPricesError
+            ):
+                bad()
+        # moves on from the price set
+        demo_prices.move(NOW, random.Random(1))
+        self.assertAlmostEqual(
+            demo_prices.latest()["SOXL"], 18
+        )
+
+    def test_speed(self):
+        self.assertEqual(demo_prices.speed(), 300)
+        demo_prices.set_speed(1)
+        self.assertEqual(demo_prices.speed(), 1)
+        # slower: a smaller move than at 300
+        slow = demo_prices.move(NOW + 60, random.Random(9))
+        self.assertEqual(demo_prices.speed(), 1)
+        demo_prices.create(NOW, random.Random(1))
+        self.assertEqual(demo_prices.speed(), 300)
+        fast = demo_prices.move(NOW + 60, random.Random(9))
+
+        def moved(prices):
+            return abs(prices["SOXL"] - self.start["SOXL"])
+
+        self.assertLess(moved(slow), moved(fast))
+        for bad in (0, 10_001):
+            with self.assertRaises(
+                demo_prices.DemoPricesError
+            ):
+                demo_prices.set_speed(bad)
+
+    def test_no_prices_yet(self):
+        os.remove(
+            os.path.join(self._tmp.name, "demo_prices.json")
+        )
+        for change in (
+            lambda: demo_prices.set_price("SOXL", 1),
+            lambda: demo_prices.shift(["SOXL"], 5),
+            lambda: demo_prices.set_speed(5),
+        ):
+            with self.assertRaises(
+                demo_prices.DemoPricesError
+            ):
+                change()
+
     def test_bars(self):
         found = demo_prices.bars("SOXL", 5, NOW + 1)
         self.assertTrue(
