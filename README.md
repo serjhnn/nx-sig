@@ -636,13 +636,44 @@ See [TODO.md](TODO.md).
 
 ## Python virtual environment
 
-git clone <repo-url>
+A virtual environment keeps nX-sig's packages apart from
+the system Python. [uv](https://docs.astral.sh/uv/) makes
+one quickly and can install Python 3.14 if it is missing.
 
-cd <repo>
+Install uv (once):
 
-python -m venv .venv
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh  # Linux
+pkg install uv                                   # Termux
+```
 
+Make the venv in the repo folder and install the packages:
+
+```bash
+cd nx-sig
+uv venv -p 3.14 .venv
+uv pip install -r requirements.txt
+```
+
+`uv pip` installs into `.venv` in the current folder, no
+need to activate it first. `.venv` is in `.gitignore`.
+
+Activate it in each new terminal before starting nX-sig, so
+`python3` is the venv's Python:
+
+```bash
 source .venv/bin/activate
+./nxshell        # or ./mtsig, ./nxdemo, ./syncnx
+deactivate       # back to the system Python
+```
 
-pip install -r requirements.txt
+Or, without activating, point the scripts at the venv's
+Python (e.g. in `~/.bashrc`):
 
+```bash
+export NXSHELL_PYTHON=~/nx-sig/.venv/bin/python
+export WATCHER_PYTHON=~/nx-sig/.venv/bin/python
+```
+
+`NXSHELL_PYTHON` is used by `./nxshell`, `./nxdemo` and
+`./syncnx`, `WATCHER_PYTHON` by `./mtsig`.

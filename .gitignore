@@ -4,3 +4,4 @@ __pycache__/
 data/
 .device
 demo_data/
+.venv/
