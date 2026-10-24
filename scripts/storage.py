@@ -67,6 +67,9 @@
 #       the demo's prices now (dict), demo_prices.json
 #   demo_bars_get(), demo_bars_set(bars)
 #       the demo's price history (dict), demo_bars.json
+#   demo_prices_status_get(), demo_prices_status_set(s)
+#       heartbeat of the demo's prices process (dict),
+#       demo_prices_status.json
 #
 # all writes take an exclusive lock on {storage_dir}/.lock,
 # so the CLI and order_watcher.py running at the same time
@@ -766,6 +769,19 @@ def demo_bars_set(bars):
 
 def _demo_bars_path():
     return os.path.join(DB_DIR, "demo_bars.json")
+
+
+def demo_prices_status_get():
+    return _json_get(_demo_prices_status_path())
+
+
+@_locked
+def demo_prices_status_set(status):
+    _json_set(_demo_prices_status_path(), status)
+
+
+def _demo_prices_status_path():
+    return os.path.join(DB_DIR, "demo_prices_status.json")
 
 
 def _ladders_save(rows):

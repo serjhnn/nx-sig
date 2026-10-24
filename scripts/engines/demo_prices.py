@@ -33,13 +33,30 @@
 #   bars(symbol, days, now=None)
 #       [(local time, price)] of the last days, oldest
 #       first, ending with the price now
+#   start(shell_pid), stop(), running_pid()
+#       the process that moves the prices,
+#       services/demo_prices_service.py; it runs while
+#       the demo shell shell_pid or a background task
+#       (a ladder, the alerts) runs, so their prices
+#       keep moving after the shell is closed
+#   needed()
+#       True while the process should run
+#   status(), save_status(pid, started, state,
+#                         shell=None)
+#       its heartbeat
+#   log_path()
+#       the log file of the process
 
+import logging
 import math
+import os
 import random
+import signal
 import time
 from datetime import datetime
 
 import config
+import process
 import storage
 
 DAY = 24 * 3600
@@ -63,7 +80,19 @@ MAX_GAP = 60
 # moves come a second or two late)
 THIN_SLACK = 30
 
+SERVICE = "demo_prices_service.py"
+SCRIPT = os.path.join(
+    config.ROOT_DIR, "scripts", "services", SERVICE
+)
+# the script of the shell, to know if it still runs
+SHELL = "commands.py"
+
 _rng = random.Random(config.demo_seed())
+log = logging.getLogger("demo_prices")
+
+
+class DemoPricesError(Exception):
+    pass
 
 
 def create(now=None, rng=None):
@@ -204,3 +233,106 @@ def _thin(points, now):
         if newer - point[0] >= enough:
             kept.append(point)
     return kept[::-1]
+
+
+def status():
+    return storage.demo_prices_status_get()
+
+
+def running_pid():
+    pid = (status() or {}).get("pid")
+    if pid and process.process_runs(pid, SERVICE, "run"):
+        return pid
+    return None
+
+
+def needed():
+    shell = (status() or {}).get("shell")
+    if shell and process.process_runs(shell, SHELL):
+        return True
+    return process.tasks_run()
+
+
+def start(shell_pid):
+    """
+    start the process that moves the prices, for the
+    demo shell shell_pid, and return its pid; when it
+    runs already it moves them for this shell too.
+    raise DemoPricesError outside the demo or when it
+    stops right away
+    """
+    if not config.demo():
+        raise DemoPricesError("only in the demo")
+    pid = running_pid()
+    if pid:
+        save_status(pid, None, "moving", shell_pid)
+        return pid
+    out = _out_path()
+    child = process.spawn([SCRIPT, "run"], out)
+    # so running_pid() and needed() know it before the
+    # process writes its first heartbeat
+    save_status(child.pid, _now(), "starting", shell_pid)
+    deadline = (
+        time.monotonic() + process.START_CHECK_SECONDS
+    )
+    while time.monotonic() < deadline:
+        if child.poll() is not None:
+            raise DemoPricesError(
+                "the demo prices stopped right after "
+                "starting: "
+                + process.last_line([out, log_path()])
+            )
+        time.sleep(0.2)
+    return child.pid
+
+
+def stop():
+    """stop the process (SIGTERM, then SIGKILL), True
+    if it was running"""
+    pid = running_pid()
+    if not pid or not process.kill(pid, signal.SIGTERM):
+        return False
+    deadline = time.monotonic() + process.STOP_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        process.reap(pid)
+        if not running_pid():
+            return True
+        time.sleep(0.2)
+    process.kill(pid, signal.SIGKILL)
+    save_status(pid, None, "stopped")
+    return True
+
+
+def save_status(pid, started, state, shell=None):
+    """write the heartbeat; started and shell None
+    keep the saved ones"""
+    previous = status() or {}
+    try:
+        storage.demo_prices_status_set(
+            {
+                "pid": pid,
+                "started": started
+                or previous.get("started"),
+                "updated": _now(),
+                "state": state,
+                "shell": shell or previous.get("shell"),
+            }
+        )
+    except Exception:
+        log.exception("could not write the status")
+
+
+def _out_path():
+    return os.path.join(
+        storage.DB_DIR, "logs", "demo_prices.out"
+    )
+
+
+def log_path():
+    return os.path.join(
+        storage.DB_DIR, "logs", "demo_prices.log"
+    )
+
+
+def _now():
+    return datetime.now().isoformat(timespec="seconds")

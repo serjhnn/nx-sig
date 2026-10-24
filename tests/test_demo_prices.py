@@ -14,9 +14,11 @@ from unittest import mock
 
 import paths  # noqa: F401, scripts/ on sys.path
 import config
+import process
 import storage
 from engines import demo_prices
 from engines.demo_prices import DAY, HISTORY, MAX_GAP
+from services import demo_prices_service
 
 NOW = 1_800_000_000
 
@@ -158,6 +160,133 @@ class DemoPricesTest(unittest.TestCase):
         )
         demo_prices.ensure()
         self.assertEqual(demo_prices.latest(), self.start)
+
+
+class FakeChild:
+    def __init__(self, pid, code=None):
+        self.pid = pid
+        self.code = code
+
+    def poll(self):
+        return self.code
+
+
+class DemoPricesProcessTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self._orig_db_dir = storage.DB_DIR
+        storage.DB_DIR = self._tmp.name
+        for target, name, value in (
+            (config, "DEMO", True),
+            (process, "START_CHECK_SECONDS", 0),
+        ):
+            p = mock.patch.object(target, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+        self.alive = set()
+        self.patch(
+            process,
+            "process_runs",
+            lambda pid, *a: pid in self.alive,
+        )
+        self.patch(process, "tasks_run", lambda: False)
+
+    def tearDown(self):
+        storage.DB_DIR = self._orig_db_dir
+        self._tmp.cleanup()
+
+    def patch(self, target, name, value):
+        p = mock.patch.object(target, name, value)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_start(self):
+        spawned = []
+
+        def spawn(args, out):
+            spawned.append(args)
+            return FakeChild(500)
+
+        self.patch(process, "spawn", spawn)
+        self.assertEqual(demo_prices.start(42), 500)
+        self.assertEqual(
+            spawned, [[demo_prices.SCRIPT, "run"]]
+        )
+        status = demo_prices.status()
+        self.assertEqual(status["pid"], 500)
+        self.assertEqual(status["shell"], 42)
+        # running: the next shell is saved, no new one
+        self.alive.add(500)
+        self.assertEqual(demo_prices.start(43), 500)
+        self.assertEqual(len(spawned), 1)
+        self.assertEqual(demo_prices.status()["shell"], 43)
+
+    def test_start_fails(self):
+        self.patch(
+            process, "spawn", lambda *a: FakeChild(5, 1)
+        )
+        self.patch(process, "START_CHECK_SECONDS", 1)
+        with self.assertRaises(demo_prices.DemoPricesError):
+            demo_prices.start(42)
+        config.DEMO = False
+        with self.assertRaises(demo_prices.DemoPricesError):
+            demo_prices.start(42)
+
+    def test_needed(self):
+        self.assertFalse(demo_prices.needed())
+        demo_prices.save_status(500, None, "moving", 42)
+        self.assertFalse(demo_prices.needed())
+        self.alive.add(42)
+        self.assertTrue(demo_prices.needed())
+        # the shell closed, a ladder runs
+        self.alive.clear()
+        self.patch(process, "tasks_run", lambda: True)
+        self.assertTrue(demo_prices.needed())
+
+    def test_stop(self):
+        self.assertFalse(demo_prices.stop())
+        demo_prices.save_status(500, None, "moving", 42)
+        self.alive.add(500)
+        sent = []
+
+        def kill(pid, sig):
+            sent.append(pid)
+            self.alive.discard(pid)
+            return True
+
+        self.patch(process, "kill", kill)
+        self.patch(process, "reap", lambda pid: None)
+        self.assertTrue(demo_prices.stop())
+        self.assertEqual(sent, [500])
+
+    def test_service(self):
+        # moves until nothing needs the prices
+        demo_prices.create(NOW, random.Random(1))
+        start = demo_prices.latest()
+        needed = iter([True, True, False])
+        self.patch(
+            demo_prices, "needed", lambda: next(needed)
+        )
+        self.patch(
+            demo_prices_service.time,
+            "sleep",
+            lambda s: None,
+        )
+        self.patch(process, "setup_logging", lambda p: None)
+        self.patch(process, "release_if_idle", lambda: None)
+        demo_prices_service.run()
+        self.assertEqual(
+            demo_prices.status()["state"], "done"
+        )
+        self.assertNotEqual(demo_prices.latest(), start)
+
+    def test_service_outside_demo(self):
+        config.DEMO = False
+        self.patch(process, "setup_logging", lambda p: None)
+        self.patch(process, "release_if_idle", lambda: None)
+        with self.assertRaises(SystemExit):
+            with self.assertLogs("demo_prices", "ERROR"):
+                demo_prices_service.run()
 
 
 class DemoConfigTest(unittest.TestCase):

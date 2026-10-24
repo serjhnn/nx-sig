@@ -140,7 +140,11 @@ data in `demo_data/` (not in git), so the real `data/` is never touched. The
 first start fills it with the sample trades, basetrades, rules, a ladder and
 an alert of `demo/seed/`, and makes the prices: a random walk per stock that
 wobbles around its starting price, with a year of made-up history for `chart`.
-The demo is being built, see [TODO.md](TODO.md).
+A background process (`services/demo_prices_service.py`) moves them every
+`interval` seconds while the demo shell is open, or after it is closed while a
+ladder or the alerts of the demo still run; it ends by itself when nothing
+needs the prices any more (log: `demo_data/logs/demo_prices.log`). The demo
+is being built, see [TODO.md](TODO.md).
 
 `demo/config.json` has the settings of the demo's prices in `"demo"`:
 
@@ -463,7 +467,8 @@ nx-sig/
     │   └── demo_prices.py    the demo's prices, a random walk
     ├── services/         the background processes, <engine>_service.py
     │   ├── ladder_service.py one ladder's process: price, notify
-    │   └── alert_service.py  the alerts process, one for all alerts
+    │   ├── alert_service.py  the alerts process, one for all alerts
+    │   └── demo_prices_service.py the demo's prices process
     ├── notifiers/        the notify channels (config "notify")
     │   ├── notifier.py       sends through the chosen channel
     │   ├── telegram_notify.py message through a Telegram bot
@@ -515,7 +520,7 @@ python tests/test_notifier.py      # the notify channel
 python tests/test_tasks_owner.py   # which device runs the tasks
 python tests/test_chart.py         # the price chart layout
 python tests/test_demo.py          # the demo settings and sample data
-python tests/test_demo_prices.py   # the demo's random walk prices
+python tests/test_demo_prices.py   # the demo's prices and their process
 python tests/test_shell.py         # every shell command, faked prices
 python tests/test_sync.py          # device IDs, .stignore
 python scripts/check_style.py      # code style (line width), generated files

@@ -14,6 +14,10 @@
 #       ours
 #   reap(pid)
 #       wait for an ended child, so it isn't a zombie
+#   tasks_run(ending_id=None, watcher_ending=False,
+#             alerts_ending=False)
+#       True if a ladder, the mail broker or the alerts
+#       run
 #   release_if_idle(ending_id=None, watcher_ending=False,
 #                   alerts_ending=False)
 #       release the wake lock and the background tasks
@@ -116,15 +120,14 @@ def reap(pid):
         pass
 
 
-def release_if_idle(
+def tasks_run(
     ending_id=None,
     watcher_ending=False,
     alerts_ending=False,
 ):
-    """release the Termux wake lock and the background
-    tasks (tasks_owner.release) when no ladder but
-    ending_id, no mail broker and no alerts process
-    (unless it is the one ending) runs any more"""
+    """True if a ladder but ending_id, the mail broker
+    or the alerts process (unless it is the one
+    ending) runs"""
     for l in ladders_get_all():
         if l["Id"] == ending_id:
             continue
@@ -132,20 +135,31 @@ def release_if_idle(
         if pid and process_runs(
             pid, "ladder_service.py", l["Id"]
         ):
-            return
+            return True
     pid = mtsig_pid_get()
     if (
         not watcher_ending
         and pid
         and process_runs(pid, "order_watcher.py")
     ):
-        return
+        return True
     alerts = (alerts_status_get() or {}).get("pid")
-    if (
+    return bool(
         not alerts_ending
         and alerts
         and process_runs(alerts, "alert_service.py", "run")
-    ):
+    )
+
+
+def release_if_idle(
+    ending_id=None,
+    watcher_ending=False,
+    alerts_ending=False,
+):
+    """release the Termux wake lock and the background
+    tasks (tasks_owner.release) when no task runs any
+    more (tasks_run())"""
+    if tasks_run(ending_id, watcher_ending, alerts_ending):
         return
     wake_lock("termux-wake-unlock")
     tasks_owner.release()

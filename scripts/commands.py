@@ -31,7 +31,9 @@
 # completion are built from them. see CLI_BLUEPRINT.md
 #
 # ./nxdemo starts the same shell as a demo, with its
-# own settings and sample data (engines/demo.py)
+# own settings and sample data (engines/demo.py), and
+# the process that moves its prices
+# (engines/demo_prices.py)
 
 import cmd
 import glob
@@ -41,8 +43,9 @@ import os
 import textwrap
 
 import config
+import process
 import shell
-from engines import demo
+from engines import demo, demo_prices
 from shell.interface import Commands
 from shell.chart_cmd import ChartCmd
 from shell.notify_cmd import NotifyCmd
@@ -493,10 +496,28 @@ class NxSigShell(
         )
 
 
+def _demo_start():
+    """the demo's sample data and moving prices"""
+    demo.prepare()
+    try:
+        demo_prices.start(os.getpid())
+    except demo_prices.DemoPricesError as e:
+        print_error(f"the prices don't move: {e}")
+
+
+def _demo_end():
+    # a running ladder or alert keeps them moving
+    if not process.tasks_run():
+        demo_prices.stop()
+
+
 if __name__ == "__main__":
     if config.demo():
-        demo.prepare()
+        _demo_start()
     try:
         NxSigShell().cmdloop()
     except KeyboardInterrupt:
         print()
+    finally:
+        if config.demo():
+            _demo_end()

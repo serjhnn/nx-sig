@@ -160,9 +160,10 @@ channel. In this order:
    random walk per stock from the starting prices in
    `demo/config.json`, saved in `demo_data/`, with a
    generated history for `chart`~~ (done)
-3. **Price service** `services/demo_prices_service.py`:
+3. ~~**Price service** `services/demo_prices_service.py`:
    moves the prices every few seconds, started and
-   stopped by the demo shell
+   stopped by the demo shell~~ (done, it also runs on
+   while a ladder or the alerts of the demo run)
 4. **`prices.py` in the demo** reads the generated
    prices, no keys, no network
 5. **Notify and blocked parts**: messages printed in
