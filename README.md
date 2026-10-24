@@ -143,8 +143,10 @@ wobbles around its starting price, with a year of made-up history for `chart`.
 A background process (`services/demo_prices_service.py`) moves them every
 `interval` seconds while the demo shell is open, or after it is closed while a
 ladder or the alerts of the demo still run; it ends by itself when nothing
-needs the prices any more (log: `demo_data/logs/demo_prices.log`). The demo
-is being built, see [TODO.md](TODO.md).
+needs the prices any more (log: `demo_data/logs/demo_prices.log`). Every
+command that shows or checks prices (`ls stocks`, `ls basetrades`, `status`,
+`xtop`, `chart`, the ladders and alerts) uses these, with no keys and no
+network. The demo is being built (notifications next), see [TODO.md](TODO.md).
 
 `demo/config.json` has the settings of the demo's prices in `"demo"`:
 
@@ -458,7 +460,8 @@ nx-sig/
     ├── commands.py       the shell: actions, help, collects the modules
     ├── engines/          the logic of each kind of data, used by the shell
     │   ├── trades.py         trades and their totals (count, average price)
-    │   ├── prices.py         market prices from Alpaca (one-off and polling)
+    │   ├── prices.py         market prices from Alpaca (one-off and polling),
+    │   │                     in the demo the made-up ones
     │   ├── rules.py          your personal rules
     │   ├── basetrades.py     the last buying price of each stock
     │   ├── ladder.py         price-step alerts, starts their processes

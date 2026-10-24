@@ -164,8 +164,8 @@ channel. In this order:
    moves the prices every few seconds, started and
    stopped by the demo shell~~ (done, it also runs on
    while a ladder or the alerts of the demo run)
-4. **`prices.py` in the demo** reads the generated
-   prices, no keys, no network
+4. ~~**`prices.py` in the demo** reads the generated
+   prices, no keys, no network~~ (done)
 5. **Notify and blocked parts**: messages printed in
    the shell with `[DEMO]`; `mtsig`, `syncnx` and the
    mail commands refused; `DEMO` in the prompt and

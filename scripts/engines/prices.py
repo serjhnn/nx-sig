@@ -3,6 +3,10 @@
 # each, and their bars), once or polled in a background
 # thread; the only module that requests prices
 #
+# in the demo (config.demo()) the prices are the made
+# up ones of engines/demo_prices.py instead: no keys,
+# no network, the feed and timeframe are not used
+#
 # public functions:
 #   start_polling(interval=5, on_update=print, on_error=...)
 #       start a thread that every `interval` seconds
@@ -31,6 +35,7 @@ import requests
 from dotenv import load_dotenv
 
 import config
+from engines import demo_prices
 
 load_dotenv(os.path.join(config.ROOT_DIR, ".env"))
 
@@ -58,6 +63,8 @@ def start_polling(
 
 
 def get_latest_prices(feed=None):
+    if config.demo():
+        return _demo_latest()
     return _latest_prices(_headers(), feed)
 
 
@@ -72,13 +79,19 @@ def _headers():
 
 
 def _poll(interval, stop_event, on_update, on_error):
-    headers = _headers()
+    if config.demo():
+        latest = _demo_latest
+    else:
+        headers = _headers()
+
+        def latest():
+            return _latest_prices(headers)
 
     # wait() returns True once stop_event is set, otherwise
     # sleeps `interval` seconds
     while True:
         try:
-            on_update(_latest_prices(headers))
+            on_update(latest())
         except requests.RequestException as e:
             on_error(e)
 
@@ -106,7 +119,18 @@ def _latest_prices(headers, feed=None):
     }
 
 
+def _demo_latest():
+    found = demo_prices.latest()
+    return {
+        index: found[index]
+        for index in config.indices()
+        if index in found
+    }
+
+
 def get_bars(symbol, days, timeframe):
+    if config.demo():
+        return demo_prices.bars(symbol, days)
     return _bars(_headers(), symbol, days, timeframe)
 
 

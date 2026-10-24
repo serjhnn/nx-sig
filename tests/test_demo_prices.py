@@ -8,6 +8,7 @@ import math
 import os
 import random
 import tempfile
+import time
 import unittest
 from datetime import datetime
 from unittest import mock
@@ -16,7 +17,7 @@ import paths  # noqa: F401, scripts/ on sys.path
 import config
 import process
 import storage
-from engines import demo_prices
+from engines import demo_prices, prices
 from engines.demo_prices import DAY, HISTORY, MAX_GAP
 from services import demo_prices_service
 
@@ -160,6 +161,57 @@ class DemoPricesTest(unittest.TestCase):
         )
         demo_prices.ensure()
         self.assertEqual(demo_prices.latest(), self.start)
+
+
+class PricesInDemoTest(unittest.TestCase):
+    """engines/prices.py in the demo: the made up
+    prices, no keys, no network"""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self._orig_db_dir = storage.DB_DIR
+        storage.DB_DIR = self._tmp.name
+        for target, name, value in (
+            (config, "DEMO", True),
+            (prices.requests, "get", self.no_network),
+            (os, "environ", {}),
+        ):
+            p = mock.patch.object(target, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+        # now: get_bars() asks for the last days
+        demo_prices.create(time.time(), random.Random(1))
+
+    def tearDown(self):
+        storage.DB_DIR = self._orig_db_dir
+        self._tmp.cleanup()
+
+    def no_network(self, *args, **kwargs):
+        self.fail("a request in the demo")
+
+    def test_latest(self):
+        found = prices.get_latest_prices("sip")
+        self.assertEqual(list(found), config.indices())
+        self.assertEqual(found, demo_prices.latest())
+
+    def test_bars(self):
+        found = prices.get_bars("SOXL", 5, "15Min")
+        self.assertEqual(
+            found[-1][1], demo_prices.latest()["SOXL"]
+        )
+        self.assertGreater(len(found), 100)
+
+    def test_polling(self):
+        got = []
+        stop = prices.start_polling(
+            60, on_update=got.append, on_error=got.append
+        )
+        stop.set()
+        for _ in range(100):
+            if got:
+                break
+            time.sleep(0.01)
+        self.assertEqual(got, [demo_prices.latest()])
 
 
 class FakeChild:
