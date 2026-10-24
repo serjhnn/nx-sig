@@ -77,6 +77,7 @@ black -q -l 60 -S <changed .py files>
 pyflakes scripts tests
 python scripts/gen_docs.py   # help docstrings changed
 python scripts/gen_deps.py   # imports/modules changed
+python scripts/gen_shots.py  # demo output changed
 python scripts/check_style.py
 $V -m unittest discover tests
 ```

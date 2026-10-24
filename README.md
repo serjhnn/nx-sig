@@ -61,6 +61,10 @@ for one:
   <img src="assets/demo-ladder.svg" alt="a ladder message after demo move" width="520">
 </p>
 
+The pictures are made from a real run of `./nxdemo` by
+`python scripts/gen_shots.py` (Linux or macOS), run it again when the output
+changes.
+
 The `demo` command works only in the demo:
 
 | Command | What it does |
@@ -500,6 +504,7 @@ nx-sig/
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg
 ├── assets/demo-*.svg     the demo pictures of this README
+│                         (scripts/gen_shots.py)
 ├── assets/modules.html  the module map (generated), also online:
 │                         serjhnn.github.io/nx-sig/assets/modules.html
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
@@ -557,6 +562,7 @@ nx-sig/
     ├── latest_trade.py   prints the latest prices once
     ├── gen_docs.py       writes COMMANDS.md from the help texts
     ├── gen_deps.py       writes assets/modules.html from the imports
+    ├── gen_shots.py      writes the demo pictures (assets/demo-*.svg)
     └── check_style.py    checks the code style rules and the generated files
 ```
 

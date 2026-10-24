@@ -175,6 +175,7 @@ const MODS = {
   "config": ["core", "Reads config.json once, at the first import, and gives every module its settings through typed accessors with their defaults", [], []],
   "gen_deps": ["tools", "Writes the module map, assets/modules.html, from the imports of the code, so the map and the code say the same", [], []],
   "gen_docs": ["tools", "Writes COMMANDS.md from the help texts of the shell, so the docs and 'help' say the same", ["commands", "storage"], []],
+  "gen_shots": ["tools", "Writes the demo pictures of README.md (assets/demo-*.svg) from a real run of ./nxdemo, so they can be made again when the output changes", [], []],
   "latest_trade": ["tools", "Prints the latest prices of config \"indices\" once", ["config"], []],
   "metrics": ["tools", "The metrics engine of nX-sig", [], []],
   "process": ["engine", "The helpers of the background processes (the ladders, the alerts, the mail broker)", ["storage", "tasks_owner"], []],
