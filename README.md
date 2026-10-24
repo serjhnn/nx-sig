@@ -153,7 +153,14 @@ cd nx-sig
 pip install -r requirements.txt
 ```
 
-In Termux, install Python and git first: `pkg install python git`.
+On the phone, install the [Termux](https://f-droid.org/packages/com.termux/)
+and [Termux:API](https://f-droid.org/packages/com.termux.api/) apps from
+[F-Droid](https://f-droid.org), not from Google Play: the Play versions are
+old and get old packages, and Termux:API only works with a Termux from the
+same source. Termux:API is needed only for `notify` `"termux"`.
+
+In Termux, install Python and git first: `pkg install python git`
+(and `pkg install termux-api` for Termux:API).
 
 Create a `.env` file in the repo folder with your keys (it is in `.gitignore`):
 
