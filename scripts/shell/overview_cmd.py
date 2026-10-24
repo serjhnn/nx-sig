@@ -17,6 +17,7 @@ from datetime import datetime
 import config
 from engines.prices import start_polling
 from shell.ui import (
+    rule,
     BOLD,
     BUY_COLOR,
     COUNT_COLOR,
@@ -84,9 +85,10 @@ class OverviewCmd:
             header_cols = [
                 f"{DIM}{col}{RESET}" for col in header_cols
             ]
-        separator = "-" * width()
+        header = column_sep.join(header_cols)
+        separator = rule(header)
         print()
-        print(column_sep.join(header_cols))
+        print(header)
         print(
             f"{DIM}{separator}{RESET}"
             if color
@@ -298,7 +300,7 @@ def _xtop_lines(
         header_cols = [
             f"{DIM}{col}{RESET}" for col in header_cols
         ]
-    separator = "-" * width()
+    separator = rule(column_sep.join(header_cols))
     separator = (
         f"{DIM}{separator}{RESET}" if color else separator
     )

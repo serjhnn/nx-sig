@@ -12,6 +12,7 @@ from engines import trades
 from engines.trades import Stock, TradeType
 from shell.interface import Commands
 from shell.ui import (
+    rule,
     BOLD,
     BUY_COLOR,
     COUNT_COLOR,
@@ -22,7 +23,6 @@ from shell.ui import (
     SELL_COLOR,
     TOTAL_COUNT_COLOR,
     TOTAL_STOCK_COLOR,
-    width,
     column_separator,
     confirm,
     parse_id,
@@ -73,10 +73,9 @@ class TradeCommands(Commands):
 
         color = supports_color()
         print()
-        _print_trades_header(color)
+        separator = _print_trades_header(color)
         for t in found:
             _print_trade_row(t, color)
-        separator = "-" * width()
         print(
             f"{DIM}{separator}{RESET}"
             if color
@@ -196,9 +195,10 @@ class TradeCommands(Commands):
             header_cols = [
                 f"{DIM}{col}{RESET}" for col in header_cols
             ]
-        separator = "-" * width()
+        header = column_sep.join(header_cols)
+        separator = rule(header)
         print()
-        print(column_sep.join(header_cols))
+        print(header)
         print(
             f"{DIM}{separator}{RESET}"
             if color
@@ -238,7 +238,7 @@ def _trade_ids(args):
 
 def _print_trades_header(color):
     """print the column names of the trades table and a
-    separator line"""
+    separator line; returns the separator, uncolored"""
     header_cols = [
         f"{'Id':>4}",
         f"{'Date':>8}",
@@ -251,11 +251,13 @@ def _print_trades_header(color):
         header_cols = [
             f"{DIM}{col}{RESET}" for col in header_cols
         ]
-    print(column_separator(color, 6).join(header_cols))
-    separator = "-" * width()
+    header = column_separator(color, 6).join(header_cols)
+    print(header)
+    separator = rule(header)
     print(
         f"{DIM}{separator}{RESET}" if color else separator
     )
+    return separator
 
 
 def _print_trade_row(t, color):

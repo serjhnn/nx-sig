@@ -7,13 +7,13 @@
 
 from shell.interface import Commands
 from shell.ui import (
+    rule,
     BOLD,
     COUNT_COLOR,
     DIM,
     PRICE_COLOR,
     RESET,
     TOTAL_STOCK_COLOR,
-    width,
     column_separator,
     fetch_prices,
     color_for_gain,
@@ -73,9 +73,10 @@ class StocksCommands(Commands):
             header_cols = [
                 f"{DIM}{col}{RESET}" for col in header_cols
             ]
-        separator = "-" * width()
+        header = column_sep.join(header_cols)
+        separator = rule(header)
         print()
-        print(column_sep.join(header_cols))
+        print(header)
         print(
             f"{DIM}{separator}{RESET}"
             if color

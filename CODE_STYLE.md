@@ -29,7 +29,8 @@ with 1, so it can run before each commit (see
   of a number, and build table gaps with
   `column_separator(color, columns)` or
   `space_separator(columns, base)` so they grow with
-  it.
+  it. The dashed line under a table header is
+  `rule(header)`, as wide as the columns.
 
 ## Wrapping long lines in Python
 

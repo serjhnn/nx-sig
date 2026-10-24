@@ -392,7 +392,7 @@ class ShellTest(unittest.TestCase):
         out = self.lines("ls trades")
         self.assertEqual(
             out[:2],
-            ["Name  | Trades | Last trade", "-" * width()],
+            ["Name  | Trades | Last trade", "-" * 31],
         )
         # in config order
         self.assertRegex(
@@ -471,7 +471,7 @@ class ShellTest(unittest.TestCase):
             [
                 "Name  | Count | Avg Price |    Total | "
                 "Growth %",
-                "-" * width(),
+                "-" * 47,
                 "MUU   |     2 |     50.00 |   100.00 | "
                 "       -",
                 "SOXL  |    10 |     20.00 |   200.00 | "
@@ -587,12 +587,12 @@ class ShellTest(unittest.TestCase):
             [
                 "Name   Qty      Avg    Price      Gain"
                 "   Gain %",
-                "-" * width(),
+                "-" * 47,
                 "MUU      2    50.00        -         -"
                 "        -",
                 "SOXL    10    20.00    22.00    +20.00"
                 "  +10.00%",
-                "-" * width(),
+                "-" * 47,
                 "total                           +20.00"
                 "  +10.00%",
                 "updated 09:30:05, every 5s, q to stop",
@@ -928,7 +928,7 @@ class ShellTest(unittest.TestCase):
             self.lines("ls alerts"),
             [
                 "Id  For         Alert         Created",
-                "-" * width(),
+                "-" * 46,
                 " 1  basetrades  down 10%      "
                 f"{created[0]}",
                 " 2  basetrades  up 20%        "
@@ -1455,7 +1455,7 @@ class ShellTest(unittest.TestCase):
         self.run_cmd("add ladder MRVU up 2.5 from 40")
         header = [
             "Id  Stock  Ladder        From     Next  State",
-            "-" * width(),
+            "-" * 47,
         ]
         self.assertEqual(
             self.lines("ls ladders"),
@@ -2100,7 +2100,8 @@ class ShellTest(unittest.TestCase):
                 [
                     "Name    |   Count   |   Avg Price   |"
                     "      Price   |       State",
-                    "-" * 80,
+                    # as wide as the columns, not 80
+                    "-" * 64,
                     "SOXL    |      10   |       20.50   |"
                     "      25.50   |      +50.00",
                 ],
@@ -2138,7 +2139,7 @@ class ShellTest(unittest.TestCase):
         xtop = _xtop_lines(
             self.prices, None, None, 5, False
         )
-        self.assertEqual(xtop[1], "-" * 48)
+        self.assertEqual(xtop[1], "-" * 47)
         with mock.patch.dict(
             config.DATA, {"terminal": {"width": 80}}
         ):
@@ -2146,6 +2147,7 @@ class ShellTest(unittest.TestCase):
                 self.prices, None, None, 5, False
             )
         self.assertTrue(all(len(l) <= 80 for l in xtop))
+        self.assertEqual(len(xtop[1]), len(xtop[0]))
         self.assertEqual(
             xtop[4],
             "total" + " " * 43 + "+50.00      +24.39%",

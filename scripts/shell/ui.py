@@ -28,6 +28,8 @@
 #                      ' | ' between the columns
 #   space_separator(columns, base)
 #                      spaces between the columns
+#   rule(header)       the dashes under a table's
+#                      header, as wide as it
 #   print_dim(text), print_wrapped(text),
 #   print_error(text)
 #   wrap(text)         text wrapped to width()
@@ -45,6 +47,7 @@
 
 import contextlib
 import os
+import re
 import select
 import shutil
 import sys
@@ -200,6 +203,14 @@ def space_separator(columns, base):
     """base spaces between the columns of a table of
     columns columns, more on a wider screen"""
     return " " * _gap(columns, base)
+
+
+def rule(header):
+    """the dashed line under a table's header, as wide
+    as the header (its color codes not counted), so it
+    ends where the columns end"""
+    plain = re.sub(r"\033\[[0-9;]*m", "", header)
+    return "-" * len(plain)
 
 
 def print_dim(text):

@@ -13,6 +13,7 @@
 import tasks_owner
 from shell.interface import Commands
 from shell.ui import (
+    rule,
     BOLD,
     BUY_COLOR,
     COUNT_COLOR,
@@ -22,7 +23,6 @@ from shell.ui import (
     SELL_COLOR,
     TOTAL_STOCK_COLOR,
     space_separator,
-    width,
     print_wrapped,
     supports_color,
 )
@@ -116,7 +116,7 @@ def _print_tasks(tasks):
             f"{'State':<9}",
         ]
     )
-    separator = "-" * width()
+    separator = rule(header)
     print()
     if color:
         print(f"{DIM}{header}{RESET}")

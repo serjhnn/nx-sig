@@ -20,6 +20,7 @@ import tasks_owner
 from engines import alerts
 from shell.interface import Commands
 from shell.ui import (
+    rule,
     BOLD,
     DIM,
     RESET,
@@ -452,10 +453,10 @@ def _print_alerts(saved):
             f"{'Id':>2}",
             f"{'For':<10}",
             f"{'Alert':<12}",
-            "Created",
+            f"{'Created':<16}",
         ]
     )
-    separator = "-" * width()
+    separator = rule(header)
     print()
     if color:
         print(f"{DIM}{header}{RESET}")

@@ -19,6 +19,7 @@ from engines import ladder
 from engines.ladder import Stock
 from shell.interface import Commands
 from shell.ui import (
+    rule,
     BOLD,
     BUY_COLOR,
     DIM,
@@ -27,7 +28,6 @@ from shell.ui import (
     SELL_COLOR,
     TOTAL_STOCK_COLOR,
     space_separator,
-    width,
     confirm,
     parse_direction,
     parse_id,
@@ -320,7 +320,7 @@ def _print_ladders(ladders):
             f"{'State':<7}",
         ]
     )
-    separator = "-" * width()
+    separator = rule(header)
     print()
     if color:
         print(f"{DIM}{header}{RESET}")
