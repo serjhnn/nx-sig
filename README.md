@@ -366,8 +366,10 @@ the ladders and the alerts, shown by `status` and `ls tasks`
 - The devices only sync when they reach each other. Tasks started on both while
   they are apart both run until the next sync; then the later start wins and
   the other device's tasks stop.
-- Each device keeps its own id in `.device` in the repo folder (not synced,
-  not in git).
+- Each device keeps its own id and name in `.device` in the repo folder (not
+  synced, not in git). The name is `phone` and the model in Termux
+  (`phone SM-S918B`, so two phones differ), otherwise the host name. It is set
+  the first time; to rename a device, edit `name` in `.device` (keep `id`).
 
 ## Data
 

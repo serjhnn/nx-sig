@@ -45,6 +45,7 @@
 import json
 import os
 import platform
+import subprocess
 import sys
 import uuid
 from datetime import datetime
@@ -58,7 +59,7 @@ from storage import (
 DEVICE_PATH = os.path.join(ROOT_DIR, ".device")
 # a device name longer than this is cut, so the lines
 # about it fit the shell
-NAME_LENGTH = 12
+NAME_LENGTH = 20
 
 
 class OwnerError(Exception):
@@ -68,8 +69,9 @@ class OwnerError(Exception):
 
 def this_device():
     """this device's id and name, from DEVICE_PATH; the
-    first call writes it: a random id, and 'phone' in
-    Termux or the host name"""
+    first call writes it: a random id, and 'phone' and
+    the model in Termux ('phone SM-S918B', so two
+    phones differ) or the host name"""
     try:
         with open(DEVICE_PATH) as f:
             device = json.load(f)
@@ -78,7 +80,7 @@ def this_device():
     except (OSError, ValueError):
         pass
     if "TERMUX_VERSION" in os.environ:
-        name = "phone"
+        name = f"phone {_phone_model()}".strip()
     else:
         name = platform.node().split(".")[0] or "pc"
     device = {
@@ -88,6 +90,22 @@ def this_device():
     with open(DEVICE_PATH, "w") as f:
         json.dump(device, f, indent=4)
     return device
+
+
+def _phone_model():
+    """'SM-S918B', or '' when getprop fails"""
+    try:
+        result = subprocess.run(
+            ["getprop", "ro.product.model"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    if result.returncode:
+        return ""
+    return result.stdout.strip()
 
 
 def owner():

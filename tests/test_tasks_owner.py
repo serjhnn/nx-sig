@@ -47,6 +47,10 @@ class OwnerTest(unittest.TestCase):
         mock.patch.dict(
             os.environ, {"TERMUX_VERSION": "1"}
         ).start()
+        # no getprop, as on a phone without it
+        mock.patch(
+            "tasks_owner._phone_model", return_value=""
+        ).start()
 
     def on_pc(self):
         mock.patch.stopall()
@@ -66,6 +70,14 @@ class OwnerTest(unittest.TestCase):
             this_device()["id"], device["id"]
         )
         self.assertNotEqual(this_device()["name"], "phone")
+
+    def test_phone_name_has_model(self):
+        with mock.patch(
+            "tasks_owner._phone_model",
+            return_value="SM-S918B",
+        ):
+            device = this_device()
+        self.assertEqual(device["name"], "phone SM-S918B")
 
     def test_claim_without_owner(self):
         self.assertIsNone(owner())
