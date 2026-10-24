@@ -146,7 +146,15 @@ ladder or the alerts of the demo still run; it ends by itself when nothing
 needs the prices any more (log: `demo_data/logs/demo_prices.log`). Every
 command that shows or checks prices (`ls stocks`, `ls basetrades`, `status`,
 `xtop`, `chart`, the ladders and alerts) uses these, with no keys and no
-network. The demo is being built (notifications next), see [TODO.md](TODO.md).
+network.
+
+The ladders' and alerts' messages don't go to `notify` in the demo: they are
+printed in the shell after the next command, marked `[DEMO]` (the last 100 are
+kept in `demo_data/demo_messages.json`), and `test notify` works the same way.
+The prompt is `nX-sig demo>` and `status` has a line about the prices. The
+mail broker (`run mail-broker`) is not in the demo, as it would record real
+broker emails, and neither is syncing. The demo is being built, see
+[TODO.md](TODO.md).
 
 `demo/config.json` has the settings of the demo's prices in `"demo"`:
 
@@ -477,6 +485,7 @@ nx-sig/
     │   ├── telegram_notify.py message through a Telegram bot
     │   ├── termux_notify.py  Android notification through Termux:API
     │   ├── ntfy_notify.py    push notification through ntfy.sh
+    │   ├── demo_notify.py    the demo's messages, printed in the shell
     │   └── watch_notify.py   notes for a planned Garmin watch app
     ├── shell/            the shell's commands, one module per feature
     │   ├── interface.py      Commands: what every *_cmd.py implements
@@ -492,7 +501,8 @@ nx-sig/
     │   ├── overview_cmd.py   status, xtop
     │   ├── chart_cmd.py      chart
     │   ├── notify_cmd.py     test notify
-    │   └── terminal_cmd.py   terminal info
+    │   ├── terminal_cmd.py   terminal info
+    │   └── demo_cmd.py       the demo's messages and status line
     ├── mtsig/            the mail broker (mail trades service)
     │   ├── order_watcher.py  email -> parsed order -> trade
     │   ├── mail_reader.py    IMAP IDLE watcher with reconnects

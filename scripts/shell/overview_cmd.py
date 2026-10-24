@@ -14,6 +14,7 @@ import queue
 import sys
 from datetime import datetime
 
+import config
 from engines.prices import start_polling
 from shell.ui import (
     BOLD,
@@ -36,6 +37,7 @@ from shell.ui import (
     supports_color,
 )
 from shell.alert_cmd import gain_alert_lines
+from shell.demo_cmd import demo_status
 from shell.mail_cmd import print_watcher_status
 from shell.tasks_cmd import print_owner
 
@@ -62,6 +64,8 @@ class OverviewCmd:
         if not positions:
             print_wrapped("no stocks held")
             print_watcher_status()
+            if config.demo():
+                demo_status()
             print_owner()
             return
 
@@ -128,6 +132,8 @@ class OverviewCmd:
             else separator
         )
         print_watcher_status()
+        if config.demo():
+            demo_status()
         print_owner()
         print()
 

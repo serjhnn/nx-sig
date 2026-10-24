@@ -88,6 +88,41 @@ class NotifierTest(unittest.TestCase):
             )
         self.assertIs(mod.channel, ntfy_notify)
 
+    def test_demo_channel(self):
+        import sys
+        import tempfile
+
+        import notifiers
+        import storage
+        from engines import demo
+        from notifiers import demo_notify
+
+        # in the demo always the demo channel, whatever
+        # config.json "notify" is
+        with mock.patch.object(
+            config, "DEMO", True
+        ), mock.patch.dict(
+            config.DATA, {"notify": "telegram"}
+        ), mock.patch.dict(
+            sys.modules
+        ), mock.patch.object(
+            notifiers, "notifier", notifiers.notifier
+        ):
+            sys.modules.pop("notifiers.notifier", None)
+            mod = importlib.import_module(
+                "notifiers.notifier"
+            )
+        self.assertIs(mod.channel, demo_notify)
+        self.assertEqual(mod.NAME, "demo")
+        self.assertTrue(mod.is_configured())
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(storage, "DB_DIR", tmp):
+                mod.notify("SOXL up", key="x")
+                found = demo.messages_new()
+        self.assertEqual(
+            [m["Text"] for m in found], ["SOXL up"]
+        )
+
     def test_ntfy_notify(self):
         env = {"NTFY_TOPIC": "nx-test"}
         with mock.patch.dict(

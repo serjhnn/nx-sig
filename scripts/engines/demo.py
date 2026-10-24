@@ -15,10 +15,18 @@
 #               the prices; True if it did
 #   reset()     replace the demo data with the sample
 #               data and new prices again
+#   message_add(text)
+#               keep a message of a ladder or an alert
+#               (notifiers/demo_notify.py), the last
+#               KEEP_MESSAGES
+#   messages_new()
+#               the messages the shell hasn't shown yet
 
 import config
 import storage
 from engines import demo_prices
+
+KEEP_MESSAGES = 100
 
 
 def prepare():
@@ -30,3 +38,11 @@ def prepare():
 def reset():
     storage.demo_fill(config.DEMO_SEED_DIR, reset=True)
     demo_prices.create()
+
+
+def message_add(text):
+    storage.demo_message_add(text, KEEP_MESSAGES)
+
+
+def messages_new():
+    return storage.demo_messages_take()

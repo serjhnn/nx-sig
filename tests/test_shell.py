@@ -35,7 +35,8 @@ os.environ["NO_COLOR"] = "1"
 import paths  # noqa: F401, scripts/ on sys.path
 import chart
 import config
-from engines import alerts, ladder, prices
+from engines import alerts, demo, demo_prices, ladder
+from engines import prices
 from notifiers import notifier
 import process
 import requests
@@ -1555,6 +1556,70 @@ class ShellTest(unittest.TestCase):
             self.lines("stop mail-broker now"),
             ["usage: stop mail-broker"],
         )
+
+    # ---------------- the demo ----------------
+
+    def demo(self):
+        """the shell as ./nxdemo starts it, its prices
+        process runs"""
+        for target, name, value in (
+            (config, "DEMO", True),
+            (demo_prices, "running_pid", lambda: 77),
+        ):
+            p = mock.patch.object(target, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+        self.shell.set_prompt()
+
+    def test_demo_prompt(self):
+        self.assertEqual(self.shell.prompt, "nX-sig> ")
+        self.demo()
+        self.assertEqual(self.shell.prompt, "nX-sig demo> ")
+
+    def test_demo_status(self):
+        self.demo()
+        self.assertEqual(
+            self.lines("status"),
+            [
+                "no stocks held",
+                "mail broker: not in the demo",
+                "demo: made-up prices, moving every 2s "
+                "(pid 77)",
+            ],
+        )
+
+    def test_demo_mail_broker(self):
+        self.demo()
+        refused = [
+            "the mail broker is not in the demo, it "
+            "records",
+            "  real broker emails",
+        ]
+        self.assertEqual(
+            self.lines("run mail-broker"), refused
+        )
+        self.assertEqual(
+            self.lines("stop mail-broker"), refused
+        )
+        self.assertEqual(self.mtsig_calls, [])
+
+    def test_demo_messages(self):
+        def after_command():
+            out = io.StringIO()
+            with redirect_stdout(out):
+                self.shell.postcmd(False, "status")
+            return out.getvalue().splitlines()
+
+        demo.message_add("SOXL up")
+        # outside the demo nothing is printed
+        self.assertEqual(after_command(), [])
+        self.demo()
+        found = after_command()
+        self.assertEqual(len(found), 1)
+        self.assertRegex(
+            found[0], r"^\[DEMO\] \d\d:\d\d:\d\d SOXL up$"
+        )
+        self.assertEqual(after_command(), [])
 
     def test_ls_tasks(self):
         self.assertEqual(

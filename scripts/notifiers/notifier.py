@@ -6,6 +6,8 @@
 #               notification through Termux:API
 #   "ntfy"      ntfy_notify.py, a push through
 #               ntfy.sh (NTFY_TOPIC in .env)
+# in the demo (./nxdemo) always "demo",
+# demo_notify.py: the demo shell prints the messages.
 # only the chosen module is imported.
 #
 #   python tests/test_notifier.py  the tests
@@ -27,10 +29,12 @@ CHANNELS = {
     "telegram": "telegram_notify",
     "termux": "termux_notify",
     "ntfy": "ntfy_notify",
+    # not a choice in config.json, the demo's own
+    "demo": "demo_notify",
 }
 
 # config.notify() raises ValueError for another name
-NAME = config.notify()
+NAME = "demo" if config.demo() else config.notify()
 channel = importlib.import_module(
     f"notifiers.{CHANNELS[NAME]}"
 )

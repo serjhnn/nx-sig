@@ -4,12 +4,14 @@
 # MailBrokerCommands implements run [force] and stop
 # (./mtsig start [force]/stop); its tasks() are its row
 # in 'ls tasks'.
-# print_watcher_status() is its line in 'status'
+# print_watcher_status() is its line in 'status'.
+# not in the demo (./nxdemo)
 
 import os
 import subprocess
 from datetime import datetime
 
+import config
 import process
 from storage import (
     ROOT_DIR,
@@ -33,6 +35,9 @@ WATCHER_ERROR_DAYS = 7
 def print_watcher_status():
     """print one line about order_watcher.py from its
     heartbeat file"""
+    if config.demo():
+        print_wrapped("mail broker: not in the demo")
+        return
     status = watcher_status_get()
     if not status or not status.get("updated"):
         print_wrapped("mail broker: not started")
@@ -132,6 +137,13 @@ def _mail_broker_task():
 
 def _mtsig(*args):
     """run ./mtsig <args> and print what it says"""
+    if config.demo():
+        # it would record real broker emails as trades
+        print_error(
+            "the mail broker is not in the demo, it "
+            "records real broker emails"
+        )
+        return
     action = args[0]
     if action == "start":
         # it waits 3s to catch a crash at start

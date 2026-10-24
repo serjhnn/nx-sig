@@ -166,10 +166,10 @@ channel. In this order:
    while a ladder or the alerts of the demo run)
 4. ~~**`prices.py` in the demo** reads the generated
    prices, no keys, no network~~ (done)
-5. **Notify and blocked parts**: messages printed in
+5. ~~**Notify and blocked parts**: messages printed in
    the shell with `[DEMO]`; `mtsig`, `syncnx` and the
    mail commands refused; `DEMO` in the prompt and
-   `status`
+   `status`~~ (done)
 6. **`demo` command**: `demo reset`, `demo set`,
    `demo move`, `demo speed`, `demo tour`
 7. **Tests and docs**: `tests/test_demo.py` without

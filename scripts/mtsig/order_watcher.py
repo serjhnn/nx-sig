@@ -46,6 +46,7 @@ sys.path.insert(
     ),
 )
 
+import config
 import process
 import storage
 import tasks_owner
@@ -324,4 +325,7 @@ def main():
 
 
 if __name__ == "__main__":
+    if config.demo():
+        # NX_DEMO=1 set: real emails into the demo data
+        sys.exit("the mail broker is not in the demo")
     main()

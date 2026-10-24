@@ -33,7 +33,8 @@ and the output must fit a phone screen.
 - `scripts/notifiers/` holds the notify channels.
   `notifier.py` sends through the one config
   `"notify"` chooses (`telegram`, `termux`, `ntfy`,
-  listed in `CHANNELS` and `config.NOTIFY_CHANNELS`).
+  listed in `CHANNELS` and `config.NOTIFY_CHANNELS`;
+  in the demo always `demo`, not in the config list).
   A channel module has `notify(text, key=None)` (the
   same key replaces the earlier message where the
   channel can), `is_configured()` and `SETUP_ERROR`.

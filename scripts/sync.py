@@ -50,6 +50,7 @@ import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 
+import config
 import storage
 
 FOLDER_ID = "nx-sig-data"
@@ -383,4 +384,7 @@ def _main(args):
 
 
 if __name__ == "__main__" and len(sys.argv) > 1:
+    if config.demo():
+        # NX_DEMO=1 set: the demo data is not synced
+        sys.exit("syncing is not in the demo")
     sys.exit(_main(sys.argv[1:]))

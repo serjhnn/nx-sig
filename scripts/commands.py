@@ -48,6 +48,7 @@ import shell
 from engines import demo, demo_prices
 from shell.interface import Commands
 from shell.chart_cmd import ChartCmd
+from shell.demo_cmd import print_messages
 from shell.notify_cmd import NotifyCmd
 from shell.overview_cmd import OverviewCmd
 from shell.terminal_cmd import TerminalCmd
@@ -77,6 +78,10 @@ LOGO = r"""
 SUBTITLE = (
     "  nX-sig shell. 'help' for commands, 'q' to quit"
 )
+DEMO_SUBTITLE = (
+    "  nX-sig demo: sample data, made-up prices, no\n"
+    "  keys. 'help' for commands, 'q' to quit"
+)
 
 
 def _banner():
@@ -88,7 +93,10 @@ def _banner():
         indent + line if line else line
         for line in LOGO.split("\n")
     ]
-    subtitle = indent + SUBTITLE
+    text = DEMO_SUBTITLE if config.demo() else SUBTITLE
+    subtitle = "\n".join(
+        indent + line for line in text.split("\n")
+    )
     problems = "".join(f"{p}\n" for p in setting_problems())
     if not supports_color():
         banner = "\n".join(lines) + f"\n{subtitle}\n"
@@ -216,12 +224,15 @@ class NxSigShell(
 
     def set_prompt(self):
         """the prompt in the theme now"""
+        name = (
+            "nX-sig demo>" if config.demo() else "nX-sig>"
+        )
         # \001/\002 tell readline the escape codes are
         # zero-width so line editing stays aligned
         self.prompt = (
-            f"\001{PROMPT_COLOR}\002nX-sig>\001{RESET}\002 "
+            f"\001{PROMPT_COLOR}\002{name}\001{RESET}\002 "
             if supports_color()
-            else "nX-sig> "
+            else f"{name} "
         )
 
     def preloop(self):
@@ -479,6 +490,12 @@ class NxSigShell(
                 self._object_words(args[1].lower())
             )
         return complete_options(text, line, options)
+
+    def postcmd(self, stop, line):
+        # the demo's ladder and alert messages
+        if not stop:
+            print_messages()
+        return stop
 
     def precmd(self, line):
         # Windows consoles/pipes may prefix input with a

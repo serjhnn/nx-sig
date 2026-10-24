@@ -68,6 +68,36 @@ class DemoTest(unittest.TestCase):
         self.assertTrue(ladder.get_all())
         self.assertTrue(alerts.alerts_get_all())
 
+    def test_messages(self):
+        self.assertEqual(demo.messages_new(), [])
+        for text in ("a", "b"):
+            demo.message_add(text)
+        found = demo.messages_new()
+        self.assertEqual(
+            [(m["Id"], m["Text"]) for m in found],
+            [(1, "a"), (2, "b")],
+        )
+        self.assertEqual(demo.messages_new(), [])
+        demo.message_add("c")
+        self.assertEqual(
+            [m["Id"] for m in demo.messages_new()], [3]
+        )
+
+    def test_messages_kept(self):
+        with mock.patch.object(demo, "KEEP_MESSAGES", 2):
+            for text in ("a", "b", "c"):
+                demo.message_add(text)
+            self.assertEqual(
+                [m["Text"] for m in demo.messages_new()],
+                ["b", "c"],
+            )
+            # taken: the next Id goes on, all are kept
+            demo.message_add("d")
+            demo.message_add("e")
+        self.assertEqual(
+            [m["Id"] for m in demo.messages_new()], [4, 5]
+        )
+
     def test_not_outside_demo(self):
         config.DEMO = False
         with self.assertRaises(RuntimeError):

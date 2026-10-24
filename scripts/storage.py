@@ -70,6 +70,11 @@
 #   demo_prices_status_get(), demo_prices_status_set(s)
 #       heartbeat of the demo's prices process (dict),
 #       demo_prices_status.json
+#   demo_message_add(text, keep)
+#       keep a message of the demo's notify channel, the
+#       last keep, in demo_messages.json
+#   demo_messages_take()
+#       the messages not taken yet
 #
 # all writes take an exclusive lock on {storage_dir}/.lock,
 # so the CLI and order_watcher.py running at the same time
@@ -782,6 +787,56 @@ def demo_prices_status_set(status):
 
 def _demo_prices_status_path():
     return os.path.join(DB_DIR, "demo_prices_status.json")
+
+
+@_locked
+def demo_message_add(text, keep):
+    """
+    add {"Id", "Time", "Text"} to demo_messages.json,
+    keep only the last keep messages
+    """
+    data = _demo_messages()
+    messages = data["messages"]
+    last = messages[-1]["Id"] if messages else data["taken"]
+    messages.append(
+        {
+            "Id": last + 1,
+            "Time": datetime.now().strftime("%H:%M:%S"),
+            "Text": text,
+        }
+    )
+    data["messages"] = messages[-keep:]
+    _json_set(_demo_messages_path(), data)
+
+
+@_locked
+def demo_messages_take():
+    """
+    the messages added since the last call, oldest
+    first
+    """
+    data = _demo_messages()
+    new = [
+        m
+        for m in data["messages"]
+        if m["Id"] > data["taken"]
+    ]
+    if new:
+        data["taken"] = new[-1]["Id"]
+        _json_set(_demo_messages_path(), data)
+    return new
+
+
+def _demo_messages():
+    data = _json_get(_demo_messages_path()) or {}
+    return {
+        "taken": data.get("taken", 0),
+        "messages": data.get("messages", []),
+    }
+
+
+def _demo_messages_path():
+    return os.path.join(DB_DIR, "demo_messages.json")
 
 
 def _ladders_save(rows):
