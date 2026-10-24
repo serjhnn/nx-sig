@@ -130,6 +130,16 @@ also turns them off.
 It starts from the repo folder by itself, so `~/nx-sig/nxshell` works from
 anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 
+```bash
+./nxdemo
+```
+
+starts the same shell as a demo, to learn the features without keys or
+accounts: it reads `demo/config.json` instead of `config.json` and keeps its
+data in `demo_data/` (not in git), so the real `data/` is never touched. The
+first start fills it with the sample trades, basetrades, rules, a ladder and
+an alert of `demo/seed/`. The demo is being built, see [TODO.md](TODO.md).
+
 Commands are `<action> <object> [arguments]`. The actions are `ls` (list or
 show), `add` (save), `rm` (delete, after confirmation), `run` and `stop`
 (background tasks). The object is plural after `ls` and singular everywhere
@@ -409,11 +419,14 @@ other: [open it online](https://serjhnn.github.io/nx-sig/assets/modules.html)
 ```
 nx-sig/
 ├── nxshell               start the shell
+├── nxdemo                start the shell as a demo (demo/)
 ├── mtsig                 start/stop/status of the mail broker
 │                         (mail trades service)
 ├── syncnx                sync data/ between phone and PC
 ├── migrate_data          renames old data files once (temporary)
 ├── config.json           stocks, data folder, price API
+├── demo/config.json      the demo's settings (./nxdemo)
+├── demo/seed/            the demo's sample data
 ├── requirements.txt      the Python packages
 ├── .github/workflows/tests.yml
 │                         CI: the tests on every push
@@ -433,7 +446,8 @@ nx-sig/
     │   ├── rules.py          your personal rules
     │   ├── basetrades.py     the last buying price of each stock
     │   ├── ladder.py         price-step alerts, starts their processes
-    │   └── alerts.py         basetrade and gain alerts, starts their process
+    │   ├── alerts.py         basetrade and gain alerts, starts their process
+    │   └── demo.py           the demo's sample data (./nxdemo)
     ├── services/         the background processes, <engine>_service.py
     │   ├── ladder_service.py one ladder's process: price, notify
     │   └── alert_service.py  the alerts process, one for all alerts
@@ -487,6 +501,7 @@ python tests/test_alerts.py        # alert levels and crossings
 python tests/test_notifier.py      # the notify channel
 python tests/test_tasks_owner.py   # which device runs the tasks
 python tests/test_chart.py         # the price chart layout
+python tests/test_demo.py          # the demo settings and sample data
 python tests/test_shell.py         # every shell command, faked prices
 python tests/test_sync.py          # device IDs, .stignore
 python scripts/check_style.py      # code style (line width), generated files

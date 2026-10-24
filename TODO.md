@@ -145,6 +145,35 @@ see some of it. Say so, and let alerts say less:
    phone and the PC and keeps alerts that were missed
    or swiped away.
 
+## Demo: try nX-sig without keys
+
+`./nxdemo` runs the shell with sample data and random
+walk prices, so a new user can learn the features
+without Alpaca keys, a mail account or a notify
+channel. In this order:
+
+1. ~~**Switch and data**: `./nxdemo` sets `NX_DEMO=1`,
+   `config.py` then reads `demo/config.json` (data in
+   `demo_data/`), the first start copies the sample
+   data of `demo/seed/` (`engines/demo.py`)~~ (done)
+2. **Price generator** `engines/demo_prices.py`: a
+   random walk per stock from the starting prices in
+   `demo/config.json`, saved in `demo_data/`, with a
+   generated history for `chart`
+3. **Price service** `services/demo_prices_service.py`:
+   moves the prices every few seconds, started and
+   stopped by the demo shell
+4. **`prices.py` in the demo** reads the generated
+   prices, no keys, no network
+5. **Notify and blocked parts**: messages printed in
+   the shell with `[DEMO]`; `mtsig`, `syncnx` and the
+   mail commands refused; `DEMO` in the prompt and
+   `status`
+6. **`demo` command**: `demo reset`, `demo set`,
+   `demo move`, `demo speed`, `demo tour`
+7. **Tests and docs**: `tests/test_demo.py` without
+   `.env`, a "Try the demo" README section
+
 ## Later: open it up for other people
 
 Only if it should be useful to others too; build it

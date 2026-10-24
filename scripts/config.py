@@ -8,8 +8,13 @@
 # patch that one dict
 #
 #   ROOT_DIR         the repo root (config.json, .env)
+#   DEMO             True in the demo (./nxdemo sets
+#                    NX_DEMO=1): DATA is then read from
+#                    demo/config.json
+#   DEMO_SEED_DIR    the demo's sample data
 #   DATA             config.json as read
 #   indices()        [symbol] of the tracked stocks
+#   demo()           True in the demo
 #   storage_dir()    the data folder, absolute
 #   url(), feed()    the latest trades endpoint, its feed
 #   bars_url()       the bars endpoint (chart)
@@ -27,7 +32,14 @@ import os
 ROOT_DIR = os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))
 )
-PATH = os.path.join(ROOT_DIR, "config.json")
+DEMO = os.environ.get("NX_DEMO") == "1"
+DEMO_DIR = os.path.join(ROOT_DIR, "demo")
+DEMO_SEED_DIR = os.path.join(DEMO_DIR, "seed")
+# the demo has its own settings and data folder, so
+# it never touches the real ones
+PATH = os.path.join(
+    DEMO_DIR if DEMO else ROOT_DIR, "config.json"
+)
 
 with open(PATH) as f:
     DATA = json.load(f)
@@ -69,6 +81,11 @@ def _is_number(value):
 def indices():
     """[symbol] of config "indices", in their order"""
     return list(_required("indices"))
+
+
+def demo():
+    """True in the demo, started with ./nxdemo"""
+    return DEMO
 
 
 def storage_dir():

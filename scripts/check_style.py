@@ -20,7 +20,12 @@ MAX_WIDTH = 60
 ROOT_DIR = os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))
 )
-SHELL_SCRIPTS = ["nxshell", "mtsig", "migrate_data"]
+SHELL_SCRIPTS = [
+    "nxshell",
+    "nxdemo",
+    "mtsig",
+    "migrate_data",
+]
 
 
 def default_files():

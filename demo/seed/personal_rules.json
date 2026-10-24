@@ -1,0 +1,10 @@
+[
+    {
+        "Id": 1,
+        "Rule": "never buy on a gap up"
+    },
+    {
+        "Id": 2,
+        "Rule": "sell a third at +20% from the basetrade"
+    }
+]

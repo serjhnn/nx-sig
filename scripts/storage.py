@@ -60,6 +60,9 @@
 #       the device that runs the background tasks
 #       (dict, None clears it), kept in
 #       tasks_owner.json, see tasks_owner.py
+#   demo_fill(seed_dir, reset=False)
+#       copy the demo's sample data into the data folder
+#       (only in the demo)
 #
 # all writes take an exclusive lock on {storage_dir}/.lock,
 # so the CLI and order_watcher.py running at the same time
@@ -770,3 +773,41 @@ def _mail_state_path():
 
 def _watcher_status_path():
     return os.path.join(DB_DIR, "mtsig_status.json")
+
+
+def demo_fill(seed_dir, reset=False):
+    """
+    copy the files of seed_dir into the data folder at
+    the demo's first start (a .demo file marks it done),
+    or with reset again, after removing the files there;
+    return True if it copied. only in the demo, so the
+    real data is never touched
+    """
+    if not config.demo():
+        raise RuntimeError("demo_fill outside the demo")
+    return _demo_fill(seed_dir, reset)
+
+
+@_locked
+def _demo_fill(seed_dir, reset):
+    marker = os.path.join(DB_DIR, ".demo")
+    if os.path.exists(marker) and not reset:
+        return False
+    os.makedirs(DB_DIR, exist_ok=True)
+    if reset:
+        for name in os.listdir(DB_DIR):
+            path = os.path.join(DB_DIR, name)
+            if name != ".lock" and os.path.isfile(path):
+                os.remove(path)
+    for name in sorted(os.listdir(seed_dir)):
+        source = os.path.join(seed_dir, name)
+        if os.path.isfile(source):
+            _copy_atomic(source, os.path.join(DB_DIR, name))
+    open(marker, "w").close()
+    return True
+
+
+def _copy_atomic(source, path):
+    with open(source, newline="") as f:
+        text = f.read()
+    _write_atomic(path, lambda f: f.write(text))

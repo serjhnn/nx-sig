@@ -1,0 +1,13 @@
+{
+    "storage_dir": "./demo_data/",
+    "indices": [ "ASMG", "AVGG", "NVDL", "TSMX", "MUU", "MRVU", "SOXL"],
+    "timing": {
+        "ladder_interval": 5,
+        "alert_interval": 5
+    },
+    "terminal": {
+        "width": "auto",
+        "theme": "colored",
+        "chart_height": 15
+    }
+}

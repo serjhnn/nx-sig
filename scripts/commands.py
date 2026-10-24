@@ -29,6 +29,9 @@
 # NxSigShell.objects; the action commands (do_ls, ...)
 # find the object and call its action, help and tab
 # completion are built from them. see CLI_BLUEPRINT.md
+#
+# ./nxdemo starts the same shell as a demo, with its
+# own settings and sample data (engines/demo.py)
 
 import cmd
 import glob
@@ -37,7 +40,9 @@ import inspect
 import os
 import textwrap
 
+import config
 import shell
+from engines import demo
 from shell.interface import Commands
 from shell.chart_cmd import ChartCmd
 from shell.notify_cmd import NotifyCmd
@@ -489,6 +494,8 @@ class NxSigShell(
 
 
 if __name__ == "__main__":
+    if config.demo():
+        demo.prepare()
     try:
         NxSigShell().cmdloop()
     except KeyboardInterrupt:
