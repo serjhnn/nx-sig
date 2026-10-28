@@ -5,12 +5,23 @@
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 import paths  # noqa: F401, scripts/ on sys.path
+import config
 import storage
 from engines import trades
 from engines.trades import Stock, TradeType
 from storage import _trades_path
+
+
+def no_fee(test):
+    """no config "fee" during the test, whatever
+    config.json says (test_total_with_fee sets one)"""
+    p = mock.patch.dict(config.DATA)
+    p.start()
+    test.addCleanup(p.stop)
+    config.DATA.pop("fee", None)
 
 
 class TradesTest(unittest.TestCase):
@@ -20,6 +31,7 @@ class TradesTest(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self._orig_db_dir = storage.DB_DIR
         storage.DB_DIR = self._tmp.name
+        no_fee(self)
 
     def tearDown(self):
         storage.DB_DIR = self._orig_db_dir
@@ -60,6 +72,23 @@ class TradesTest(unittest.TestCase):
         self.assertEqual(
             trades.total(Stock.TSMX),
             (20, 260.0),
+        )
+
+    def test_total_with_fee(self):
+        config.DATA["fee"] = 5
+        trades.add(Stock.TSMX, TradeType.BUY, 10, 18)
+        self.assertEqual(
+            trades.total(Stock.TSMX), (10, 18.5)
+        )
+        trades.add(Stock.TSMX, TradeType.BUY, 10, 20)
+        # (180 + 5 + 200 + 5) / 20
+        self.assertEqual(
+            trades.total(Stock.TSMX), (20, 19.5)
+        )
+        # a sell's fee doesn't change the average
+        trades.add(Stock.TSMX, TradeType.SELL, 5, 22)
+        self.assertEqual(
+            trades.total(Stock.TSMX), (15, 19.5)
         )
 
     def test_total_sell_keeps_price(self):
@@ -189,6 +218,7 @@ class ImportStatementTest(unittest.TestCase):
         self.path = os.path.join(
             self._tmp.name, "statement.csv"
         )
+        no_fee(self)
         with open(self.path, "w", encoding="utf-8") as f:
             f.write(STATEMENT)
 

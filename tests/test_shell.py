@@ -162,11 +162,13 @@ class ShellTest(unittest.TestCase):
             p.start()
         # the tables are pinned at the default width,
         # and theme, whatever config.json says
-        # (test_width and test_theme change them)
+        # (test_width and test_theme change them), and
+        # the averages have no trade fee
         config_patch = mock.patch.dict(config.DATA)
         config_patch.start()
         self._patches.append(config_patch)
         config.DATA.pop("terminal", None)
+        config.DATA.pop("fee", None)
         self.shell = NxSigShell()
 
     def tearDown(self):

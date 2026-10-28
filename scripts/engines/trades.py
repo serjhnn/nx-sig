@@ -22,7 +22,8 @@
 #   get_all(stock)
 #       the trades of a stock, oldest first
 #   total(stock)
-#       (count held, average buy price)
+#       (count held, average buy price); each buy
+#       adds config "fee" to its cost
 #   summary()
 #       [(stock, trades)] of the stocks that have trades
 #
@@ -31,6 +32,7 @@
 
 from datetime import datetime
 
+import config
 import storage
 from engines import statement
 from storage import Stock, TradeType  # noqa: F401
@@ -142,12 +144,15 @@ def total(stock):
     computed from the trades in order:
         if BUY :
             avg_price = (avg_price * total_count
-                         + price * count)
+                         + price * count + fee)
                         / (total_count + count)
             total_count += count
         else : # sell
             total_count -= count
+    fee is config "fee", the fee of one trade; a
+    sell's fee doesn't change the average
     """
+    fee = config.fee()
     total_count, avg_price = 0, 0.0
     for t in get_all(stock):
         total_count, avg_price = _apply(
@@ -156,6 +161,7 @@ def total(stock):
             t["Type"],
             t["Count"],
             t["Price"],
+            fee,
         )
     return total_count, avg_price
 
@@ -170,13 +176,21 @@ def summary():
 
 
 def _apply(
-    total_count, avg_price, trade_type, count, price
+    total_count,
+    avg_price,
+    trade_type,
+    count,
+    price,
+    fee=0,
 ):
-    """(total_count, avg_price) after one more trade"""
+    """(total_count, avg_price) after one more trade;
+    a buy's fee is added to its cost"""
     if trade_type == TradeType.BUY:
         if total_count + count > 0:
             avg_price = (
-                avg_price * total_count + price * count
+                avg_price * total_count
+                + price * count
+                + fee
             ) / (total_count + count)
         total_count += count
     else:  # sell

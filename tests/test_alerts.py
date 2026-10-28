@@ -9,6 +9,7 @@ import unittest
 from unittest import mock
 
 import paths  # noqa: F401, scripts/ on sys.path
+import config
 from storage import Stock, alerts_get_all
 import storage
 from services.alert_service import _check
@@ -256,8 +257,11 @@ class ProcessTest(unittest.TestCase):
                 "services.alert_service.get_latest_prices",
                 lambda: dict(self.prices),
             ),
+            # no trade fee in the averages
+            mock.patch.dict(config.DATA),
         ):
             p.start()
+        config.DATA.pop("fee", None)
 
     def tearDown(self):
         mock.patch.stopall()
