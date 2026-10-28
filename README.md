@@ -259,7 +259,7 @@ every background task on this device.
 | Object | Actions | e.g. |
 |---|---|---|
 | `stocks` | `ls` | `ls stocks`: held stocks with growth % |
-| `trade` | `ls`, `add`, `rm` | `add trade SOXL buy count 10 price 20.5` |
+| `trade` | `ls`, `add`, `rm` | `add trade SOXL buy count 10 price 20.5`, `add trade from <file>` (a bank statement, see below) |
 | `ladder` | `ls`, `add`, `rm`, `run`, `stop` | `add ladder SOXL down 10 from 100 run` |
 | `rule` | `ls`, `add`, `rm` | `add rule never buy on a gap up` |
 | `basetrade` | `ls`, `add`, `rm` | `add basetrade MRVU price 100 count 10` |
@@ -318,6 +318,39 @@ Status *FILLED*
   `LOG_LEVEL=DEBUG` in `.env` logs more detail.
 - If an order is found but can't be saved, the log and `status` in the shell
   show `ORDER NOT RECORDED` with the `add trade` command to add it by hand.
+
+### Importing a bank statement
+
+```
+nX-sig> add trade from ~/storage/downloads/statement.csv
+added 1 trades from statement.csv:
+  AVGG BUY 10 @ 18.219, 22.10.26 19:46
+skipped 1:
+  order 460827: no stock VOO
+```
+
+Records the trades of a bank statement csv
+(`scripts/engines/statement.py`). A row is a trade when its 5th column
+starts with the order text, and the 6th is the amount:
+
+```
+"22/10/26, 19:46","22/10/26, 19:46","Փոխանցում հաշվին","GTN EUROPE ...",
+"Պատվեր թիվ 699534, 2026/10/22, 10.00 հատ AVGG առք","-182.19 USD",...
+```
+
+- `առք` is a buy (the amount must be negative), `վաճառք` a sell (positive).
+- Date and time come from the 1st column, the price is amount / count.
+- Every other row is left out without a word: fees
+  (`Միջնորդավճար / Պատվեր ...`, they are not added to the price),
+  transfers, headers.
+- Skipped, with the reason: order rows that can't be read (a fractional
+  count, a wrong sign, a bad date), stocks not in `indices` and trades
+  already recorded (same stock, date, time, type, count and price), so a
+  statement can be imported again.
+- The trades go into the trades files in date order, so the average price
+  stays right when an older trade is imported after newer ones; the Ids of
+  the trades already there don't change.
+- A relative path is read from the nX-sig folder; use an absolute or `~` path.
 
 ### Price chart
 
@@ -614,6 +647,8 @@ python -m unittest discover tests  # all of them
 python tests/test_config.py        # config.json settings and defaults
 python tests/test_storage.py       # trades, totals, rules, locking
 python tests/test_order_parser.py  # order email parsing
+python tests/test_statement.py     # bank statement parsing
+python tests/test_trades.py        # trades engine, statement import
 python tests/test_ladder.py        # ladder levels
 python tests/test_alerts.py        # alert levels and crossings
 python tests/test_notifier.py      # the notify channel

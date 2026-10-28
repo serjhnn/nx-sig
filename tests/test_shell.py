@@ -2051,7 +2051,8 @@ class ShellTest(unittest.TestCase):
                 "    buy count 10 price 20.5'",
                 "add trade from <file>",
                 "    record the trades of a bank statement",
-                "    csv; fees, stocks not in the config and",
+                "    csv; fees, stocks not in the config"
+                " and",
                 "    trades already recorded are left out",
             ],
         )

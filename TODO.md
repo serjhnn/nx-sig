@@ -238,6 +238,13 @@ for your own use first. In this order:
   notifications can't show colors), and how the 7
   stocks are picked.
 - Send a notification when the watcher records an order
+- ~~**Import a bank statement**~~ (done: `add trade
+  from <file>`, `scripts/engines/statement.py`).
+  Still open:
+  - maybe one "N already recorded" line instead of
+    one line per trade when a statement is imported
+    again
+  - maybe complete file names after `from`
 - ~~**Price chart in the terminal**~~ (done: `chart
   <stock> [period <n> <unit>]`, one `*` per price, the
   avg buy line and B / S trades). Still open: maybe a
