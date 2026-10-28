@@ -553,6 +553,7 @@ nx-sig/
     ├── commands.py       the shell: actions, help, collects the modules
     ├── engines/          the logic of each kind of data, used by the shell
     │   ├── trades.py         trades and their totals (count, average price)
+    │   ├── statement.py      reads the trades out of a bank statement csv
     │   ├── prices.py         market prices from Alpaca (one-off and polling),
     │   │                     in the demo the made-up ones
     │   ├── rules.py          your personal rules

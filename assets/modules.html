@@ -189,6 +189,7 @@ const MODS = {
   "engines/ladder": ["engine", "The ladders engine, price-step alerts for one stock; every ladder runs as its own process, services/ladder_service.py", ["config", "process", "storage", "tasks_owner"], []],
   "engines/prices": ["engine", "The prices engine, the market prices of config[\"indices\"] from Alpaca (the latest trade of each, and their bars), once or polled in a background thread; the only module that requests prices", ["config", "engines/demo_prices"], []],
   "engines/rules": ["engine", "The rules engine, your personal trading rules", ["storage"], []],
+  "engines/statement": ["engine", "Read the trades out of a bank statement csv", ["storage"], []],
   "engines/trades": ["engine", "The trades engine, your buys and sells and what they add up to", ["storage"], []],
   "services/alert_service": ["engine", "The alerts process, checks the prices every INTERVAL seconds and notifies each crossing of the alerts (engines/alerts.py starts and stops it)", ["engines/alerts", "engines/basetrades", "engines/prices", "notifiers/notifier", "process", "tasks_owner"], []],
   "services/demo_prices_service": ["engine", "The demo's prices process, moves the prices every \"interval\" seconds (demo/config.json \"demo\") while the demo shell or a background task of the demo runs (engines/demo_prices.py starts it)", ["config", "engines/demo_prices", "process"], []],
