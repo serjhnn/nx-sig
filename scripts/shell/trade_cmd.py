@@ -3,10 +3,13 @@
 #   ls trades [<stock>]
 #   add trade <stock> <buy|sell> count <count>
 #       price <price>
+#   add trade from <file>
 #   rm trade <stock> <id>
 #
 # TradeCommands implements them for the verb commands
 # of commands.py
+
+import os
 
 from engines import trades
 from engines.trades import Stock, TradeType
@@ -90,8 +93,15 @@ class TradeCommands(Commands):
           count <count> price <price>
             record a trade, e.g. 'add trade SOXL
             buy count 10 price 20.5'
+        add trade from <file>
+            record the trades of a bank statement
+            csv; fees, stocks not in the config and
+            trades already recorded are left out
         """
         args = arg.split()
+        if args and args[0].lower() == "from":
+            self._add_from(arg.split(None, 1)[1:])
+            return
         values = parse_keywords(
             args[2:], ["count", "price"]
         )
@@ -122,6 +132,41 @@ class TradeCommands(Commands):
             f"added {trade_type.name} {count} "
             f"{stock.name} @ {price:g}"
         )
+
+    def _add_from(self, rest):
+        """add trade from <file>, rest the words after
+        from"""
+        if not rest:
+            print_wrapped("usage: add trade from <file>")
+            return
+        path = os.path.expanduser(rest[0].strip())
+        try:
+            added, skipped = trades.import_statement(path)
+        except OSError as e:
+            print_error(f"error: {e.strerror}: {path}")
+            return
+        except UnicodeDecodeError:
+            print_error(f"error: not a text file: {path}")
+            return
+
+        name = os.path.basename(path)
+        if added:
+            print_wrapped(
+                f"added {len(added)} trades from {name}:"
+            )
+            for t in added:
+                date = short_date(t["Date"])
+                print_wrapped(
+                    f"  {t['Stock']} {t['Type'].name} "
+                    f"{t['Count']} @ {t['Price']:g}, "
+                    f"{date} {t['Time']}"
+                )
+        else:
+            print_wrapped(f"no trades added from {name}")
+        if skipped:
+            print_wrapped(f"skipped {len(skipped)}:")
+            for reason in skipped:
+                print_wrapped(f"  {reason}")
 
     def rm(self, arg):
         """
@@ -170,7 +215,15 @@ class TradeCommands(Commands):
         if action == "add":
             keywords = ["count", "price"]
             types = [t.name.lower() for t in TradeType]
-            return [stocks, types, keywords, [], keywords]
+            if args[:1] == ["from"]:
+                return [["from"]]
+            return [
+                stocks + ["from"],
+                types,
+                keywords,
+                [],
+                keywords,
+            ]
         if action == "rm":
             return [stocks, _trade_ids(args[:1])]
         return [stocks]

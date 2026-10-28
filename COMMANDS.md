@@ -48,6 +48,10 @@ add trade <stock> <buy|sell>
   count <count> price <price>
     record a trade, e.g. 'add trade SOXL
     buy count 10 price 20.5'
+add trade from <file>
+    record the trades of a bank statement
+    csv; fees, stocks not in the config and
+    trades already recorded are left out
 
 rm trade <stock> <id>
     delete a trade after confirmation, the

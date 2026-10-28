@@ -351,6 +351,67 @@ class ShellTest(unittest.TestCase):
             storage.trades_get_all(storage.Stock.SOXL), []
         )
 
+    def write_statement(self, text):
+        path = os.path.join(self._tmp.name, "bank.csv")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+        return path
+
+    def test_add_trade_from_statement(self):
+        path = self.write_statement(
+            '"22/10/26, 19:46","22/10/26, 19:46","x",'
+            '"y","Պատվեր թիվ 699534, 2026/10/22, 10.00'
+            ' հատ AVGG առք","-182.19 USD","-182.19 USD"\n'
+            '"22/10/26, 19:46","22/10/26, 19:46","x",'
+            '"y","Միջնորդավճար / Պատվեր թիվ 699534,'
+            ' 2026/10/22, 10.00 հատ AVGG առք",'
+            '"-5.00 USD","-5.00 USD"\n'
+            '"10/12/25, 23:34","10/12/25, 23:34","x",'
+            '"y","Պատվեր թիվ 460827, 2025/12/10, 14.00'
+            ' հատ VOO վաճառք","+8,834.00 USD",'
+            '"+8,834.00 USD"\n'
+        )
+        self.assertEqual(
+            self.lines(f"add trade from {path}"),
+            [
+                "added 1 trades from bank.csv:",
+                "  AVGG BUY 10 @ 18.219, 22.10.26 19:46",
+                "skipped 1:",
+                "  order 460827: no stock VOO",
+            ],
+        )
+        self.assertEqual(
+            len(storage.trades_get_all(storage.Stock.AVGG)),
+            1,
+        )
+        self.assertEqual(
+            self.lines(f"add trade FROM {path}"),
+            [
+                "no trades added from bank.csv",
+                "skipped 2:",
+                "  order 460827: no stock VOO",
+                "  order 699534: already recorded",
+            ],
+        )
+
+    def test_add_trade_from_bad_file(self):
+        self.assertEqual(
+            self.lines("add trade from"),
+            ["usage: add trade from <file>"],
+        )
+        missing = os.path.join(self._tmp.name, "no.csv")
+        self.assertIn(
+            "error: No such file or directory",
+            self.run_cmd(f"add trade from {missing}"),
+        )
+        path = os.path.join(self._tmp.name, "bin.csv")
+        with open(path, "wb") as f:
+            f.write(b"\xff\xfe\xfa")
+        self.assertIn(
+            "error: not a text file",
+            self.run_cmd(f"add trade from {path}"),
+        )
+
     def test_ls_trades_of_a_stock(self):
         self.run_cmd("add trade SOXL buy count 10 price 20")
         self.run_cmd("add trade SOXL buy count 10 price 30")
@@ -1988,6 +2049,10 @@ class ShellTest(unittest.TestCase):
                 "  count <count> price <price>",
                 "    record a trade, e.g. 'add trade SOXL",
                 "    buy count 10 price 20.5'",
+                "add trade from <file>",
+                "    record the trades of a bank statement",
+                "    csv; fees, stocks not in the config and",
+                "    trades already recorded are left out",
             ],
         )
         # an object: all its actions
@@ -2712,6 +2777,12 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.complete("add trade SOXL "),
             ["buy", "sell"],
+        )
+        self.assertEqual(
+            self.complete("add trade fr"), ["from"]
+        )
+        self.assertEqual(
+            self.complete("add trade from "), []
         )
         self.assertEqual(
             self.complete("add trade SOXL buy "),
