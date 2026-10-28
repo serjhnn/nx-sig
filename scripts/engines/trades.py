@@ -8,8 +8,13 @@
 # storage.py only reads and writes the trades files.
 #
 # public functions:
-#   add(stock, trade_type, count, price)
-#       check and record a trade
+#   add(stock, trade_type, count, price, date=None,
+#       time=None)
+#       check and record a trade, at date and time
+#       ("dd.mm.yyyy", "hh:mm") or now
+#   import_statement(path)
+#       record the trades of a bank statement csv (see
+#       engines/statement.py), return (added, skipped)
 #   delete(stock, trade_id)
 #       True if the trade was deleted
 #   get(stock, trade_id)
@@ -24,7 +29,10 @@
 # a trade is {"Id", "Date", "Time", "Type", "Count",
 # "Price"}, Type a TradeType
 
+from datetime import datetime
+
 import storage
+from engines import statement
 from storage import Stock, TradeType  # noqa: F401
 
 
@@ -32,10 +40,86 @@ class TradeError(Exception):
     """a trade can't be recorded; the text says why"""
 
 
-def add(stock, trade_type, count, price):
+def add(
+    stock, trade_type, count, price, date=None, time=None
+):
     if count <= 0 or price <= 0:
         raise TradeError("count and price must be positive")
-    storage.trade_add(stock, trade_type, count, price)
+    if (date is None) != (time is None):
+        raise TradeError("give both date and time")
+    if date is not None:
+        try:
+            datetime.strptime(
+                f"{date} {time}", "%d.%m.%Y %H:%M"
+            )
+        except ValueError:
+            raise TradeError(
+                f"bad date or time: {date} {time}"
+            ) from None
+    storage.trade_add(
+        stock, trade_type, count, price, date, time
+    )
+
+
+def import_statement(path):
+    """
+    record the trades of the bank statement at path,
+    oldest first. returns (added, skipped): added the
+    statement trades recorded (see statement.py),
+    skipped a text for each one left out:
+        "row 4: count 1.50"
+        "order 460827: no stock VOO"
+        "order 699534: already recorded"
+    a trade is already recorded if its stock has one
+    with the same date, time, type, count and price;
+    so a statement can be imported again
+    OSError if the file can't be read
+    """
+    found, bad_rows = statement.parse_statement(path)
+    skipped = [
+        f"row {number}: {reason}"
+        for number, reason in bad_rows
+    ]
+    added = []
+    # the recorded trades of each stock, each one
+    # matches one statement trade at most
+    recorded = {}
+    for t in found:
+        label = f"order {t['Order']}"
+        stock = Stock.__members__.get(t["Stock"])
+        if stock is None:
+            skipped.append(
+                f"{label}: no stock {t['Stock']}"
+            )
+            continue
+        if stock not in recorded:
+            recorded[stock] = [
+                _key(r) for r in get_all(stock)
+            ]
+        if _key(t) in recorded[stock]:
+            recorded[stock].remove(_key(t))
+            skipped.append(f"{label}: already recorded")
+            continue
+        add(
+            stock,
+            t["Type"],
+            t["Count"],
+            t["Price"],
+            t["Date"],
+            t["Time"],
+        )
+        added.append(t)
+    return added, skipped
+
+
+def _key(trade):
+    return (
+        trade["Date"],
+        trade["Time"],
+        trade["Type"],
+        trade["Count"],
+        round(trade["Price"], 4),
+    )
 
 
 def delete(stock, trade_id):

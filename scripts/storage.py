@@ -3,10 +3,12 @@
 # rules and the watcher)
 #
 # public functions:
-#   trade_add(stock, trade_type,
-#                        count, price)
+#   trade_add(stock, trade_type, count, price,
+#             date=None, time=None)
 #       record a BUY/SELL trade in
-#       {stock}_trades.csv
+#       {stock}_trades.csv, at the date and time
+#       ("dd.mm.yyyy", "hh:mm") or now; the file stays
+#       in date order
 #   trades_get_all(stock)
 #       return all recorded trades for a stock
 #   trade_delete(stock, trade_id)
@@ -204,9 +206,14 @@ def _locked(function):
 
 
 @_locked
-def trade_add(stock, trade_type, count, price):
+def trade_add(
+    stock, trade_type, count, price, date=None, time=None
+):
     """
-    Add trade to {stock_name}_trades.csv file
+    Add trade to {stock_name}_trades.csv file, at date
+    and time or now. A trade older than the last one is
+    put before the newer ones, so the totals add up in
+    date order.
 
         tsmx_trades.csv
     ______________________________________________
@@ -226,18 +233,27 @@ def trade_add(stock, trade_type, count, price):
         max((int(row["Id"]) for row in rows), default=0) + 1
     )
     now = datetime.now()
-
-    rows.append(
-        {
-            "Id": next_id,
-            "Date": now.strftime("%d.%m.%Y"),
-            "Time": now.strftime("%H:%M"),
-            "Type": trade_type.name,
-            "Count": count,
-            "Price": price,
-        }
-    )
+    row = {
+        "Id": next_id,
+        "Date": date or now.strftime("%d.%m.%Y"),
+        "Time": time or now.strftime("%H:%M"),
+        "Type": trade_type.name,
+        "Count": count,
+        "Price": price,
+    }
+    # after every trade of the same time or older
+    when = _trade_time(row)
+    at = len(rows)
+    while at > 0 and _trade_time(rows[at - 1]) > when:
+        at -= 1
+    rows.insert(at, row)
     _write_csv_atomic(path, TRADE_FIELDNAMES, rows)
+
+
+def _trade_time(row):
+    return datetime.strptime(
+        f"{row['Date']} {row['Time']}", "%d.%m.%Y %H:%M"
+    )
 
 
 def trades_get_all(stock):

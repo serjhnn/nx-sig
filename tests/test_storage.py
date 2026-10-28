@@ -93,6 +93,46 @@ class TradesTest(unittest.TestCase):
         self.assertEqual(trades[1]["Count"], 5)
         self.assertEqual(trades[1]["Price"], 260.5)
 
+    def test_add_at_date_and_time(self):
+        trade_add(
+            Stock.SOXL,
+            TradeType.BUY,
+            1,
+            100,
+            "22.10.2026",
+            "19:46",
+        )
+
+        trade = trades_get_all(Stock.SOXL)[0]
+        self.assertEqual(trade["Date"], "22.10.2026")
+        self.assertEqual(trade["Time"], "19:46")
+
+    def test_older_trade_goes_before_newer(self):
+        def add(count, date, time):
+            trade_add(
+                Stock.SOXL,
+                TradeType.BUY,
+                count,
+                100,
+                date,
+                time,
+            )
+
+        add(1, "22.10.2026", "19:46")
+        add(2, "05.01.2027", "09:00")
+        add(3, "10.12.2025", "23:34")
+        # same time: after the one already there
+        add(4, "22.10.2026", "19:46")
+
+        trades = trades_get_all(Stock.SOXL)
+        self.assertEqual(
+            [t["Count"] for t in trades], [3, 1, 4, 2]
+        )
+        # the Ids don't change
+        self.assertEqual(
+            [t["Id"] for t in trades], [3, 1, 4, 2]
+        )
+
     def test_date_and_time_format(self):
         trade_add(Stock.SOXL, TradeType.BUY, 1, 100)
 

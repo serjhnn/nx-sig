@@ -25,6 +25,8 @@ jobs:
         run: python tests/test_storage.py
       - name: order_parser
         run: python tests/test_order_parser.py
+      - name: trades
+        run: python tests/test_trades.py
       - name: statement
         run: python tests/test_statement.py
       - name: process

@@ -2,6 +2,7 @@
 #
 #   python tests/test_trades.py
 
+import os
 import tempfile
 import unittest
 
@@ -122,6 +123,149 @@ class TradesTest(unittest.TestCase):
 
         self.assertEqual(trades.get_all(Stock.TSMX), [])
         self.assertEqual(trades.total(Stock.TSMX), (0, 0.0))
+
+    def test_add_at_date_and_time(self):
+        trades.add(
+            Stock.TSMX,
+            TradeType.BUY,
+            1,
+            100,
+            "22.10.2026",
+            "19:46",
+        )
+        trade = trades.get(Stock.TSMX, 1)
+        self.assertEqual(
+            (trade["Date"], trade["Time"]),
+            ("22.10.2026", "19:46"),
+        )
+
+    def test_add_checks_date_and_time(self):
+        for date, time in (
+            ("22.10.2026", None),
+            (None, "19:46"),
+            ("31.02.2026", "19:46"),
+            ("2026-10-22", "19:46"),
+            ("22.10.2026", "25:00"),
+        ):
+            with self.assertRaises(trades.TradeError):
+                trades.add(
+                    Stock.TSMX,
+                    TradeType.BUY,
+                    1,
+                    100,
+                    date,
+                    time,
+                )
+        self.assertEqual(trades.get_all(Stock.TSMX), [])
+
+
+# a statement with a sell of a stock not in the
+# indices, a buy, its fee and a row with a bad count;
+# newest first, as the bank lists them
+STATEMENT = (
+    '"23/10/26, 10:00","23/10/26, 10:00","x","y",'
+    '"Պատվեր թիվ 3, 2026/10/23, 4.00 հատ AVGG'
+    ' վաճառք","+80.00 USD","+80.00 USD"\n'
+    '"22/10/26, 19:47","22/10/26, 19:47","x","y",'
+    '"Պատվեր թիվ 2, 2026/10/22, 1.50 հատ AVGG'
+    ' առք","-30.00 USD","-30.00 USD"\n'
+    '"22/10/26, 19:46","22/10/26, 19:46","x","y",'
+    '"Միջնորդավճար / Պատվեր թիվ 699534, 2026/10/22,'
+    ' 10.00 հատ AVGG առք","-5.00 USD","-5.00 USD"\n'
+    '"22/10/26, 19:46","22/10/26, 19:46","x","y",'
+    '"Պատվեր թիվ 699534, 2026/10/22, 10.00 հատ AVGG'
+    ' առք","-182.19 USD","-182.19 USD"\n'
+    '"10/12/25, 23:34","10/12/25, 23:34","x","y",'
+    '"Պատվեր թիվ 460827, 2025/12/10, 14.00 հատ VOO'
+    ' վաճառք","+8,834.00 USD","+8,834.00 USD"\n'
+)
+
+
+class ImportStatementTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self._orig_db_dir = storage.DB_DIR
+        storage.DB_DIR = self._tmp.name
+        self.path = os.path.join(
+            self._tmp.name, "statement.csv"
+        )
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write(STATEMENT)
+
+    def tearDown(self):
+        storage.DB_DIR = self._orig_db_dir
+        self._tmp.cleanup()
+
+    def test_import(self):
+        added, skipped = trades.import_statement(self.path)
+
+        self.assertEqual(
+            [t["Order"] for t in added], [699534, 3]
+        )
+        self.assertEqual(
+            skipped,
+            [
+                "row 2: count 1.50",
+                "order 460827: no stock VOO",
+            ],
+        )
+        recorded = trades.get_all(Stock.AVGG)
+        self.assertEqual(
+            [
+                (t["Date"], t["Time"], t["Type"])
+                for t in recorded
+            ],
+            [
+                ("22.10.2026", "19:46", TradeType.BUY),
+                ("23.10.2026", "10:00", TradeType.SELL),
+            ],
+        )
+        self.assertEqual(recorded[0]["Price"], 18.219)
+        self.assertEqual(
+            trades.total(Stock.AVGG), (6, 18.219)
+        )
+
+    def test_import_again_adds_nothing(self):
+        trades.import_statement(self.path)
+        added, skipped = trades.import_statement(self.path)
+
+        self.assertEqual(added, [])
+        self.assertIn(
+            "order 699534: already recorded", skipped
+        )
+        self.assertIn("order 3: already recorded", skipped)
+        self.assertEqual(len(trades.get_all(Stock.AVGG)), 2)
+
+    def test_same_trade_twice_in_statement(self):
+        # one of the two is recorded already
+        trades.add(
+            Stock.AVGG,
+            TradeType.BUY,
+            10,
+            18.219,
+            "22.10.2026",
+            "19:46",
+        )
+        row = (
+            '"22/10/26, 19:46","22/10/26, 19:46","x","y",'
+            '"Պատվեր թիվ {}, 2026/10/22, 10.00 հատ AVGG'
+            ' առք","-182.19 USD","-182.19 USD"\n'
+        )
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write(row.format(1) + row.format(2))
+
+        added, skipped = trades.import_statement(self.path)
+
+        self.assertEqual([t["Order"] for t in added], [2])
+        self.assertEqual(
+            skipped, ["order 1: already recorded"]
+        )
+
+    def test_missing_file(self):
+        with self.assertRaises(OSError):
+            trades.import_statement(
+                os.path.join(self._tmp.name, "none.csv")
+            )
 
 
 if __name__ == "__main__":
