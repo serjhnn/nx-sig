@@ -5,6 +5,7 @@
     "storage_dir": "./data/",
     "indices": [ "ASMG", "AVGG", "NVDL", "TSMX", "MUU", "MRVU", "SOXL"],
     "notify": "telegram",
+    "fee": 5,
     "timing": {
         "ladder_interval": 30,
         "alert_interval": 30

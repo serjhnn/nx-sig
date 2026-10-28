@@ -18,6 +18,7 @@ from config import (
     bars_feed,
     bars_url,
     chart_height,
+    fee,
     feed,
     indices,
     interval,
@@ -61,6 +62,7 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(width_setting(), (48, "default"))
         self.assertEqual(theme(), "colored")
         self.assertEqual(chart_height(), 15)
+        self.assertEqual(fee(), 0)
 
     def test_feeds(self):
         self.patch({"feed": "delayed_sip"})
@@ -82,6 +84,14 @@ class ConfigTest(unittest.TestCase):
         with self.assertRaises(ValueError) as e:
             notify()
         self.assertIn("'mail'", str(e.exception))
+
+    def test_fee(self):
+        for good in (5, 0, 2.5):
+            self.patch({"fee": good})
+            self.assertEqual(fee(), good)
+        for bad in (-1, "5", True, None):
+            self.patch({"fee": bad})
+            self.assertEqual(fee(), 0, bad)
 
     def test_interval(self):
         key = "ladder_interval"

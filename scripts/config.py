@@ -23,6 +23,7 @@
 #   bars_url()       the bars endpoint (chart)
 #   bars_feed()      the bars feed (delayed_sip is sip)
 #   notify()         the notify channel name
+#   fee()            the fee of one trade, in USD
 #   interval(key)    "timing" key in seconds
 #   width_setting(), theme_setting()
 #                    (setting, "config.json"|"default")
@@ -55,6 +56,8 @@ DEFAULT_BARS_URL = (
 NOTIFY_CHANNELS = ("telegram", "termux", "ntfy")
 DEFAULT_NOTIFY = "telegram"
 DEFAULT_INTERVAL = 30
+# a trade's fee when config.json has no "fee"
+DEFAULT_FEE = 0
 # the width the shell's tables are made for
 DEFAULT_WIDTH = 48
 THEMES = ("colored", "plain")
@@ -171,6 +174,15 @@ def notify():
             + f", not {name!r}"
         )
     return name
+
+
+def fee():
+    """config "fee", the fee of one trade in USD: a
+    number of at least 0, else DEFAULT_FEE"""
+    value = DATA.get("fee")
+    if _is_number(value) and value >= 0:
+        return value
+    return DEFAULT_FEE
 
 
 def interval(key):
