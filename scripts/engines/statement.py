@@ -22,7 +22,9 @@
 #   առք","-182.19 USD","-182.19 USD"
 #
 # the price is the amount / count; the fee is a row of
-# its own ("Միջնորդավճար / Պատվեր ...") and is left out
+# its own ("Միջնորդավճար / Պատվեր ...") and is left
+# out: config "fee" is added to the average instead
+# (trades.total)
 
 import csv
 import re

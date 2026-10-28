@@ -1,5 +1,6 @@
 {
     "storage_dir": "./demo_data/",
+    "fee": 5,
     "indices": [ "ASMG", "AVGG", "NVDL", "TSMX", "MUU", "MRVU", "SOXL"],
     "timing": {
         "ladder_interval": 5,

@@ -342,8 +342,8 @@ starts with the order text, and the 6th is the amount:
 - `առք` is a buy (the amount must be negative), `վաճառք` a sell (positive).
 - Date and time come from the 1st column, the price is amount / count.
 - Every other row is left out without a word: fees
-  (`Միջնորդավճար / Պատվեր ...`, they are not added to the price),
-  transfers, headers.
+  (`Միջնորդավճար / Պատվեր ...`; the price stays as executed and config
+  `fee` is added to the average instead), transfers, headers.
 - Skipped, with the reason: order rows that can't be read (a fractional
   count, a wrong sign, a bad date), stocks not in `indices` and trades
   already recorded (same stock, date, time, type, count and price), so a

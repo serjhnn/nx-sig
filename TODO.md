@@ -245,6 +245,13 @@ for your own use first. In this order:
     one line per trade when a statement is imported
     again
   - maybe complete file names after `from`
+- ~~**Trade fee**~~ (done: config `fee`, 5 USD, is
+  added to the cost of each buy in `trades.total`, so
+  the average buy price includes it). Still open:
+  - maybe the fees paid, with the sells' fees, if a
+    realized profit is shown one day
+  - maybe the fee of a statement's own fee rows
+    instead of the fixed one
 - ~~**Price chart in the terminal**~~ (done: `chart
   <stock> [period <n> <unit>]`, one `*` per price, the
   avg buy line and B / S trades). Still open: maybe a
