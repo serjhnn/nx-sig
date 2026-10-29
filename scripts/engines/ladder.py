@@ -57,9 +57,8 @@ import config
 import process
 import storage
 import tasks_owner
-from storage import (  # noqa: F401, Stock for the shell
+from storage import (
     ROOT_DIR,
-    Stock,
     ladder_add,
     ladder_delete,
     ladder_get,
@@ -68,6 +67,9 @@ from storage import (  # noqa: F401, Stock for the shell
     ladder_status_set,
     ladders_get_all,
 )
+
+# for the shell, which doesn't import storage
+Stock = storage.Stock
 
 SERVICE = "ladder_service.py"
 SCRIPT = os.path.join(

@@ -89,8 +89,6 @@ These pyflakes warnings are expected, leave them:
 
 - `'paths' imported but unused` in the tests
 - `'chart' imported but unused` in `test_shell.py`
-- `'storage.Stock' imported but unused` in
-  `engines/ladder.py`
 
 ## Tests on Python 3.14
 
