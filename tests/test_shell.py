@@ -2359,6 +2359,86 @@ class ShellTest(unittest.TestCase):
                 shell.ui.padded(["x" * 48]), ["x" * 48]
             )
 
+    def test_padded_tables(self):
+        self.prices = {"SOXL": 25.5}
+        self.run_cmd(
+            "add trade SOXL buy count 10 price 20.5"
+        )
+        self.run_cmd("add ladder SOXL down 10 from 100")
+        self.run_cmd("add basetrade SOXL")
+        self.run_cmd("add alert basetrades down 10 percent")
+        self.running.add(1)
+        commands = [
+            "status",
+            "ls stocks",
+            "ls trades",
+            "ls trades SOXL",
+            "ls ladders",
+            "ls tasks",
+            "ls alerts",
+            "ls basetrades al",
+            "rm trade SOXL 1",
+        ]
+        pad = " " * 10
+
+        def outputs():
+            return {c: self.lines(c, "n") for c in commands}
+
+        wide = {"terminal": {"width": 80}}
+        with mock.patch.dict(config.DATA, wide):
+            plain = outputs()
+            config.set_padding(10)
+            for line, found in outputs().items():
+                before = plain[line]
+                self.assertEqual(
+                    len(found), len(before), line
+                )
+                # the header, the dashes and a row
+                self.assertEqual(
+                    found[:3],
+                    [pad + l for l in before[:3]],
+                    line,
+                )
+                # the rest of the table too, the text
+                # below it stays
+                for b, f in zip(before, found):
+                    self.assertIn(f, (b, pad + b), line)
+            trades_table = self.lines("ls trades SOXL")
+            self.assertEqual(
+                trades_table[-1],
+                pad + "total: 10 SOXL, avg buy 20.50, "
+                "sum 205.00",
+            )
+            self.assertEqual(
+                self.lines("ls basetrades al")[3],
+                "alert 1 down 10%: SOXL 18.45",
+            )
+            # the table is 68 wide: 12 spaces fit
+            config.set_padding(40)
+            self.assertEqual(
+                self.lines("ls trades SOXL")[0],
+                " " * 12 + plain["ls trades SOXL"][0],
+            )
+            config.set_padding(10)
+            xtop = _xtop_lines(
+                self.prices, None, None, 5, False
+            )
+            self.assertEqual(xtop[0][:12], pad + "Na")
+            self.assertTrue(xtop[4].startswith(pad))
+            # the status line below isn't padded
+            self.assertEqual(
+                xtop[5], "waiting for prices..."
+            )
+        # a 48 wide phone: the tables already fill it
+        narrow = {"terminal": {"width": 48}}
+        with mock.patch.dict(config.DATA, narrow):
+            config.set_padding(0)
+            plain = self.lines("ls trades SOXL")
+            config.set_padding(10)
+            self.assertEqual(
+                self.lines("ls trades SOXL"), plain
+            )
+
     # ---------------- chart ----------------
 
     def test_chart(self):

@@ -13,6 +13,7 @@
 import tasks_owner
 from shell.interface import Commands
 from shell.ui import (
+    print_table,
     rule,
     BOLD,
     BUY_COLOR,
@@ -117,13 +118,13 @@ def _print_tasks(tasks):
         ]
     )
     separator = rule(header)
-    print()
     if color:
-        print(f"{DIM}{header}{RESET}")
-        print(f"{DIM}{separator}{RESET}")
+        lines = [
+            f"{DIM}{header}{RESET}",
+            f"{DIM}{separator}{RESET}",
+        ]
     else:
-        print(header)
-        print(separator)
+        lines = [header, separator]
     for t in tasks:
         started = (
             f"{t['started']:%d.%m %H:%M}"
@@ -149,5 +150,7 @@ def _print_tasks(tasks):
                 f"{DATE_COLOR}{cols[3]}{RESET}",
                 f"{state_color}{cols[4]}{RESET}",
             ]
-        print(sep.join(cols))
+        lines.append(sep.join(cols))
+    print()
+    print_table(lines)
     print()

@@ -7,6 +7,7 @@
 
 from shell.interface import Commands
 from shell.ui import (
+    print_table,
     rule,
     BOLD,
     COUNT_COLOR,
@@ -75,13 +76,14 @@ class StocksCommands(Commands):
             ]
         header = column_sep.join(header_cols)
         separator = rule(header)
-        print()
-        print(header)
-        print(
-            f"{DIM}{separator}{RESET}"
-            if color
-            else separator
-        )
+        lines = [
+            header,
+            (
+                f"{DIM}{separator}{RESET}"
+                if color
+                else separator
+            ),
+        ]
         for stock, total_count, avg_price in totals:
             name = f"{stock.name:<5}"
             count = f"{total_count:>5}"
@@ -105,9 +107,11 @@ class StocksCommands(Commands):
                 avg = f"{PRICE_COLOR}{avg}{RESET}"
                 total = f"{PRICE_COLOR}{total}{RESET}"
                 growth = f"{growth_color}{growth}{RESET}"
-            print(
+            lines.append(
                 column_sep.join(
                     [name, count, avg, total, growth]
                 )
             )
+        print()
+        print_table(lines)
         print()

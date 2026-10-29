@@ -19,6 +19,7 @@ from engines import ladder
 from engines.ladder import Stock
 from shell.interface import Commands
 from shell.ui import (
+    print_table,
     rule,
     BOLD,
     BUY_COLOR,
@@ -321,13 +322,13 @@ def _print_ladders(ladders):
         ]
     )
     separator = rule(header)
-    print()
     if color:
-        print(f"{DIM}{header}{RESET}")
-        print(f"{DIM}{separator}{RESET}")
+        lines = [
+            f"{DIM}{header}{RESET}",
+            f"{DIM}{separator}{RESET}",
+        ]
     else:
-        print(header)
-        print(separator)
+        lines = [header, separator]
     for saved in ladders:
         running = ladder.running_pid(saved["Id"])
         if running:
@@ -369,5 +370,7 @@ def _print_ladders(ladders):
                 f"{PRICE_COLOR}{cols[4]}{RESET}",
                 f"{state_color}{cols[5]}{RESET}",
             ]
-        print(sep.join(cols))
+        lines.append(sep.join(cols))
+    print()
+    print_table(lines)
     print()

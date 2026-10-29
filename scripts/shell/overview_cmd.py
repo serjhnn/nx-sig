@@ -17,6 +17,8 @@ from datetime import datetime
 import config
 from engines.prices import start_polling
 from shell.ui import (
+    padded,
+    print_table,
     rule,
     BOLD,
     BUY_COLOR,
@@ -87,13 +89,14 @@ class OverviewCmd:
             ]
         header = column_sep.join(header_cols)
         separator = rule(header)
-        print()
-        print(header)
-        print(
-            f"{DIM}{separator}{RESET}"
-            if color
-            else separator
-        )
+        lines = [
+            header,
+            (
+                f"{DIM}{separator}{RESET}"
+                if color
+                else separator
+            ),
+        ]
         for stock, total_count, avg_price in positions:
             name = f"{stock.name:<5}"
             count = f"{total_count:>5}"
@@ -123,16 +126,14 @@ class OverviewCmd:
                 avg = f"{PRICE_COLOR}{avg}{RESET}"
                 price = f"{PRICE_COLOR}{price}{RESET}"
                 state = f"{state_color}{state}{RESET}"
-            print(
+            lines.append(
                 column_sep.join(
                     [name, count, avg, price, state]
                 )
             )
-        print(
-            f"{DIM}{separator}{RESET}"
-            if color
-            else separator
-        )
+        lines.append(lines[1])
+        print()
+        print_table(lines)
         print_watcher_status()
         if config.demo():
             demo_status()
@@ -343,6 +344,8 @@ def _xtop_lines(
     lines.append(
         _xtop_total_line(total_gain, total_cost, color)
     )
+    # the lines below fill the width, not padded
+    lines = padded(lines)
     if updated is None:
         status = "waiting for prices..."
     else:

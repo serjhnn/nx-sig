@@ -15,6 +15,7 @@ from engines import trades
 from engines.trades import Stock, TradeType
 from shell.interface import Commands
 from shell.ui import (
+    print_table,
     rule,
     BOLD,
     BUY_COLOR,
@@ -75,16 +76,12 @@ class TradeCommands(Commands):
             return
 
         color = supports_color()
+        lines = _trades_header(color)
+        lines += [_trade_row(t, color) for t in found]
+        lines.append(lines[1])
+        lines.append(_total_line(stock, color))
         print()
-        separator = _print_trades_header(color)
-        for t in found:
-            _print_trade_row(t, color)
-        print(
-            f"{DIM}{separator}{RESET}"
-            if color
-            else separator
-        )
-        _print_total(stock, color)
+        print_table(lines)
         print()
 
     def add(self, arg):
@@ -197,8 +194,10 @@ class TradeCommands(Commands):
 
         color = supports_color()
         print()
-        _print_trades_header(color)
-        _print_trade_row(trade, color)
+        print_table(
+            _trades_header(color)
+            + [_trade_row(trade, color)]
+        )
         print()
         if not confirm(
             f"delete {stock.name} trade {trade_id}? [y/N] "
@@ -250,13 +249,14 @@ class TradeCommands(Commands):
             ]
         header = column_sep.join(header_cols)
         separator = rule(header)
-        print()
-        print(header)
-        print(
-            f"{DIM}{separator}{RESET}"
-            if color
-            else separator
-        )
+        lines = [
+            header,
+            (
+                f"{DIM}{separator}{RESET}"
+                if color
+                else separator
+            ),
+        ]
         for stock, found in rows:
             last = found[-1]
             date = short_date(last["Date"])
@@ -273,7 +273,9 @@ class TradeCommands(Commands):
                     f"{COUNT_COLOR}{cols[1]}{RESET}",
                     f"{DATE_COLOR}{cols[2]}{RESET}",
                 ]
-            print(column_sep.join(cols))
+            lines.append(column_sep.join(cols))
+        print()
+        print_table(lines)
         print()
 
 
@@ -289,9 +291,9 @@ def _trade_ids(args):
     return [str(t["Id"]) for t in trades.get_all(stock)]
 
 
-def _print_trades_header(color):
-    """print the column names of the trades table and a
-    separator line; returns the separator, uncolored"""
+def _trades_header(color):
+    """the column names of the trades table and the
+    separator line under them"""
     header_cols = [
         f"{'Id':>4}",
         f"{'Date':>8}",
@@ -305,16 +307,15 @@ def _print_trades_header(color):
             f"{DIM}{col}{RESET}" for col in header_cols
         ]
     header = column_separator(color, 6).join(header_cols)
-    print(header)
     separator = rule(header)
-    print(
-        f"{DIM}{separator}{RESET}" if color else separator
-    )
-    return separator
+    return [
+        header,
+        f"{DIM}{separator}{RESET}" if color else separator,
+    ]
 
 
-def _print_trade_row(t, color):
-    """print one trade as a row of the trades table"""
+def _trade_row(t, color):
+    """one trade as a row of the trades table"""
     trade_type = t['Type'].name
     if color:
         type_color = (
@@ -334,22 +335,20 @@ def _print_trade_row(t, color):
         time = f"{t['Time']:>5}"
         count = f"{t['Count']:>5}"
         price = f"{t['Price']:<7.2f}"
-    print(
-        column_separator(color, 6).join(
-            [
-                trade_id,
-                date,
-                time,
-                trade_type,
-                count,
-                price,
-            ]
-        )
+    return column_separator(color, 6).join(
+        [
+            trade_id,
+            date,
+            time,
+            trade_type,
+            count,
+            price,
+        ]
     )
 
 
-def _print_total(stock, color):
-    """print the stock's total count, average buy price and
+def _total_line(stock, color):
+    """the stock's total count, average buy price and
     position sum"""
     total_count, avg_price = trades.total(stock)
     total_sum = total_count * avg_price
@@ -369,4 +368,4 @@ def _print_total(stock, color):
             f"total: {total_count} {stock.name}, avg buy "
             f"{avg_price:.2f}, sum {total_sum:.2f}"
         )
-    print(total_line)
+    return total_line

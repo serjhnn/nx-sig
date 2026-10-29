@@ -14,6 +14,7 @@ from engines.basetrades import Stock
 from shell.alert_cmd import print_basetrade_alerts
 from shell.interface import Commands
 from shell.ui import (
+    print_table,
     rule,
     BOLD,
     COUNT_COLOR,
@@ -270,13 +271,14 @@ class BaseTradeCommands(Commands):
             ]
         header = column_sep.join(header_cols)
         separator = rule(header)
-        print()
-        print(header)
-        print(
-            f"{DIM}{separator}{RESET}"
-            if color
-            else separator
-        )
+        lines = [
+            header,
+            (
+                f"{DIM}{separator}{RESET}"
+                if color
+                else separator
+            ),
+        ]
         for b in found:
             current = prices.get(b["Stock"])
             name = f"{b['Stock']:<5.5}"
@@ -310,11 +312,13 @@ class BaseTradeCommands(Commands):
                 buy = f"{PRICE_COLOR}{buy}{RESET}"
                 price = f"{price_color}{price}{RESET}"
                 change = f"{price_color}{change}{RESET}"
-            print(
+            lines.append(
                 column_sep.join(
                     [name, qty, buy, price, change]
                 )
             )
+        print()
+        print_table(lines)
         print()
         if alerts:
             print_basetrade_alerts(found, prices)

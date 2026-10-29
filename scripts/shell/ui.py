@@ -34,6 +34,7 @@
 #                      header, as wide as it
 #   padded(lines)      a table's lines after this
 #                      device's padding
+#   print_table(lines) print them so
 #   print_dim(text), print_wrapped(text),
 #   print_error(text)
 #   wrap(text)         text wrapped to width()
@@ -229,6 +230,11 @@ def padded(lines):
     return [
         f"{pad}{line}" if line else line for line in lines
     ]
+
+
+def print_table(lines):
+    for line in padded(lines):
+        print(line)
 
 
 def _plain(text):

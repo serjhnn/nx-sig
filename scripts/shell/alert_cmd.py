@@ -20,6 +20,7 @@ import tasks_owner
 from engines import alerts
 from shell.interface import Commands
 from shell.ui import (
+    print_table,
     rule,
     BOLD,
     DIM,
@@ -457,13 +458,13 @@ def _print_alerts(saved):
         ]
     )
     separator = rule(header)
-    print()
     if color:
-        print(f"{DIM}{header}{RESET}")
-        print(f"{DIM}{separator}{RESET}")
+        lines = [
+            f"{DIM}{header}{RESET}",
+            f"{DIM}{separator}{RESET}",
+        ]
     else:
-        print(header)
-        print(separator)
+        lines = [header, separator]
     for alert in saved:
         cols = [
             f"{alert['Id']:>2}",
@@ -479,5 +480,7 @@ def _print_alerts(saved):
                 cols[2],
                 f"{DIM}{cols[3]}{RESET}",
             ]
-        print(sep.join(cols))
+        lines.append(sep.join(cols))
+    print()
+    print_table(lines)
     print()
