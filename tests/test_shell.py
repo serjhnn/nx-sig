@@ -51,7 +51,8 @@ import storage
 import tasks_owner
 from notifiers import telegram_notify, termux_notify
 from commands import NxSigShell
-from engines import trades
+from engines import basetrades, trades
+from engines.trades import Stock, TradeType
 from shell.alert_cmd import gain_alert_lines
 from shell.overview_cmd import _xtop_lines
 from shell.ui import width
@@ -889,15 +890,17 @@ class ShellTest(unittest.TestCase):
 
     def test_basetrade_errors(self):
         usage = [
-            "usage: add basetrade <stock> price <price> "
-            "count",
-            "  <count>",
+            "usage: add basetrade <stock>|all, or add",
+            "  basetrade <stock> price <price> count "
+            "<count>",
         ]
         for line in (
             "add basetrade SOXL price 20",
             "add basetrade SOXL price 20 qty 10",
             "add basetrade SOXL price 20 price 10",
             "add basetrade",
+            "add basetrade SOXL price",
+            "add basetrade all SOXL",
         ):
             self.assertEqual(self.lines(line), usage, line)
         self.assertEqual(
@@ -930,6 +933,102 @@ class ShellTest(unittest.TestCase):
             self.lines("ls basetrades all"),
             ["usage: ls basetrades [sip|iex] [al]"],
         )
+
+    def _lowest_trades(self):
+        # SOXL: the lowest buy 3 at 15 on 02.10;
+        # MUU: sold after its buy
+        found = [
+            ("SOXL", TradeType.BUY, 5, 20),
+            ("SOXL", TradeType.BUY, 3, 15),
+            ("SOXL", TradeType.BUY, 2, 19),
+            ("MUU", TradeType.BUY, 4, 50),
+            ("MUU", TradeType.SELL, 1, 55),
+        ]
+        for day, (name, kind, count, price) in enumerate(
+            found, 1
+        ):
+            trades.add(
+                Stock[name],
+                kind,
+                count,
+                price,
+                f"{day:02}.10.2026",
+                "10:00",
+            )
+
+    def test_add_basetrade_from_trades(self):
+        self._lowest_trades()
+        self.assertEqual(
+            self.lines("add basetrade soxl"),
+            [
+                "added basetrade of SOXL: 3 at 15 (lowest "
+                "buy",
+                "  since the last sell, 02.10.26)",
+            ],
+        )
+        self.assertEqual(
+            self.lines("add basetrade SOXL"),
+            [
+                "replaced basetrade of SOXL: 3 at 15 "
+                "(lowest buy",
+                "  since the last sell, 02.10.26)",
+            ],
+        )
+        self.assertEqual(
+            self.lines("add basetrade MUU"),
+            [
+                "error: no buys of MUU since the last "
+                "sell, see",
+                "  'ls trades'",
+            ],
+        )
+        self.assertEqual(
+            self.lines("add basetrade MRVU"),
+            ["error: no buys of MRVU, see 'ls trades'"],
+        )
+
+    def test_add_basetrade_all(self):
+        self.assertEqual(
+            self.lines("add basetrade all"),
+            [
+                "error: no stock has a lowest buy since "
+                "the last",
+                "  sell, see 'ls trades'",
+            ],
+        )
+        self._lowest_trades()
+        added = [
+            "from the lowest buy since the last sell:",
+            "skipped MUU: no buys since the last sell",
+            "added SOXL: 3 at 15 (02.10.26)",
+        ]
+        # no older basetrade, no question
+        self.assertEqual(
+            self.lines("add basetrade all"), added
+        )
+        self.run_cmd("add basetrade SOXL price 9 count 1")
+        question = [
+            "this replaces the basetrades of SOXL",
+            "go on? [y/N] n",
+            "cancelled",
+        ]
+        self.assertEqual(
+            self.lines("add basetrade ALL", "n"), question
+        )
+        self.assertEqual(
+            basetrades.get("SOXL")["Price"], 9.0
+        )
+        self.assertEqual(
+            self.lines("add basetrade all", "y"),
+            [
+                "this replaces the basetrades of SOXL",
+                "go on? [y/N] y",
+                *added[:2],
+                "replaced SOXL: 3 at 15 (02.10.26)",
+            ],
+        )
+        self.assertEqual(basetrades.get("SOXL")["Count"], 3)
+        self.assertIsNone(basetrades.get("MUU"))
 
     def test_rm_basetrade(self):
         self.run_cmd("add basetrade SOXL price 20 count 10")
@@ -2798,6 +2897,9 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.complete("add basetrade MUU "),
             ["price", "count"],
+        )
+        self.assertEqual(
+            self.complete("add basetrade al"), ["all"]
         )
         self.assertEqual(
             self.complete("add ladder SOXL "),

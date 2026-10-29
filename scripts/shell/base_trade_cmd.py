@@ -2,13 +2,14 @@
 # bought each stock at
 #
 #   ls basetrades [sip|iex] [al]
+#   add basetrade <stock>|all
 #   add basetrade <stock> price <price> count <count>
 #   rm basetrade <stock>
 #
 # BaseTradeCommands implements them for the verb
 # commands of commands.py
 
-from engines import basetrades
+from engines import basetrades, trades
 from engines.basetrades import Stock
 from shell.alert_cmd import print_basetrade_alerts
 from shell.interface import Commands
@@ -28,6 +29,7 @@ from shell.ui import (
     parse_stock,
     print_error,
     print_wrapped,
+    short_date,
     supports_color,
 )
 
@@ -37,9 +39,11 @@ LS_USAGE = "usage: ls basetrades [sip|iex] [al]"
 FEEDS = {"sip": "delayed_sip", "iex": "iex"}
 
 ADD_USAGE = (
-    "usage: add basetrade <stock> price <price> "
-    "count <count>"
+    "usage: add basetrade <stock>|all, or add "
+    "basetrade <stock> price <price> count <count>"
 )
+# what a basetrade from the trades is
+LOWEST = "lowest buy since the last sell"
 
 
 class BaseTradeCommands(Commands):
@@ -75,6 +79,14 @@ class BaseTradeCommands(Commands):
 
     def add(self, arg):
         """
+        add basetrade <stock>|all
+            take the basetrade of <stock> from its
+            trades: the lowest buy since the last
+            sell (a partial sell too), its price
+            and count; of two equal buys the later
+            one; with all, of each stock that has
+            trades, after confirmation if older
+            basetrades are replaced
         add basetrade <stock> price <price>
           count <count>
             save the last price you bought <stock>
@@ -83,16 +95,22 @@ class BaseTradeCommands(Commands):
             stock's older basetrade
         """
         args = arg.split()
+        if [a.lower() for a in args] == ["all"]:
+            self._add_all()
+            return
         values = parse_keywords(
             args[1:], ["price", "count"]
         )
-        if not args or values is None:
+        if not args or (args[1:] and values is None):
             print_wrapped(ADD_USAGE)
             return
         try:
             stock = parse_stock(args[0])
         except ValueError as e:
             print_error(f"error: {e}")
+            return
+        if values is None:
+            self._add_lowest(stock)
             return
         try:
             price = float(values["price"])
@@ -113,6 +131,69 @@ class BaseTradeCommands(Commands):
             f"basetrade of {stock.name}: {count} at "
             f"{price:g}"
         )
+
+    def _add_lowest(self, stock):
+        try:
+            buy = basetrades.from_trades(stock)
+            replaced = basetrades.save(
+                stock, buy["Price"], buy["Count"]
+            )
+        except basetrades.BaseTradeError as e:
+            print_error(f"error: {e}")
+            return
+        print_wrapped(
+            f"{'replaced' if replaced else 'added'} "
+            f"basetrade of {stock.name}: "
+            f"{buy['Count']} at {buy['Price']:g} "
+            f"({LOWEST}, {short_date(buy['Date'])})"
+        )
+
+    def _add_all(self):
+        # [(stock, lowest buy or None)] of the stocks
+        # that have trades
+        found = []
+        for stock, _ in trades.summary():
+            try:
+                buy = basetrades.from_trades(stock)
+            except basetrades.BaseTradeError:
+                buy = None
+            found.append((stock, buy))
+        if not any(buy for _, buy in found):
+            print_error(
+                f"error: no stock has a {LOWEST}, "
+                "see 'ls trades'"
+            )
+            return
+        older = [
+            stock.name
+            for stock, buy in found
+            if buy and basetrades.get(stock.name)
+        ]
+        if older:
+            print_wrapped(
+                "this replaces the basetrades of "
+                f"{', '.join(older)}"
+            )
+            if not confirm("go on? [y/N] "):
+                print_wrapped("cancelled")
+                return
+        print_wrapped(f"from the {LOWEST}:")
+        for stock, buy in found:
+            if buy is None:
+                print_wrapped(
+                    f"skipped {stock.name}: no buys "
+                    "since the last sell"
+                )
+                continue
+            replaced = basetrades.save(
+                stock, buy["Price"], buy["Count"]
+            )
+            print_wrapped(
+                f"{'replaced' if replaced else 'added'} "
+                f"{stock.name}: {buy['Count']} at "
+                f"{buy['Price']:g} "
+                f"({short_date(buy['Date'])})"
+            )
 
     def rm(self, arg):
         """
@@ -146,7 +227,7 @@ class BaseTradeCommands(Commands):
         if action == "add":
             keywords = ["price", "count"]
             return [
-                [s.name for s in Stock],
+                [*(s.name for s in Stock), "all"],
                 keywords,
                 [],
                 keywords,

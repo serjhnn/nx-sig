@@ -119,6 +119,14 @@ ls basetrades [sip|iex] [al]
     alert's price per stock, a ! when the
     price is past it
 
+add basetrade <stock>|all
+    take the basetrade of <stock> from its
+    trades: the lowest buy since the last
+    sell (a partial sell too), its price
+    and count; of two equal buys the later
+    one; with all, of each stock that has
+    trades, after confirmation if older
+    basetrades are replaced
 add basetrade <stock> price <price>
   count <count>
     save the last price you bought <stock>

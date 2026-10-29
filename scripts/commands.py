@@ -8,6 +8,7 @@
 #   rm trade <stock> <id>
 #   ls rules, add rule <rule>, rm rule <id>
 #   ls basetrades [al]     last buying prices
+#   add basetrade <stock>|all
 #   add basetrade <stock> price <price> count <count>
 #   rm basetrade <stock>
 #   ls ladders             price-step alerts

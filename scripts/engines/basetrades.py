@@ -61,17 +61,18 @@ def get_all():
 
 
 def from_trades(stock):
-    lowest = None
+    lowest, sold = None, False
     for t in trades.get_all(stock):
         if t["Type"] == TradeType.SELL:
-            lowest = None
+            lowest, sold = None, True
         elif (
             lowest is None or t["Price"] <= lowest["Price"]
         ):
             lowest = t
     if lowest is None:
+        since = " since the last sell" if sold else ""
         raise BaseTradeError(
-            f"no buys of {stock.name} since the last "
-            "sell, see 'ls trades'"
+            f"no buys of {stock.name}{since}, see "
+            "'ls trades'"
         )
     return lowest
