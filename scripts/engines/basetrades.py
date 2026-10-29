@@ -27,7 +27,10 @@
 
 import storage
 from engines import trades
-from storage import Stock, TradeType  # noqa: F401
+from storage import TradeType
+
+# for the shell, which doesn't import storage
+Stock = storage.Stock
 
 
 class BaseTradeError(Exception):
