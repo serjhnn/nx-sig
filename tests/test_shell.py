@@ -2666,17 +2666,18 @@ class ShellTest(unittest.TestCase):
                 "theme:      colored (default), "
                 "no colors now:",
                 "            NO_COLOR is set",
+                "padding:    0 (default)",
                 "colors:     basic (TERM xterm)",
                 # the test's output has no encoding
                 "encoding:   -",
-                out[7],
                 out[8],
+                out[9],
                 f"device:     {name}",
                 "model:      Galaxy S23 Ultra (SM-S918B)",
             ],
         )
-        self.assertTrue(out[7].startswith("completion: "))
-        self.assertTrue(out[8].startswith("python:     3."))
+        self.assertTrue(out[8].startswith("completion: "))
+        self.assertTrue(out[9].startswith("python:     3."))
 
     def test_terminal_model(self):
         model = shell.terminal_cmd._model
@@ -2753,12 +2754,55 @@ class ShellTest(unittest.TestCase):
 
     def test_complete_terminal(self):
         self.assertEqual(
-            self.complete("terminal "), ["info"]
+            self.complete("terminal "), ["info", "padding"]
         )
         self.assertEqual(
-            self.lines("terminal set theme plain"),
-            ["usage: terminal info, see 'help terminal'"],
+            self.complete("terminal p"), ["padding"]
         )
+        self.assertEqual(
+            self.complete("terminal padding "), []
+        )
+        usage = [
+            "usage: terminal info|padding [<spaces>], see",
+            "  'help terminal'",
+        ]
+        for line in (
+            "terminal set theme plain",
+            "terminal padding 1 2",
+            "terminal pad",
+            "terminal",
+        ):
+            self.assertEqual(self.lines(line), usage, line)
+
+    def test_terminal_padding(self):
+        self.assertEqual(
+            self.lines("terminal padding"),
+            ["padding: 0 (default)"],
+        )
+        self.assertEqual(
+            self.lines("terminal PADDING 10"),
+            ["padding set to 10"],
+        )
+        self.assertEqual(config.padding(), 10)
+        self.assertEqual(
+            self.lines("terminal padding"),
+            ["padding: 10 (.terminal.json)"],
+        )
+        for spaces in ("201", "x", "-1", "2.5"):
+            self.assertEqual(
+                self.lines(f"terminal padding {spaces}"),
+                [
+                    "error: padding is a whole number, "
+                    "0 to 200"
+                ],
+                spaces,
+            )
+        self.assertEqual(config.padding(), 10)
+        self.assertEqual(
+            self.lines("terminal padding 0"),
+            ["padding set to 0"],
+        )
+        self.assertEqual(config.padding(), 0)
 
     def test_unknown_command(self):
         self.assertEqual(

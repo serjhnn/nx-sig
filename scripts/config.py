@@ -32,6 +32,9 @@
 #   TERMINAL_PATH    this device's own terminal
 #                    settings, not in config.json
 #   padding()        this device's table padding
+#   padding_setting()
+#                    (padding, ".terminal.json"|
+#                    "default")
 #   set_padding(spaces)
 #                    save it, ValueError unless 0 to
 #                    MAX_PADDING
@@ -247,14 +250,18 @@ def padding():
     """the spaces before each table on this device:
     "padding" of TERMINAL_PATH, an int of 0 to
     MAX_PADDING, else 0"""
+    return padding_setting()[0]
+
+
+def padding_setting():
     value = _terminal_local().get("padding")
     if (
         isinstance(value, int)
         and not isinstance(value, bool)
         and 0 <= value <= MAX_PADDING
     ):
-        return value
-    return 0
+        return value, os.path.basename(TERMINAL_PATH)
+    return 0, "default"
 
 
 def set_padding(spaces):

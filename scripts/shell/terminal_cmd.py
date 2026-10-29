@@ -1,9 +1,11 @@
 # terminal_cmd: the terminal the shell runs in
 #
 #   terminal info
+#   terminal padding [<spaces>]
 #
 # the width and theme are config.json "terminal"
-# "width" and "theme"
+# "width" and "theme"; the padding is this device's
+# own, in .terminal.json (config.py)
 #
 # TerminalCmd is mixed into NxSigShell: a command of its
 # own, not a kind of data
@@ -15,10 +17,12 @@ import subprocess
 import sys
 import textwrap
 
+import config
 import tasks_owner
 from shell.ui import (
     color_off_reason,
     complete_options,
+    print_error,
     print_wrapped,
     theme,
     theme_setting,
@@ -26,7 +30,10 @@ from shell.ui import (
     width_setting,
 )
 
-USAGE = "usage: terminal info, see 'help terminal'"
+USAGE = (
+    "usage: terminal info|padding [<spaces>], see "
+    "'help terminal'"
+)
 # the label column of 'terminal info'
 LABEL = 12
 # where Linux says what the computer is
@@ -37,19 +44,56 @@ class TerminalCmd:
     def do_terminal(self, arg):
         """
         terminal info
-            the terminal's size, the width and
-            theme in use and where they come from,
+            the terminal's size, the width, theme
+            and padding in use and where they come
+            from,
             the phone or computer model; the width
             and theme are config.json "terminal"
             "width" and "theme"
+        terminal padding [<spaces>]
+            the spaces before each table on this
+            device, 0 (default) to 200, e.g.
+            'terminal padding 10'; less where a
+            table wouldn't fit the width; without
+            spaces, the padding now
         """
-        if arg.lower().split() == ["info"]:
+        args = arg.lower().split()
+        if args == ["info"]:
             _print_info()
+            return
+        if args[:1] == ["padding"] and len(args) <= 2:
+            _padding(args[1:])
             return
         print_wrapped(USAGE)
 
     def complete_terminal(self, text, line, begidx, endidx):
-        return complete_options(text, line, [["info"]])
+        return complete_options(
+            text, line, [["info", "padding"]]
+        )
+
+
+def _padding(args):
+    if not args:
+        print_wrapped(f"padding: {_describe_padding()}")
+        return
+    spaces = args[0]
+    if not spaces.isdigit():
+        spaces = -1
+    try:
+        config.set_padding(int(spaces))
+    except ValueError:
+        print_error(
+            "error: padding is a whole number, 0 to "
+            f"{config.MAX_PADDING}"
+        )
+        return
+    print_wrapped(f"padding set to {int(spaces)}")
+
+
+def _describe_padding():
+    """'10 (.terminal.json)'"""
+    spaces, source = config.padding_setting()
+    return f"{spaces} ({source})"
 
 
 def _describe_width():
@@ -182,6 +226,7 @@ def _info_rows():
         ("size", _size()),
         ("width", _describe_width()),
         ("theme", _describe_theme()),
+        ("padding", _describe_padding()),
         ("colors", _colors()),
         ("encoding", sys.stdout.encoding or "-"),
         ("completion", _completion()),

@@ -20,6 +20,7 @@
 # and the commands of their own:
 #   status, xtop [sec] [al],
 #   chart <stock> [period ...], terminal info,
+#   terminal padding [<spaces>],
 #   test notify <alert|ladder>,
 #   strategy (not implemented yet)
 #   demo <set|move|speed|reset|tour> (only in ./nxdemo)

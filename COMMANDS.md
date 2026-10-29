@@ -247,11 +247,18 @@ chart <stock> [period <n> <unit>]
     months'
 
 terminal info
-    the terminal's size, the width and
-    theme in use and where they come from,
+    the terminal's size, the width, theme
+    and padding in use and where they come
+    from,
     the phone or computer model; the width
     and theme are config.json "terminal"
     "width" and "theme"
+terminal padding [<spaces>]
+    the spaces before each table on this
+    device, 0 (default) to 200, e.g.
+    'terminal padding 10'; less where a
+    table wouldn't fit the width; without
+    spaces, the padding now
 
 test notify <alert|ladder> [repeat <n>]
     send a test message like an alert's or

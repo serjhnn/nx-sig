@@ -212,7 +212,7 @@ const MODS = {
   "shell/rule_cmd": ["shell", "Your personal trading rules", ["engines/rules", "shell/interface", "shell/ui"], []],
   "shell/stocks_cmd": ["shell", "The stocks you hold", ["shell/interface", "shell/ui"], []],
   "shell/tasks_cmd": ["shell", "The background tasks, every one runs as its own process", ["shell/interface", "shell/ui", "tasks_owner"], []],
-  "shell/terminal_cmd": ["shell", "The terminal the shell runs in", ["shell/ui", "tasks_owner"], []],
+  "shell/terminal_cmd": ["shell", "The terminal the shell runs in", ["config", "shell/ui", "tasks_owner"], []],
   "shell/trade_cmd": ["shell", "The trades, your buys and sells", ["engines/trades", "shell/interface", "shell/ui"], []],
   "shell/ui": ["shell", "The look of the shell and the helpers every command module shares", ["config", "engines/prices", "engines/trades", "storage"], []],
   "mtsig/mail_reader": ["mtsig", "Fetch and watch messages in an IMAP mailbox", [], []],
