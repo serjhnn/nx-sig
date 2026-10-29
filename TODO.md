@@ -252,6 +252,11 @@ for your own use first. In this order:
     realized profit is shown one day
   - maybe the fee of a statement's own fee rows
     instead of the fixed one
+- ~~**Basetrade from the trades**~~ (done: `add
+  basetrade <stock>|all` takes the lowest buy since
+  the last sell, a partial sell too;
+  `basetrades.from_trades`). The mail broker doesn't
+  update basetrades.
 - ~~**Price chart in the terminal**~~ (done: `chart
   <stock> [period <n> <unit>]`, one `*` per price, the
   avg buy line and B / S trades). Still open: maybe a

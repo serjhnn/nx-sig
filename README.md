@@ -24,6 +24,7 @@
   - [The mail broker (mtsig, mail trades service)](#the-mail-broker-mtsig-mail-trades-service)
   - [Price chart](#price-chart)
   - [Ladders](#ladders)
+  - [Basetrades](#basetrades)
   - [Alerts](#alerts)
     - [Gain alerts](#gain-alerts)
   - [Syncing the phone and the PC](#syncing-the-phone-and-the-pc)
@@ -263,7 +264,7 @@ every background task on this device.
 | `trade` | `ls`, `add`, `rm` | `add trade SOXL buy count 10 price 20.5`, `add trade from <file>` (a bank statement, see below) |
 | `ladder` | `ls`, `add`, `rm`, `run`, `stop` | `add ladder SOXL down 10 from 100 run` |
 | `rule` | `ls`, `add`, `rm` | `add rule never buy on a gap up` |
-| `basetrade` | `ls`, `add`, `rm` | `add basetrade MRVU price 100 count 10` |
+| `basetrade` | `ls`, `add`, `rm` | `add basetrade MRVU price 100 count 10`, `add basetrade SOXL` or `all` (from the trades, see below) |
 | `alert` | `ls`, `add`, `rm`, `run`, `stop` | `add alert basetrades down 10 percent` |
 | `mail-broker` | `run`, `stop` | `run mail-broker` |
 | `tasks` | `ls`, `stop` | `ls tasks`: running background tasks, `stop tasks all` stops them |
@@ -406,6 +407,30 @@ several levels between two checks, one message names the farthest one.
 - The `notify` channel (Telegram, Termux:API or ntfy) must be set up to start a ladder.
 - In Termux a wake lock is held while a ladder or the mail broker runs.
 - Logs are in `data/logs/ladder_<id>.log`.
+
+### Basetrades
+
+A basetrade is the price and count you last bought a stock at, one per stock
+(`base_trades.csv`); the alerts below are checked against it. It doesn't
+change the trades or their totals. Set it by hand or take it from the trades:
+
+```
+nX-sig> add basetrade SOXL price 15 count 3
+added basetrade of SOXL: 3 at 15
+nX-sig> add basetrade SOXL
+replaced basetrade of SOXL: 3 at 15 (lowest buy
+  since the last sell, 02.10.26)
+```
+
+- `add basetrade <stock>` takes the lowest buy since the stock's last sell,
+  its price and count. Any sell, a partial one too, starts over; of two buys
+  at the same price the later one counts. A stock without such a buy is an
+  error.
+- `add basetrade all` does it for each stock that has trades and prints one
+  line per stock (`skipped` without such a buy). It asks once before it
+  replaces older basetrades.
+- `ls basetrades` lists them with the current price and the change %,
+  `rm basetrade <stock>` deletes one.
 
 ### Alerts
 
