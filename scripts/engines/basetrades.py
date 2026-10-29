@@ -18,11 +18,16 @@
 #       the basetrade of a stock name, or None
 #   get_all()
 #       the basetrades in config order
+#   from_trades(stock)
+#       the lowest buy of a Stock since its last sell
+#       (any sell, partial too), the later one of equal
+#       prices; it isn't saved
 #
 # a basetrade is {"Stock" (name), "Price", "Count"}
 
 import storage
-from storage import Stock  # noqa: F401
+from engines import trades
+from storage import Stock, TradeType  # noqa: F401
 
 
 class BaseTradeError(Exception):
@@ -50,3 +55,20 @@ def get(name):
 
 def get_all():
     return storage.basetrades_get_all()
+
+
+def from_trades(stock):
+    lowest = None
+    for t in trades.get_all(stock):
+        if t["Type"] == TradeType.SELL:
+            lowest = None
+        elif (
+            lowest is None or t["Price"] <= lowest["Price"]
+        ):
+            lowest = t
+    if lowest is None:
+        raise BaseTradeError(
+            f"no buys of {stock.name} since the last "
+            "sell, see 'ls trades'"
+        )
+    return lowest
