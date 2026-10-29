@@ -230,12 +230,32 @@ to the screen as it is now; it is never less than 48. On a screen wider than 48
 the tables spread out (at most 4 more spaces between columns, so they don't get
 thin), and messages and help texts fill the width.
 
-In the shell, `terminal info` shows the terminal's size, the width and theme in
-use and where they come from (`config.json` or the default), the
+To move the tables in from the left edge on a wide screen, set a padding: the
+spaces before every table on this device, `0` (default) to `200`:
+
+```
+nX-sig> terminal padding 10
+padding set to 10
+nX-sig> terminal padding
+padding: 10 (.terminal.json)
+```
+
+- It is saved in `.terminal.json` in the repo folder, like `.device` not in git
+  and not synced, so the phone and the PC each keep their own.
+- Where a table and the padding wouldn't fit the width, the table gets less
+  padding, so it never wraps: on a 48 wide phone a table gets none.
+- Only the tables move: their header, rows and total. The text below a table
+  (the `al` alert lines, the `xtop` status line) fills the width and stays at
+  the left, like messages and help.
+- `terminal padding 0` puts the tables back at the left edge.
+
+In the shell, `terminal info` shows the terminal's size, the width, theme and
+padding in use and where they come from (`config.json`, `.terminal.json` or
+the default), the
 colors the terminal supports, the encoding, this device's name and the
 phone's name (Settings, About phone) and model when Termux may read the
 name, otherwise the phone or computer model. The width and theme are set only
-in `config.json` `terminal`. Without colors the output is the same, only plain; `NO_COLOR` or output that is not a terminal
+in `config.json` `terminal`, the padding only with `terminal padding`. Without colors the output is the same, only plain; `NO_COLOR` or output that is not a terminal
 also turns them off.
 
 ## Running
@@ -594,6 +614,8 @@ nx-sig/
 ├── migrate_data          renames old data files once (temporary)
 ├── config.json           stocks, data folder, price API
 ├── demo/config.json      the demo's settings (./nxdemo)
+├── .terminal.json        this device's table padding (not in git,
+│                         not synced, 'terminal padding')
 ├── demo/seed/            the demo's sample data
 ├── requirements.txt      the Python packages
 ├── .github/workflows/tests.yml
@@ -634,7 +656,7 @@ nx-sig/
     │   └── watch_notify.py   notes for a planned Garmin watch app
     ├── shell/            the shell's commands, one module per feature
     │   ├── interface.py      Commands: what every *_cmd.py implements
-    │   ├── ui.py             colors, width(), printing, parsers
+    │   ├── ui.py             colors, width(), padded tables, printing, parsers
     │   ├── trade_cmd.py      trades
     │   ├── stocks_cmd.py     ls stocks
     │   ├── rule_cmd.py       rules
@@ -646,13 +668,14 @@ nx-sig/
     │   ├── overview_cmd.py   status, xtop
     │   ├── chart_cmd.py      chart
     │   ├── notify_cmd.py     test notify
-    │   ├── terminal_cmd.py   terminal info
+    │   ├── terminal_cmd.py   terminal info, terminal padding
     │   └── demo_cmd.py       the demo's messages and status line
     ├── mtsig/            the mail broker (mail trades service)
     │   ├── order_watcher.py  email -> parsed order -> trade
     │   ├── mail_reader.py    IMAP IDLE watcher with reconnects
     │   └── order_parser.py   reads an order from a broker email
-    ├── config.py         reads config.json once, typed settings with defaults
+    ├── config.py         reads config.json once, typed settings with defaults,
+    │                     this device's padding (.terminal.json)
     ├── storage.py        trades, rules and mail broker state on disk
     ├── process.py        the helpers of the background processes
     ├── chart.py          the price chart of 'chart'

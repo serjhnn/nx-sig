@@ -257,6 +257,12 @@ for your own use first. In this order:
   the last sell, a partial sell too;
   `basetrades.from_trades`). The mail broker doesn't
   update basetrades.
+- ~~**Table padding**~~ (done: `terminal padding
+  <spaces>`, per device in `.terminal.json`; every
+  table starts after it, less where it wouldn't
+  fit). Still open: maybe pad the text below a
+  table too (the `al` lines), wrapped to the
+  narrower width
 - ~~**Price chart in the terminal**~~ (done: `chart
   <stock> [period <n> <unit>]`, one `*` per price, the
   avg buy line and B / S trades). Still open: maybe a
