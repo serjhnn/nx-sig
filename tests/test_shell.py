@@ -105,6 +105,15 @@ class ShellTest(unittest.TestCase):
                 "DEVICE_PATH",
                 os.path.join(self._tmp.name, ".device"),
             ),
+            # this device's padding, not in the repo
+            # folder
+            mock.patch.object(
+                config,
+                "TERMINAL_PATH",
+                os.path.join(
+                    self._tmp.name, ".terminal.json"
+                ),
+            ),
             # the API keys and the request
             mock.patch.object(
                 prices, "_headers", lambda: {}
@@ -2319,6 +2328,36 @@ class ShellTest(unittest.TestCase):
             xtop[4],
             "total" + " " * 43 + "+50.00      +24.39%",
         )
+
+    def test_padded(self):
+        table = ["Name  Qty", "-" * 9, "", "SOXL   10"]
+        wide = {"terminal": {"width": 80}}
+        with mock.patch.dict(config.DATA, wide):
+            # no padding set
+            self.assertEqual(shell.ui.padded(table), table)
+            config.set_padding(10)
+            self.assertEqual(
+                shell.ui.padded(table),
+                [
+                    " " * 10 + "Name  Qty",
+                    " " * 10 + "-" * 9,
+                    "",
+                    " " * 10 + "SOXL   10",
+                ],
+            )
+            # less, so the widest line still fits 80;
+            # color codes don't count
+            dim = "\033[2my\033[0m"
+            self.assertEqual(
+                shell.ui.padded(["x" * 75, dim]),
+                [" " * 5 + "x" * 75, " " * 5 + dim],
+            )
+            self.assertEqual(shell.ui.padded([]), [])
+        narrow = {"terminal": {"width": 48}}
+        with mock.patch.dict(config.DATA, narrow):
+            self.assertEqual(
+                shell.ui.padded(["x" * 48]), ["x" * 48]
+            )
 
     # ---------------- chart ----------------
 

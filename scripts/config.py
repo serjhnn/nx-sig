@@ -29,6 +29,12 @@
 #                    (setting, "config.json"|"default")
 #   theme()          colored or plain
 #   chart_height()   the chart's price rows
+#   TERMINAL_PATH    this device's own terminal
+#                    settings, not in config.json
+#   padding()        this device's table padding
+#   set_padding(spaces)
+#                    save it, ValueError unless 0 to
+#                    MAX_PADDING
 
 import json
 import os
@@ -74,6 +80,12 @@ DEMO_START_PRICE = 50.0
 # the chart's price rows, at least MIN_ROWS
 DEFAULT_ROWS = 15
 MIN_ROWS = 3
+# this device's terminal settings: in the repo folder
+# like .device, so not in git and not synced; the
+# phone and the PC each keep their own
+TERMINAL_PATH = os.path.join(ROOT_DIR, ".terminal.json")
+# the spaces before a table, at most
+MAX_PADDING = 200
 
 
 def _required(key):
@@ -229,3 +241,41 @@ def chart_height():
     ):
         return rows
     return DEFAULT_ROWS
+
+
+def padding():
+    """the spaces before each table on this device:
+    "padding" of TERMINAL_PATH, an int of 0 to
+    MAX_PADDING, else 0"""
+    value = _terminal_local().get("padding")
+    if (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and 0 <= value <= MAX_PADDING
+    ):
+        return value
+    return 0
+
+
+def set_padding(spaces):
+    if not 0 <= spaces <= MAX_PADDING:
+        raise ValueError(
+            f"padding must be 0 to {MAX_PADDING}"
+        )
+    local = _terminal_local()
+    local["padding"] = spaces
+    tmp = f"{TERMINAL_PATH}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(local, f, indent=4)
+    os.replace(tmp, TERMINAL_PATH)
+
+
+def _terminal_local():
+    """TERMINAL_PATH as a dict, {} if it is missing or
+    broken"""
+    try:
+        with open(TERMINAL_PATH) as f:
+            local = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return local if isinstance(local, dict) else {}

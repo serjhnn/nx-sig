@@ -13,7 +13,9 @@
 # their columns grow, by at most MAX_GAP_GROWTH each.
 # the theme is config.json "terminal" "theme": colored,
 # or plain
-# for no colors.
+# for no colors. the tables start after this device's
+# padding (config.padding(), 'terminal padding'), less
+# where a table wouldn't fit width().
 #
 # shared helpers:
 #   width()            the output width now
@@ -30,6 +32,8 @@
 #                      spaces between the columns
 #   rule(header)       the dashes under a table's
 #                      header, as wide as it
+#   padded(lines)      a table's lines after this
+#                      device's padding
 #   print_dim(text), print_wrapped(text),
 #   print_error(text)
 #   wrap(text)         text wrapped to width()
@@ -57,6 +61,7 @@ from config import (
     DEFAULT_THEME,
     DEFAULT_WIDTH,
     THEMES,
+    padding,
     theme,
     theme_setting,
     width_setting,
@@ -209,8 +214,26 @@ def rule(header):
     """the dashed line under a table's header, as wide
     as the header (its color codes not counted), so it
     ends where the columns end"""
-    plain = re.sub(r"\033\[[0-9;]*m", "", header)
-    return "-" * len(plain)
+    return "-" * len(_plain(header))
+
+
+def padded(lines):
+    """the lines of a table, each after the same
+    padding: this device's, less where the widest line
+    would pass width(); empty lines stay empty"""
+    widest = max(
+        (len(_plain(line)) for line in lines), default=0
+    )
+    room = max(0, width() - widest)
+    pad = " " * min(padding(), room)
+    return [
+        f"{pad}{line}" if line else line for line in lines
+    ]
+
+
+def _plain(text):
+    """text without its color codes"""
+    return re.sub(r"\033\[[0-9;]*m", "", text)
 
 
 def print_dim(text):

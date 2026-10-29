@@ -4,11 +4,13 @@
 
 import json
 import os
+import tempfile
 
 import unittest
 from unittest import mock
 
 import paths  # noqa: F401, scripts/ on sys.path
+import config
 from config import (
     DATA,
     DEFAULT_BARS_URL,
@@ -117,6 +119,51 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(theme(), "colored")
         DATA["terminal"] = None
         self.assertEqual(width_setting()[1], "default")
+
+    def test_padding(self):
+        # the file in a temp dir, not the repo folder
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = os.path.join(tmp.name, ".terminal.json")
+        p = mock.patch.object(config, "TERMINAL_PATH", path)
+        p.start()
+        self.addCleanup(p.stop)
+
+        self.assertEqual(config.padding(), 0)
+        config.set_padding(12)
+        self.assertEqual(config.padding(), 12)
+        config.set_padding(config.MAX_PADDING)
+        self.assertEqual(
+            config.padding(), config.MAX_PADDING
+        )
+        for spaces in (-1, config.MAX_PADDING + 1):
+            with self.assertRaises(ValueError):
+                config.set_padding(spaces)
+        self.assertEqual(
+            config.padding(), config.MAX_PADDING
+        )
+        # other keys of the file are kept
+        with open(path, "w") as f:
+            json.dump({"padding": 3, "other": 1}, f)
+        config.set_padding(4)
+        with open(path) as f:
+            self.assertEqual(
+                json.load(f), {"padding": 4, "other": 1}
+            )
+        # a bad value or file is 0
+        for text in (
+            '{"padding": "5"}',
+            '{"padding": true}',
+            '{"padding": 201}',
+            '{"padding": -2}',
+            "[5]",
+            "not json",
+        ):
+            with open(path, "w") as f:
+                f.write(text)
+            self.assertEqual(config.padding(), 0, text)
+        config.set_padding(2)
+        self.assertEqual(config.padding(), 2)
 
     def test_chart_height(self):
         self.patch({"terminal": {"chart_height": 9}})

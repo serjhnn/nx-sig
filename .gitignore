@@ -3,5 +3,6 @@ __pycache__/
 .env
 data/
 .device
+.terminal.json
 demo_data/
 .venv/
