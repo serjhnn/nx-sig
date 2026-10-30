@@ -16,6 +16,7 @@
 #       [run]
 #   run ladder <id>, stop ladder <id>, rm ladder <id>
 #   run mail-broker, stop mail-broker
+#   run web, stop web      the logo web server
 #   ls tasks               running background tasks
 # and the commands of their own:
 #   status, xtop [sec] [sip|iex] [al],

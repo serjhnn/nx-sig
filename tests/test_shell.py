@@ -586,7 +586,11 @@ class ShellTest(unittest.TestCase):
     def test_status(self):
         self.assertEqual(
             self.lines("status"),
-            ["no stocks held", "mail broker: not started"],
+            [
+                "no stocks held",
+                "mail broker: not started",
+                "web: not running, see 'run web'",
+            ],
         )
         self.run_cmd("add trade SOXL buy count 10 price 20")
         self.prices = {"SOXL": 22}
@@ -600,6 +604,7 @@ class ShellTest(unittest.TestCase):
                 "   +20.00",
                 "-" * width(),
                 "mail broker: not started",
+                "web: not running, see 'run web'",
             ],
         )
         self.assertEqual(
@@ -616,7 +621,7 @@ class ShellTest(unittest.TestCase):
             }
         )
         self.assertEqual(
-            self.lines("status")[-2:],
+            self.lines("status")[-3:-1],
             [
                 f"mail broker: running, checked "
                 f"{now:%H:%M}, last order",
@@ -1791,6 +1796,7 @@ class ShellTest(unittest.TestCase):
             [
                 "no stocks held",
                 "mail broker: not in the demo",
+                "web: not running, see 'run web'",
                 "demo: made-up prices, moving every 2s "
                 "(pid 77)",
             ],
@@ -2079,6 +2085,7 @@ class ShellTest(unittest.TestCase):
             [
                 "no stocks held",
                 "mail broker: not started",
+                "web: not running, see 'run web'",
                 "background tasks run on pc (since 16.10 "
                 "14:30)",
             ],
@@ -2116,11 +2123,14 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.lines("run"),
-            ["run: ladder, alerts, mail-broker"],
+            ["run: ladder, alerts, mail-broker, web"],
         )
         self.assertEqual(
             self.lines("stop"),
-            ["stop: ladder, alerts, mail-broker, tasks"],
+            [
+                "stop: ladder, alerts, mail-broker, web, "
+                "tasks"
+            ],
         )
 
     def test_action_errors(self):
@@ -3008,6 +3018,7 @@ class ShellTest(unittest.TestCase):
                 "basetrade",
                 "alert",
                 "mail-broker",
+                "web",
                 "task",
             ],
         )
@@ -3025,8 +3036,8 @@ class ShellTest(unittest.TestCase):
                 "ls": ["stocks"] + data + ["task"],
                 "add": data,
                 "rm": data,
-                "run": tasks,
-                "stop": tasks + ["task"],
+                "run": tasks + ["web"],
+                "stop": tasks + ["web", "task"],
             },
         )
         trade = self.shell.objects["trade"]
@@ -3115,7 +3126,7 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.complete("run "),
-            ["ladder", "alerts", "mail-broker"],
+            ["ladder", "alerts", "mail-broker", "web"],
         )
         self.assertEqual(
             self.complete("add alert "),

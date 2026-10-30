@@ -23,6 +23,7 @@ come in either order.
 - [basetrades](#basetrades)
 - [alerts](#alerts)
 - [mail-broker](#mail-broker)
+- [web](#web)
 - [tasks](#tasks)
 - [other commands](#other-commands)
 
@@ -199,6 +200,20 @@ stop mail-broker
     stop the mail broker (./mtsig stop)
 ```
 
+## web
+
+```
+run web
+    start the web server that shows the
+    nX-sig logo, at config "web" "host" and
+    "port" (http://127.0.0.1:8080/ by
+    default, only this device); it keeps
+    running when the shell is closed
+
+stop web
+    stop the web server
+```
+
 ## tasks
 
 ```
@@ -223,9 +238,9 @@ status
     average buy price, current price and
     state: gain/loss in money,
     count * (price - avg price),
-    and whether the mail broker is running
-    and which device runs the background
-    tasks
+    whether the mail broker and the web
+    server are running and which device
+    runs the background tasks
 
 xtop [sec] [sip|iex] [al]
     live gain/loss of the stocks you hold:

@@ -1,8 +1,8 @@
 # overview_cmd: the commands that span the features
 #
 #   status      held positions with gain/loss, the
-#               mail broker and the device of the
-#               background tasks
+#               mail broker, the web server and the
+#               device of the background tasks
 #   xtop [sec] [sip|iex] [al]
 #               live gain/loss, with al the gain
 #               alerts (alert_cmd.py) below the table
@@ -44,6 +44,7 @@ from shell.alert_cmd import gain_alert_lines
 from shell.demo_cmd import demo_status
 from shell.mail_cmd import print_watcher_status
 from shell.tasks_cmd import print_owner
+from shell.web_cmd import print_web_status
 
 XTOP_USAGE = "usage: xtop [sec] [sip|iex] [al]"
 
@@ -58,9 +59,9 @@ class OverviewCmd:
             average buy price, current price and
             state: gain/loss in money,
             count * (price - avg price),
-            and whether the mail broker is running
-            and which device runs the background
-            tasks
+            whether the mail broker and the web
+            server are running and which device
+            runs the background tasks
         """
         if arg.strip():
             print_wrapped("usage: status")
@@ -70,6 +71,7 @@ class OverviewCmd:
         if not positions:
             print_wrapped("no stocks held")
             print_watcher_status()
+            print_web_status()
             if config.demo():
                 demo_status()
             print_owner()
@@ -138,6 +140,7 @@ class OverviewCmd:
         print()
         print_table(lines)
         print_watcher_status()
+        print_web_status()
         if config.demo():
             demo_status()
         print_owner()
