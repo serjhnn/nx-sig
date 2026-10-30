@@ -38,6 +38,7 @@ import paths  # noqa: F401, scripts/ on sys.path
 import chart
 import config
 from engines import alerts, demo, demo_prices, ladder
+from engines import web
 from engines import prices
 from notifiers import notifier
 import process
@@ -1768,6 +1769,60 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.lines("stop mail-broker now"),
             ["usage: stop mail-broker"],
+        )
+
+    # ---------------- web server ----------------
+
+    def test_web(self):
+        running = []
+
+        def start():
+            if running:
+                raise web.WebError("already runs (pid 9)")
+            running.append(9)
+            return 9
+
+        def stop():
+            return bool(running and running.pop())
+
+        for name, value in (
+            ("start", start),
+            ("stop", stop),
+            ("running_pid", lambda: running and 9),
+        ):
+            p = mock.patch.object(web, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+        self.assertEqual(
+            " ".join(
+                l.strip() for l in self.lines("run web")
+            ),
+            "web server started (pid 9), open " + web.url(),
+        )
+        self.assertIn(
+            f"web: running at {web.url()}",
+            self.lines("status"),
+        )
+        self.assertEqual(
+            self.lines("run web"),
+            ["error: already runs (pid 9)"],
+        )
+        self.assertEqual(
+            self.lines("stop web"), ["web server stopped"]
+        )
+        self.assertEqual(
+            self.lines("stop web"),
+            ["the web server isn't running"],
+        )
+        self.assertEqual(
+            self.lines("run web now"), ["usage: run web"]
+        )
+        self.assertEqual(
+            self.lines("stop web now"), ["usage: stop web"]
+        )
+        self.assertEqual(
+            self.lines("ls web"),
+            ["web has no ls, it has run/stop"],
         )
 
     # ---------------- the demo ----------------
