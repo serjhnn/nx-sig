@@ -227,15 +227,17 @@ status
     and which device runs the background
     tasks
 
-xtop [sec] [al]
+xtop [sec] [sip|iex] [al]
     live gain/loss of the stocks you hold:
     quantity, average buy price, current
     price, gain and gain %, updated every
     5 seconds or every <sec> seconds,
-    e.g. 'xtop 10'; with al, below it the
-    gain alerts and the stocks in alert
-    (see 'help add alert'). q returns to
-    the shell
+    e.g. 'xtop 10'; sip takes the prices
+    from the delayed_sip feed, iex from iex
+    (default: config "feed"); with al,
+    below it the gain alerts and the stocks
+    in alert (see 'help add alert'). q
+    returns to the shell
 
 chart <stock> [period <n> <unit>]
     the price of <stock> over the period

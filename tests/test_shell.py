@@ -627,11 +627,15 @@ class ShellTest(unittest.TestCase):
     def test_xtop_checks(self):
         self.assertEqual(
             self.lines("xtop 1 2"),
-            ["usage: xtop [sec] [al]"],
+            ["usage: xtop [sec] [sip|iex] [al]"],
         )
         self.assertEqual(
             self.lines("xtop al al"),
-            ["usage: xtop [sec] [al]"],
+            ["usage: xtop [sec] [sip|iex] [al]"],
+        )
+        self.assertEqual(
+            self.lines("xtop sip iex"),
+            ["usage: xtop [sec] [sip|iex] [al]"],
         )
         self.assertEqual(
             self.lines("xtop 0.5"),
@@ -678,7 +682,10 @@ class ShellTest(unittest.TestCase):
         """line's xtop output: one price update, then q"""
         keys = iter([None, "q"])
 
-        def polling(interval, on_update, on_error):
+        def polling(
+            interval, on_update, on_error, feed=None
+        ):
+            self.feeds.append(feed)
             on_update(self.prices)
             return threading.Event()
 
@@ -692,6 +699,18 @@ class ShellTest(unittest.TestCase):
             shell.overview_cmd, "key_reader", reader
         ):
             return self.lines(line)
+
+    def test_xtop_feed(self):
+        self.run_cmd("add trade SOXL buy count 10 price 20")
+        self.prices = {"SOXL": 22}
+        for line, feed in (
+            ("xtop", None),
+            ("xtop sip", "delayed_sip"),
+            ("xtop 10 IEX al", "iex"),
+        ):
+            self.feeds = []
+            self.run_xtop(line)
+            self.assertEqual(self.feeds, [feed], line)
 
     def test_xtop_run(self):
         self.run_cmd("add trade SOXL buy count 10 price 20")

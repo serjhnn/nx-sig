@@ -3,7 +3,7 @@
 #   status      held positions with gain/loss, the
 #               mail broker and the device of the
 #               background tasks
-#   xtop [sec] [al]
+#   xtop [sec] [sip|iex] [al]
 #               live gain/loss, with al the gain
 #               alerts (alert_cmd.py) below the table
 #
@@ -17,6 +17,7 @@ from datetime import datetime
 import config
 from engines.prices import start_polling
 from shell.ui import (
+    FEEDS,
     padded,
     print_table,
     rule,
@@ -43,6 +44,8 @@ from shell.alert_cmd import gain_alert_lines
 from shell.demo_cmd import demo_status
 from shell.mail_cmd import print_watcher_status
 from shell.tasks_cmd import print_owner
+
+XTOP_USAGE = "usage: xtop [sec] [sip|iex] [al]"
 
 
 class OverviewCmd:
@@ -144,23 +147,28 @@ class OverviewCmd:
 
     def do_xtop(self, arg):
         """
-        xtop [sec] [al]
+        xtop [sec] [sip|iex] [al]
             live gain/loss of the stocks you hold:
             quantity, average buy price, current
             price, gain and gain %, updated every
             5 seconds or every <sec> seconds,
-            e.g. 'xtop 10'; with al, below it the
-            gain alerts and the stocks in alert
-            (see 'help add alert'). q returns to
-            the shell
+            e.g. 'xtop 10'; sip takes the prices
+            from the delayed_sip feed, iex from iex
+            (default: config "feed"); with al,
+            below it the gain alerts and the stocks
+            in alert (see 'help add alert'). q
+            returns to the shell
         """
         args = arg.lower().split()
         show_alerts = "al" in args
         if show_alerts:
             args.remove("al")
-        if len(args) > 1 or "al" in args:
-            print_wrapped("usage: xtop [sec] [al]")
+        feeds = [a for a in args if a in FEEDS]
+        args = [a for a in args if a not in FEEDS]
+        if len(args) > 1 or len(feeds) > 1 or "al" in args:
+            print_wrapped(XTOP_USAGE)
             return
+        feed = FEEDS[feeds[0]] if feeds else None
         interval = 5.0
         if args:
             try:
@@ -187,6 +195,7 @@ class OverviewCmd:
                 ("prices", prices)
             ),
             on_error=lambda e: updates.put(("error", e)),
+            feed=feed,
         )
 
         def notes(prices):

@@ -14,6 +14,7 @@ from engines.basetrades import Stock
 from shell.alert_cmd import print_basetrade_alerts
 from shell.interface import Commands
 from shell.ui import (
+    FEEDS,
     print_table,
     rule,
     BOLD,
@@ -35,9 +36,6 @@ from shell.ui import (
 )
 
 LS_USAGE = "usage: ls basetrades [sip|iex] [al]"
-# the 'ls basetrades' feed words, the Alpaca feed of
-# each; the free plan's sip is the delayed one
-FEEDS = {"sip": "delayed_sip", "iex": "iex"}
 
 ADD_USAGE = (
     "usage: add basetrade <stock>|all, or add "

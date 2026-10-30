@@ -397,6 +397,12 @@ def complete_options(text, line, options_per_position):
     return []
 
 
+# the feed words of 'ls basetrades' and 'xtop', the
+# Alpaca feed of each; the free plan's sip is the
+# delayed one
+FEEDS = {"sip": "delayed_sip", "iex": "iex"}
+
+
 def fetch_prices(feed=None):
     """{stock: current price} from the API (feed, or
     config "feed"), or {} after printing why the prices
