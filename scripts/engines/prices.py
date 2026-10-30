@@ -8,13 +8,15 @@
 # no network, the feed is not used
 #
 # public functions:
-#   start_polling(interval=5, on_update=print, on_error=...)
+#   start_polling(interval=5, on_update=print, on_error=...,
+#                 feed=None)
 #       start a thread that every `interval` seconds
 #       requests config["url"], collects {index: price} for
 #       config["indices"] and passes it to on_update (prints
 #       it by default). failed requests go to on_error.
-#       returns a threading.Event, call .set() on it to stop
-#       the thread
+#       feed replaces config "feed" as in
+#       get_latest_prices. returns a threading.Event, call
+#       .set() on it to stop the thread
 #   get_latest_prices(feed=None)
 #       request config["url"] once and return {index: price}
 #       for config["indices"], raises
@@ -50,12 +52,21 @@ def _print_error(e):
 
 
 def start_polling(
-    interval=5, on_update=print, on_error=_print_error
+    interval=5,
+    on_update=print,
+    on_error=_print_error,
+    feed=None,
 ):
     stop_event = threading.Event()
     thread = threading.Thread(
         target=_poll,
-        args=(interval, stop_event, on_update, on_error),
+        args=(
+            interval,
+            stop_event,
+            on_update,
+            on_error,
+            feed,
+        ),
         daemon=True,
     )
     thread.start()
@@ -78,14 +89,14 @@ def _headers():
     }
 
 
-def _poll(interval, stop_event, on_update, on_error):
+def _poll(interval, stop_event, on_update, on_error, feed):
     if config.demo():
         latest = _demo_latest
     else:
         headers = _headers()
 
         def latest():
-            return _latest_prices(headers)
+            return _latest_prices(headers, feed)
 
     # wait() returns True once stop_event is set, otherwise
     # sleeps `interval` seconds

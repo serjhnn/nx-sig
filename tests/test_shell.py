@@ -25,6 +25,7 @@ import re
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from contextlib import contextmanager, redirect_stdout
 from datetime import datetime, timedelta, timezone
@@ -896,6 +897,21 @@ class ShellTest(unittest.TestCase):
             [c["feed"] for c in calls],
             ["iex", "delayed_sip"],
         )
+
+    def test_polling_feed(self):
+        # the polling requests take the feed given
+        for feed in (None, "iex"):
+            self.feeds = []
+            got = []
+            stop = prices.start_polling(
+                60, on_update=got.append, feed=feed
+            )
+            stop.set()
+            for _ in range(100):
+                if got:
+                    break
+                time.sleep(0.01)
+            self.assertEqual(self.feeds, [feed])
 
     def test_basetrade_errors(self):
         usage = [
