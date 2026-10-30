@@ -70,6 +70,7 @@ IGNORE = [
     "mtsig_status.json",
     "ladders_status.json",
     "alerts_status.json",
+    "web_status.json",
     ".tmp_*",
 ]
 # 8 groups of 7 base32 characters

@@ -4,9 +4,10 @@
 #   python tests/test_process.py  the tests
 #
 # public functions:
-#   spawn(args, out_path)
+#   spawn(args, out_path, wake=True)
 #       start python <args> in the background, holding
-#       the Termux wake lock; return the Popen
+#       the Termux wake lock (unless not wake); return
+#       the Popen
 #   process_runs(pid, script, arg=None)
 #       True if pid is a live process running script
 #   kill(pid, sig)
@@ -53,12 +54,13 @@ LOG_MAX_BYTES = 200_000
 LOG_BACKUP_COUNT = 2
 
 
-def spawn(args, out_path):
+def spawn(args, out_path, wake=True):
     """start python <args> as a background process
     with its output in out_path, holding the Termux wake
-    lock; return the Popen"""
+    lock unless not wake; return the Popen"""
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    wake_lock("termux-wake-lock")
+    if wake:
+        wake_lock("termux-wake-lock")
     with open(out_path, "w") as out:
         return subprocess.Popen(
             [sys.executable, *args],

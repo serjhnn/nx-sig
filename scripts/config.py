@@ -25,6 +25,8 @@
 #   notify()         the notify channel name
 #   fee()            the fee of one trade, in USD
 #   interval(key)    "timing" key in seconds
+#   web_host(), web_port()
+#                    the address of the web server
 #   width_setting(), theme_setting()
 #                    (setting, "config.json"|"default")
 #   theme()          colored or plain
@@ -65,6 +67,9 @@ DEFAULT_BARS_URL = (
 NOTIFY_CHANNELS = ("telegram", "termux", "ntfy")
 DEFAULT_NOTIFY = "telegram"
 DEFAULT_INTERVAL = 30
+# the web server: only this device by default
+DEFAULT_WEB_HOST = "127.0.0.1"
+DEFAULT_WEB_PORT = 8080
 # a trade's fee when config.json has no "fee"
 DEFAULT_FEE = 0
 # the width the shell's tables are made for
@@ -207,6 +212,27 @@ def interval(key):
     if _is_number(value) and value > 0:
         return value
     return DEFAULT_INTERVAL
+
+
+def web_host():
+    """config "web" "host", else DEFAULT_WEB_HOST"""
+    value = _section("web").get("host")
+    if isinstance(value, str) and value:
+        return value
+    return DEFAULT_WEB_HOST
+
+
+def web_port():
+    """config "web" "port": 1 to 65535, else
+    DEFAULT_WEB_PORT"""
+    value = _section("web").get("port")
+    if (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and 0 < value < 65536
+    ):
+        return value
+    return DEFAULT_WEB_PORT
 
 
 def _terminal(key, default):

@@ -75,6 +75,9 @@
 #   demo_prices_status_get(), demo_prices_status_set(s)
 #       heartbeat of the demo's prices process (dict),
 #       demo_prices_status.json
+#   web_status_get(), web_status_set(status)
+#       heartbeat of the web server (dict),
+#       web_status.json
 #   demo_message_add(text, keep)
 #       keep a message of the demo's notify channel, the
 #       last keep, in demo_messages.json
@@ -819,6 +822,19 @@ def demo_prices_status_set(status):
 
 def _demo_prices_status_path():
     return os.path.join(DB_DIR, "demo_prices_status.json")
+
+
+def web_status_get():
+    return _json_get(_web_status_path())
+
+
+@_locked
+def web_status_set(status):
+    _json_set(_web_status_path(), status)
+
+
+def _web_status_path():
+    return os.path.join(DB_DIR, "web_status.json")
 
 
 @_locked
