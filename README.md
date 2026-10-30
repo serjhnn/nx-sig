@@ -203,7 +203,7 @@ your bot.
 |---|---|
 | `indices` | the stocks you track; only these can be used in commands and are recorded by the mail broker |
 | `storage_dir` | where data files are kept, relative to the repo folder (default `./data/`) |
-| `url`, `feed` | the Alpaca latest-trades endpoint and data feed (`ls basetrades sip` or `iex` chooses `delayed_sip` or `iex` for one listing) |
+| `url`, `feed` | the Alpaca latest-trades endpoint and data feed (`ls basetrades sip` or `iex` chooses `delayed_sip` or `iex` for one listing, `xtop sip` or `iex` for one run) |
 | `bars_feed` | the feed of the past prices for `chart` (default: `feed`, with `delayed_sip` read as `sip` and the newest 15 minutes left out); set `"iex"` if your plan refuses `sip` |
 | `notify` | where the ladders and alerts are sent: `"telegram"` (default, `TOKEN` and `CHAT_ID` in `.env`) or `"termux"`, an Android notification through Termux:API (the Termux:API app and `pkg install termux-api`, no internet or keys needed), or `"ntfy"`, a push through [ntfy.sh](https://ntfy.sh) (`NTFY_TOPIC` in `.env`, the ntfy app subscribed to that topic); `test notify alert` in the shell sends a test |
 | `fee` | the fee of one trade (a buy or a sell) in USD, a number of at least `0` (default `0`); each buy adds it to its cost, so the average buy price (`ls trades`, `xtop`, the gain alerts, `chart`) includes it, a sell's fee is left out |
@@ -290,7 +290,8 @@ every background task on this device.
 | `tasks` | `ls`, `stop` | `ls tasks`: running background tasks, `stop tasks all` stops them |
 
 And the commands of their own: `status` (positions with gain/loss and the
-mail broker's state), `xtop [sec] [al]` (live gain/loss, with `al`
+mail broker's state), `xtop [sec] [sip|iex] [al]` (live gain/loss,
+`sip` or `iex` the feed as in `ls basetrades`, with `al`
 the gain alerts below the table, `q` to stop), `chart <stock> [period <n> <unit>]` (a
 price chart, see below), `terminal info` (the terminal's size, width
 and theme), `test notify <alert|ladder>` (a test message through

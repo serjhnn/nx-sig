@@ -268,3 +268,7 @@ for your own use first. In this order:
   avg buy line and B / S trades). Still open: maybe a
   one-line sparkline (`▁▂▃▄▅▆▇█`) per stock in
   `ls stocks` or `status`
+- ~~**Feed choice in xtop**~~ (done: `xtop [sec]
+  [sip|iex] [al]` takes the prices from the
+  `delayed_sip` or `iex` feed, as `ls basetrades`
+  does)

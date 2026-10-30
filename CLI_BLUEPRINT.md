@@ -172,7 +172,7 @@ Why action first:
 
 - `status`: positions with gain/loss and the state of
   the background tasks
-- `xtop [sec]`: live gain/loss
+- `xtop [sec] [sip|iex] [al]`: live gain/loss
 - `help`, `help <action>`, `help <object>`,
   `exit` / `quit` / `q`
 - `help ladder` lists everything that works on ladders
