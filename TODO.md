@@ -272,3 +272,13 @@ for your own use first. In this order:
   [sip|iex] [al]` takes the prices from the
   `delayed_sip` or `iex` feed, as `ls basetrades`
   does)
+- ~~**Web server with the logo**~~ (done: `run web`,
+  `stop web`, a page with `assets/logo.svg` at
+  config `web`, 127.0.0.1:8080 by default;
+  `engines/web.py`, `services/web_service.py`).
+  Still open:
+  - maybe a read-only page of the positions or
+    `ls tasks`; it would need a login before the
+    host is anything but 127.0.0.1
+  - maybe start it after a phone restart, with the
+    ladders (Termux:Boot)

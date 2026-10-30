@@ -27,6 +27,7 @@
   - [Basetrades](#basetrades)
   - [Alerts](#alerts)
     - [Gain alerts](#gain-alerts)
+  - [The web server](#the-web-server)
   - [Syncing the phone and the PC](#syncing-the-phone-and-the-pc)
     - [One device runs the background tasks](#one-device-runs-the-background-tasks)
 - [Data](#data)
@@ -59,6 +60,8 @@ as narrow as 48 characters (see `terminal` `width` below).
   notifications, e.g. at 90, 80, 70, ... when a stock falls from 100
 - **Alerts**: a message each time a basetrade's stock or a held
   stock's gain crosses a level, e.g. 10% below the buying price
+- **A web page** with the nX-sig logo (`run web`), on this device only by
+  default
 - **Notifications** through Telegram, Termux:API or [ntfy](https://ntfy.sh) (config `notify`)
 - **A demo** (`./nxdemo`) with sample data and made-up prices, to try it all
   without any account, see [Try the demo](#try-the-demo)
@@ -209,6 +212,7 @@ your bot.
 | `fee` | the fee of one trade (a buy or a sell) in USD, a number of at least `0` (default `0`); each buy adds it to its cost, so the average buy price (`ls trades`, `xtop`, the gain alerts, `chart`) includes it, a sell's fee is left out |
 | `timing` | how often the background tasks check the prices, see below |
 | `terminal` | the shell's look on the screen, see below |
+| `web` | the address of the web server (`run web`), see below |
 
 The `timing` settings, in seconds:
 
@@ -224,6 +228,13 @@ The `terminal` settings:
 | `width` | the shell's output width: a number (default `48`, the narrowest) or `"auto"` (as shipped) for the terminal's width, read anew for every command |
 | `theme` | `"colored"` (default) or `"plain"` for no colors |
 | `chart_height` | the number of price rows of `chart` (default `15`, at least `3`) |
+
+The `web` settings (optional, `"web": {"host": "127.0.0.1", "port": 8080}`):
+
+| Key | Meaning |
+|---|---|
+| `host` | the address the web server listens on (default `"127.0.0.1"`, only this device); `"0.0.0.0"` lets the other devices of the network open it too |
+| `port` | its port, `1` to `65535` (default `8080`) |
 
 With `auto`, the width is read again for every command, so the output adjusts
 to the screen as it is now; it is never less than 48. On a screen wider than 48
@@ -287,10 +298,11 @@ every background task on this device.
 | `basetrade` | `ls`, `add`, `rm` | `add basetrade MRVU price 100 count 10`, `add basetrade SOXL` or `all` (from the trades, see below) |
 | `alert` | `ls`, `add`, `rm`, `run`, `stop` | `add alert basetrades down 10 percent` |
 | `mail-broker` | `run`, `stop` | `run mail-broker` |
+| `web` | `run`, `stop` | `run web`: the web page with the logo, see below |
 | `tasks` | `ls`, `stop` | `ls tasks`: running background tasks, `stop tasks all` stops them |
 
-And the commands of their own: `status` (positions with gain/loss and the
-mail broker's state), `xtop [sec] [sip|iex] [al]` (live gain/loss,
+And the commands of their own: `status` (positions with gain/loss, the
+mail broker's state and the web server's), `xtop [sec] [sip|iex] [al]` (live gain/loss,
 `sip` or `iex` the feed as in `ls basetrades`, with `al`
 the gain alerts below the table, `q` to stop), `chart <stock> [period <n> <unit>]` (a
 price chart, see below), `terminal info` (the terminal's size, width
@@ -515,6 +527,29 @@ The message is like `TSMX gain +105.00 (+17.5%) at 70.50 (alert 2: gain TSMX
 - `xtop al` lists the gain alerts below its table, and the stocks past one
   (`! in alert: SOXL #2`).
 
+### The web server
+
+```
+nX-sig> run web
+web server started (pid 948), open
+  http://127.0.0.1:8080/
+```
+
+A small web page with the nX-sig logo, as wide as the screen, served by
+`scripts/services/web_service.py` with Python's own `http.server` (no
+packages to install). Open the address in a browser on the same device.
+
+- It serves only `/` (the page) and `/logo.svg`, reads no data and
+  changes nothing; any other path is `404`.
+- `run web` starts it, `stop web` stops it; it keeps running when the shell
+  is closed. `status` shows `web: running at http://127.0.0.1:8080/`.
+- It listens on `127.0.0.1:8080`, so only this device can open it; config
+  `web` changes the address and the port (see above). If the port is
+  taken, `run web` says so.
+- It isn't one of the background tasks: it sends nothing, so it runs on
+  either device (or both), without the Termux wake lock. Logs are in
+  `data/logs/web.log`.
+
 ### Syncing the phone and the PC
 
 `./syncnx` keeps `data/` the same on the phone (Termux) and the PC
@@ -587,7 +622,8 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `alerts.csv` | the alerts: Id, For (`basetrades` or `gain`), Direction, Percent, Created, Stock and Amount (of a gain alert) |
 | `alerts_status.json` | the alerts process's heartbeat and the stocks past each alert |
 | `tasks_owner.json` | the device that runs the background tasks |
-| `logs/` | the background tasks' logs (`mtsig.log`, `ladder_<id>.log`, `alerts.log`) |
+| `web_status.json` | the web server's heartbeat and address, shown by `status` |
+| `logs/` | the background tasks' logs (`mtsig.log`, `ladder_<id>.log`, `alerts.log`) and the web server's (`web.log`) |
 
 The count and average buy price of a stock are computed from its trades
 file each time, so editing or syncing a trades file can't leave them out of
@@ -624,7 +660,7 @@ nx-sig/
 ├── CODE_STYLE.md         code style rules
 ├── CLAUDE.md             notes for Claude Code sessions
 ├── COMMANDS.md           every shell command (generated)
-├── assets/logo.svg
+├── assets/logo.svg       the logo (README, the web page)
 ├── assets/demo-*.svg     the demo pictures of this README
 │                         (scripts/gen_shots.py)
 ├── assets/modules.html  the module map (generated), also online:
@@ -643,11 +679,13 @@ nx-sig/
     │   ├── ladder.py         price-step alerts, starts their processes
     │   ├── alerts.py         basetrade and gain alerts, starts their process
     │   ├── demo.py           the demo's sample data (./nxdemo)
-    │   └── demo_prices.py    the demo's prices, a random walk
+    │   ├── demo_prices.py    the demo's prices, a random walk
+    │   └── web.py            the web server, starts its process
     ├── services/         the background processes, <engine>_service.py
     │   ├── ladder_service.py one ladder's process: price, notify
     │   ├── alert_service.py  the alerts process, one for all alerts
-    │   └── demo_prices_service.py the demo's prices process
+    │   ├── demo_prices_service.py the demo's prices process
+    │   └── web_service.py    the web server: the logo page
     ├── notifiers/        the notify channels (config "notify")
     │   ├── notifier.py       sends through the chosen channel
     │   ├── telegram_notify.py message through a Telegram bot
@@ -665,6 +703,7 @@ nx-sig/
     │   ├── alert_cmd.py      alerts (the shell side)
     │   ├── ladder_cmd.py     ladders (the shell side)
     │   ├── mail_cmd.py       mail broker (./mtsig)
+    │   ├── web_cmd.py        run web, stop web
     │   ├── tasks_cmd.py      ls tasks
     │   ├── overview_cmd.py   status, xtop
     │   ├── chart_cmd.py      chart
@@ -706,6 +745,7 @@ python tests/test_tasks_owner.py   # which device runs the tasks
 python tests/test_chart.py         # the price chart layout
 python tests/test_demo.py          # the demo data, and a run of ./nxdemo
 python tests/test_demo_prices.py   # the demo's prices and their process
+python tests/test_web.py           # the web server, its page and process
 python tests/test_shell.py         # every shell command, faked prices
 python tests/test_sync.py          # device IDs, .stignore
 python scripts/check_style.py      # code style (line width), generated files
