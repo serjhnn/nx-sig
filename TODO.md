@@ -225,8 +225,8 @@ for your own use first. In this order:
        shell uses instead of `./mtsig`~~ (done; until
        step 7 `./mtsig` doesn't see a broker started
        from the shell, it has no `mtsig.pid`)
-    5. a registry, so `tasks_run()` doesn't name
-       every task
+    5. ~~a registry, so `tasks_run()` doesn't name
+       every task~~ (done, `process.tasks()`)
     6. one shared loop for the polling services
        (`process.run_loop`)
     7. remove `./mtsig`; add a one-shot mode

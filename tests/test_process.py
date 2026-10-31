@@ -95,6 +95,53 @@ class ProcessTest(unittest.TestCase):
             )
 
 
+class TasksTest(unittest.TestCase):
+    def test_tasks(self):
+        # the TASK of every engine that has one
+        from engines import (
+            alerts,
+            demo_prices,
+            ladder,
+            mail_broker,
+            web,
+        )
+
+        found = process.tasks()
+        for task in (
+            alerts.TASK,
+            demo_prices.TASK,
+            ladder.TASK,
+            mail_broker.TASK,
+            web.TASK,
+        ):
+            self.assertIn(task, found)
+        self.assertEqual(len(found), 5)
+
+    def test_tasks_run(self):
+        # owner-bound tasks only, but the ending one
+        bound = FakeTask.__new__(FakeTask)
+        bound.keys = lambda: [1, 2]
+        running = {(bound, 2)}
+        bound.running_pid = lambda key: (
+            (bound, key) in running and 9
+        )
+        free = FakeTask.__new__(FakeTask)
+        free.owner_bound = False
+        free.running_pid = lambda key: 9
+        with mock.patch.object(
+            process, "tasks", lambda: [free, bound]
+        ):
+            self.assertTrue(process.tasks_run())
+            self.assertTrue(
+                process.tasks_run(ending=(bound, 1))
+            )
+            self.assertFalse(
+                process.tasks_run(ending=(bound, 2))
+            )
+            running.clear()
+            self.assertFalse(process.tasks_run())
+
+
 # the service of FakeTask: prints, then sleeps; argv
 # "crash" ends right away, "stubborn" ignores SIGTERM
 FAKE_SERVICE = """\

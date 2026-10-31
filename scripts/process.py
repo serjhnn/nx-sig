@@ -19,12 +19,13 @@
 #       ours
 #   reap(pid)
 #       wait for an ended child, so it isn't a zombie
-#   tasks_run(ending_id=None, watcher_ending=False,
-#             alerts_ending=False)
-#       True if a ladder, the mail broker or the alerts
-#       run
-#   release_if_idle(ending_id=None, watcher_ending=False,
-#                   alerts_ending=False)
+#   tasks()
+#       every kind of task, the TASK of each engine
+#   tasks_run(ending=None)
+#       True if an owner-bound task (a ladder, the
+#       alerts, the mail broker) runs, but ending, the
+#       (task, key) that ends
+#   release_if_idle(ending=None)
 #       release the wake lock and the background tasks
 #       when none runs any more
 #   wake_lock(command)
@@ -34,9 +35,11 @@
 #   setup_logging(path)
 #       log to path and to the console
 
+import importlib
 import logging
 import logging.handlers
 import os
+import pkgutil
 import shutil
 import signal
 import subprocess
@@ -45,13 +48,7 @@ import time
 from datetime import datetime
 
 import tasks_owner
-from storage import (
-    ROOT_DIR,
-    alerts_status_get,
-    ladder_status_get,
-    ladders_get_all,
-    watcher_status_get,
-)
+from storage import ROOT_DIR
 
 # how long start() watches for a crash at start
 START_CHECK_SECONDS = 2
@@ -106,6 +103,11 @@ class BackgroundTask:
 
     def log_path(self, key):
         raise NotImplementedError
+
+    def keys(self):
+        """the keys of its saved tasks, which may run:
+        the ladders' ids, [None] for one process"""
+        return [None]
 
     def label(self, key):
         """the task in a message: 'ladder 3'"""
@@ -287,46 +289,44 @@ def reap(pid):
         pass
 
 
-def tasks_run(
-    ending_id=None,
-    watcher_ending=False,
-    alerts_ending=False,
-):
-    """True if a ladder but ending_id, the mail broker
-    or the alerts process (unless it is the one
-    ending) runs"""
-    for l in ladders_get_all():
-        if l["Id"] == ending_id:
+def tasks():
+    """every kind of background task: the TASK of each
+    engines/*.py that has one, so a new engine with a
+    TASK is found without being named here"""
+    # engines import this module: import them only now
+    import engines
+
+    found = []
+    for info in pkgutil.iter_modules(engines.__path__):
+        module = importlib.import_module(
+            f"engines.{info.name}"
+        )
+        task = getattr(module, "TASK", None)
+        if isinstance(task, BackgroundTask):
+            found.append(task)
+    return found
+
+
+def tasks_run(ending=None):
+    """True if an owner-bound task runs (a ladder, the
+    alerts, the mail broker), except ending, the
+    (task, key) that is ending"""
+    for task in tasks():
+        if not task.owner_bound:
             continue
-        pid = (ladder_status_get(l["Id"]) or {}).get("pid")
-        if pid and process_runs(
-            pid, "ladder_service.py", l["Id"]
-        ):
-            return True
-    pid = (watcher_status_get() or {}).get("pid")
-    if (
-        not watcher_ending
-        and pid
-        and process_runs(pid, "order_watcher.py")
-    ):
-        return True
-    alerts = (alerts_status_get() or {}).get("pid")
-    return bool(
-        not alerts_ending
-        and alerts
-        and process_runs(alerts, "alert_service.py", "run")
-    )
+        for key in task.keys():
+            if ending == (task, key):
+                continue
+            if task.running_pid(key):
+                return True
+    return False
 
 
-def release_if_idle(
-    ending_id=None,
-    watcher_ending=False,
-    alerts_ending=False,
-):
+def release_if_idle(ending=None):
     """release the Termux wake lock and the background
     tasks (tasks_owner.release) when no task runs any
-    more (tasks_run())"""
-    if tasks_run(ending_id, watcher_ending, alerts_ending):
+    more (tasks_run(ending))"""
+    if tasks_run(ending):
         return
     wake_lock("termux-wake-unlock")
     tasks_owner.release()

@@ -76,7 +76,7 @@ def run():
         alerts.save_status(pid, started, "crashed")
         sys.exit(1)
     finally:
-        process.release_if_idle(alerts_ending=True)
+        process.release_if_idle(ending=(alerts.TASK, None))
 
 
 def _check(saved):

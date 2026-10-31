@@ -234,6 +234,9 @@ class _LadderTask(process.BackgroundTask):
     script = SCRIPT
     error = LadderError
 
+    def keys(self):
+        return [l["Id"] for l in ladders_get_all()]
+
     def label(self, key):
         return f"ladder {key}"
 

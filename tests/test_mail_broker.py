@@ -46,7 +46,9 @@ class MailBrokerTest(unittest.TestCase):
         self.patch(process, "process_runs", process_runs)
         self.claims = []
         self.patch(tasks_owner, "claim", self.claims.append)
-        self.patch(process, "release_if_idle", lambda: None)
+        self.patch(
+            process, "release_if_idle", lambda **k: None
+        )
 
     def patch(self, target, name, value):
         p = mock.patch.object(target, name, value)
@@ -140,7 +142,9 @@ class MailBrokerTest(unittest.TestCase):
         self.alive.add(500)
         self.assertTrue(process.tasks_run())
         self.assertFalse(
-            process.tasks_run(watcher_ending=True)
+            process.tasks_run(
+                ending=(mail_broker.TASK, None)
+            )
         )
 
 

@@ -99,7 +99,9 @@ def run(ladder_id):
         )
         sys.exit(1)
     finally:
-        process.release_if_idle(ending_id=ladder_id)
+        process.release_if_idle(
+            ending=(ladder.TASK, ladder_id)
+        )
 
 
 def _check(saved):

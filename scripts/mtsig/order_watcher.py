@@ -61,7 +61,7 @@ from storage import (
     watcher_status_set,
 )
 from order_parser import parse_order
-from engines import trades
+from engines import mail_broker, trades
 
 STARTED = datetime.now().isoformat(timespec="seconds")
 LOG_MAX_BYTES = 1_000_000
@@ -313,12 +313,16 @@ def main():
         # old Python, another device runs the tasks
         log.critical("order watcher crashed", exc_info=True)
         _status("crashed, see log")
-        process.release_if_idle(watcher_ending=True)
+        process.release_if_idle(
+            ending=(mail_broker.TASK, None)
+        )
         sys.exit(1)
     if _taken_over:
         name = _taken_over.get("name", "?")
         _status(f"taken over by {name}")
-        process.release_if_idle(watcher_ending=True)
+        process.release_if_idle(
+            ending=(mail_broker.TASK, None)
+        )
     else:
         _status("stopped")
     log.info("order watcher stopped")

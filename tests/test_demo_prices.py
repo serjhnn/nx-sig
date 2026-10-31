@@ -424,7 +424,9 @@ class DemoPricesProcessTest(unittest.TestCase):
             lambda s: None,
         )
         self.patch(process, "setup_logging", lambda p: None)
-        self.patch(process, "release_if_idle", lambda: None)
+        self.patch(
+            process, "release_if_idle", lambda **k: None
+        )
         demo_prices_service.run()
         self.assertEqual(
             demo_prices.status()["state"], "done"
@@ -434,7 +436,9 @@ class DemoPricesProcessTest(unittest.TestCase):
     def test_service_outside_demo(self):
         config.DEMO = False
         self.patch(process, "setup_logging", lambda p: None)
-        self.patch(process, "release_if_idle", lambda: None)
+        self.patch(
+            process, "release_if_idle", lambda **k: None
+        )
         with self.assertRaises(SystemExit):
             with self.assertLogs("demo_prices", "ERROR"):
                 demo_prices_service.run()
