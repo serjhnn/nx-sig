@@ -67,6 +67,11 @@ line) can be done directly.
 - A new test file must also be added as a step to
   `.github/workflows/tests.yml`.
 - Don't create pull requests unless asked.
+- Don't update the pictures of `README.md`
+  (`assets/demo-*.svg`, `assets/map-*.png`) unless
+  asked: don't run `gen_shots.py` or
+  `gen_map_shots.py`, and if another script rewrites
+  them, restore them with `git checkout`.
 - No model names or ids in commits or in the repo.
 
 ## Before each commit
@@ -77,8 +82,6 @@ black -q -l 60 -S <changed .py files>
 pyflakes scripts tests
 python scripts/gen_docs.py   # help docstrings changed
 python scripts/gen_deps.py   # imports/modules changed
-python scripts/gen_shots.py  # demo output changed
-python scripts/gen_map_shots.py  # module map changed
 python scripts/check_style.py
 $V -m unittest discover tests
 ```
