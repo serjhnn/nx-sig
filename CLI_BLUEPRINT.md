@@ -358,7 +358,7 @@ place.
 `tests/test_shell.py` (done) runs every command
 through `NxSigShell.onecmd()` against a temporary data
 folder, with faked prices, Telegram, ladder processes
-and `./mtsig`, and checks the output and that every
+and the mail broker, and checks the output and that every
 line fits 48 characters. It tests the commands as they
 are now, so steps 1 and 2 must leave it passing
 unchanged, and steps 3 and 4 update it together with
@@ -366,8 +366,9 @@ the commands they rename.
 
 ## Open questions, for later
 
-- A `mail-broker` status with the last log lines, like
-  `./mtsig status`? (`ls mail-broker`?)
+- ~~A `mail-broker` status with the last log lines, like
+  `./mtsig status`?~~ (done, `ls mail-broker`; `./mtsig`
+  is gone, the shell starts the mail broker)
 - `status`: keep the `mail watcher:` line, or show all
   background tasks there (see the nx/mtsig split in
   TODO.md)?

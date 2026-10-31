@@ -26,7 +26,10 @@
 #       the Python for it, None for this one
 #   log_path()
 #       the log file of the process
+#   log_tail(count=5)
+#       its last lines, for 'ls mail-broker'
 
+import collections
 import logging
 import os
 import shutil
@@ -130,6 +133,22 @@ def find_python():
 
 def log_path():
     return os.path.join(storage.DB_DIR, "logs", "mtsig.log")
+
+
+def log_tail(count=5):
+    """the last count lines of its log (not the
+    rotated ones), [] if there is none"""
+    try:
+        with open(
+            log_path(), encoding="utf-8", errors="replace"
+        ) as f:
+            lines = collections.deque(
+                (l.rstrip() for l in f if l.strip()),
+                maxlen=count,
+            )
+    except OSError:
+        return []
+    return list(lines)
 
 
 def _new_enough(path):

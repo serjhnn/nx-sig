@@ -51,7 +51,7 @@ import shell.ui
 import storage
 import tasks_owner
 from notifiers import telegram_notify, termux_notify
-from commands import NxSigShell
+from commands import NxSigShell, run_once
 from engines import basetrades, trades
 from engines.trades import Stock, TradeType
 from shell.alert_cmd import gain_alert_lines
@@ -1807,6 +1807,80 @@ class ShellTest(unittest.TestCase):
             ["usage: stop mail-broker"],
         )
 
+    def test_ls_mail_broker(self):
+        self.assertEqual(
+            self.lines("ls mail-broker"),
+            ["mail broker: not running"],
+        )
+        self.broker_running = True
+        storage.watcher_status_set(
+            {
+                "pid": FAKE_PID,
+                "started": "2026-10-31T14:20:00",
+                "updated": "2026-10-31T14:29:00",
+                "state": "connected",
+                "last_order": "BUY 10 SOXL",
+                "last_error": {
+                    "time": "2026-10-30T09:00:00",
+                    "text": "unknown stock XYZ",
+                },
+            }
+        )
+        log_path = mail_broker.log_path()
+        os.makedirs(os.path.dirname(log_path))
+        with open(log_path, "w") as f:
+            for n in range(7):
+                f.write(
+                    "2026-10-31 14:29:0"
+                    f"{n},123 INFO    mail_reader: "
+                    f"round {n}\n"
+                )
+            f.write("Traceback, not a log line\n")
+        log = os.path.relpath(log_path)
+        self.assertEqual(
+            self.lines("ls mail-broker")[:5],
+            [
+                f"mail broker: running (pid {FAKE_PID})",
+                "state: connected, 31.10 14:29",
+                "started: 31.10 14:20",
+                "last order: BUY 10 SOXL",
+                "last error 30.10 09:00: unknown stock XYZ",
+            ],
+        )
+        out = self.lines("ls mail-broker")[5:]
+        # the log path may be wrapped
+        self.assertTrue(
+            "".join(out[:-5]).replace(" ", "")
+            == f"log({log}):".replace(" ", ""),
+            out,
+        )
+        self.assertEqual(
+            out[-5:],
+            [
+                "  14:29:03 INFO mail_reader: round 3",
+                "  14:29:04 INFO mail_reader: round 4",
+                "  14:29:05 INFO mail_reader: round 5",
+                "  14:29:06 INFO mail_reader: round 6",
+                "  Traceback, not a log line",
+            ],
+        )
+        self.assertEqual(
+            self.lines("ls mail-broker now"),
+            ["usage: ls mail-broker"],
+        )
+
+    def test_run_once(self):
+        # ./nxshell run mail-broker: one command, no
+        # prompt
+        out = io.StringIO()
+        with redirect_stdout(out):
+            run_once(self.shell, "  run mail-broker\ufeff")
+        self.assertIn(
+            f"mail broker started (pid {FAKE_PID})",
+            out.getvalue(),
+        )
+        self.assertTrue(self.broker_running)
+
     def test_mail_broker_fails(self):
         def crash(force=False):
             raise mail_broker.MailBrokerError(
@@ -1918,6 +1992,9 @@ class ShellTest(unittest.TestCase):
         )
         self.assertEqual(
             self.lines("stop mail-broker"), refused
+        )
+        self.assertEqual(
+            self.lines("ls mail-broker"), refused
         )
         self.assertEqual(self.broker_forced, [])
 
@@ -2229,7 +2306,7 @@ class ShellTest(unittest.TestCase):
             [
                 "ls: stocks, trades, ladders, rules, "
                 "basetrades,",
-                "  alerts, tasks",
+                "  alerts, mail-broker, tasks",
             ],
         )
         self.assertEqual(
@@ -2263,10 +2340,6 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.lines("run trade"),
             ["trade has no run, it has ls/add/rm"],
-        )
-        self.assertEqual(
-            self.lines("ls mail-broker"),
-            ["mail-broker has no ls, it has run/stop"],
         )
         # plural after ls, singular everywhere else
         self.assertEqual(
@@ -3152,7 +3225,9 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.shell.actions,
             {
-                "ls": ["stocks"] + data + ["task"],
+                "ls": ["stocks"]
+                + data
+                + ["mail-broker", "task"],
                 "add": data,
                 "rm": data,
                 "run": tasks + ["web"],
@@ -3178,6 +3253,7 @@ class ShellTest(unittest.TestCase):
                 "rules",
                 "basetrades",
                 "alerts",
+                "mail-broker",
                 "tasks",
             ],
         )

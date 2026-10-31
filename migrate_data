@@ -9,6 +9,8 @@
 #   transactions_total.csv   -> trades_total.csv
 #   base_buy.csv             -> base_trades.csv
 #   the Index column of the trades files -> Id
+#   mtsig.pid is deleted: the shell starts the mail
+#   broker now, its pid is in mtsig_status.json
 #
 # a file whose new name already exists is left alone.
 # run it once on every device (phone and PC) before
@@ -52,6 +54,10 @@ for f in *_transactions.csv; do
 done
 move transactions_total.csv trades_total.csv
 move base_buy.csv base_trades.csv
+if [ -e mtsig.pid ]; then
+    rm -f mtsig.pid && echo "deleted mtsig.pid"
+    moved=$((moved + 1))
+fi
 
 if [ "$moved" -eq 0 ]; then
     echo "nothing to rename in $data"

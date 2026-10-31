@@ -181,7 +181,7 @@ const MODS = {
   "process": ["engine", "The helpers of the background processes (the ladders, the alerts, the mail broker)", ["storage", "tasks_owner"], []],
   "storage": ["core", "Reads and writes all nX-sig data in config \"storage_dir\" (csv files for trades, json files for rules and the watcher)", ["config"], []],
   "sync": ["tools", "Keeps the data folder (config \"storage_dir\") the same on the phone (Termux) and the PC (Linux) with Syncthing", ["config", "storage"], []],
-  "tasks_owner": ["engine", "Only one device runs the background tasks (the mail broker and the ladders)", ["storage"], []],
+  "tasks_owner": ["engine", "Only one device runs the background tasks (the mail broker, the ladders and the alerts)", ["storage"], []],
   "engines/alerts": ["engine", "The alerts engine, price alerts for the basetrades and the gain of the held stocks, checked by one background process, services/alert_service.py", ["config", "engines/trades", "process", "storage"], []],
   "engines/basetrades": ["engine", "The basetrades engine, the last price you bought each stock at, one per stock", ["engines/trades", "storage"], []],
   "engines/demo": ["engine", "The demo engine, the sample data of ./nxdemo, which runs nX-sig without keys or accounts", ["config", "engines/alerts", "engines/demo_prices", "engines/ladder", "storage"], []],

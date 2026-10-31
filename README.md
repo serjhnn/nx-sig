@@ -21,7 +21,7 @@
 - [Setup](#setup)
 - [Running](#running)
   - [The shell](#the-shell)
-  - [The mail broker (mtsig, mail trades service)](#the-mail-broker-mtsig-mail-trades-service)
+  - [The mail broker (mail trades service)](#the-mail-broker-mail-trades-service)
   - [Price chart](#price-chart)
   - [Ladders](#ladders)
   - [Basetrades](#basetrades)
@@ -52,7 +52,7 @@ as narrow as 48 characters (see `terminal` `width` below).
 - **Interactive shell** (`./nxshell`) to add, list and delete trades,
   see positions with live prices and gain/loss, and keep personal trading rules
 - **Live prices** from the [Alpaca](https://alpaca.markets) market data API
-- **Mail trades service** (`./mtsig`) that waits for broker emails over IMAP and
+- **Mail trades service** (`run mail-broker`) that waits for broker emails over IMAP and
   records FILLED orders as trades, running in the background
 - **Plain files** for storage: CSV for trades, JSON for rules and state,
   written atomically and locked, so the shell and the mail broker can run together
@@ -280,6 +280,14 @@ also turns them off.
 It starts from the repo folder by itself, so `~/nx-sig/nxshell` works from
 anywhere. Set `NXSHELL_PYTHON` to use a specific Python.
 
+With a command after it, it runs just that command and exits, without the
+prompt, e.g. from a Termux:Boot script:
+
+```bash
+./nxshell run mail-broker
+./nxshell ls tasks
+```
+
 To try it without keys or accounts first, see [Try the demo](#try-the-demo).
 
 Commands are `<action> <object> [arguments]`. The actions are `ls` (list or
@@ -297,7 +305,7 @@ every background task on this device.
 | `rule` | `ls`, `add`, `rm` | `add rule never buy on a gap up` |
 | `basetrade` | `ls`, `add`, `rm` | `add basetrade MRVU price 100 count 10`, `add basetrade SOXL` or `all` (from the trades, see below) |
 | `alert` | `ls`, `add`, `rm`, `run`, `stop` | `add alert basetrades down 10 percent` |
-| `mail-broker` | `run`, `stop` | `run mail-broker` |
+| `mail-broker` | `ls`, `run`, `stop` | `run mail-broker`, `ls mail-broker`: its state, last order and error, last log lines |
 | `web` | `run`, `stop` | `run web`: the web page with the logo, see below |
 | `tasks` | `ls`, `stop` | `ls tasks`: running background tasks, `stop tasks all` stops them |
 
@@ -320,18 +328,17 @@ The average price is a weighted average of your buys:
 `avg = (avg × count + price × bought) / (count + bought)`. Sells lower the count
 and keep the average. Gain/loss in `status` is `count × price − count × avg`.
 
-### The mail broker (mtsig, mail trades service)
+### The mail broker (mail trades service)
 
-In the shell, `run mail-broker [force]` starts it and `stop mail-broker`
-stops it (after a clean logout); `./mtsig` does the same from the command line:
-
-```bash
-./mtsig start      # run it in the background
-./mtsig start force  # also when the other device runs the tasks
-./mtsig status     # running or not, last order, last log lines
-./mtsig stop       # stop it cleanly
-./mtsig restart
 ```
+run mail-broker        run it in the background
+run mail-broker force  also when the other device runs the tasks
+ls mail-broker         running or not, last order and error, last log lines
+stop mail-broker       stop it cleanly (it logs out, at most 20s)
+```
+
+To restart it, `stop mail-broker`, then `run mail-broker`. Outside the shell,
+`./nxshell run mail-broker` starts it too (see [The shell](#the-shell)).
 
 It waits for new emails from `IMAP_SENDER`, reads the order with
 `scripts/mtsig/order_parser.py` and records it when its status is `FILLED` and the
@@ -350,8 +357,8 @@ Status *FILLED*
   emails it missed and never records an order twice. On the very first start it
   begins after the newest email, so old emails are not imported.
 - A dropped connection is reconnected automatically.
-- `run mail-broker` and `./mtsig` find a Python 3.14+ by themselves (the
-  shell's own when it is new enough), or use `WATCHER_PYTHON`.
+- `run mail-broker` finds a Python 3.14+ by itself (the shell's own when it
+  is new enough), or uses `WATCHER_PYTHON`.
   In Termux it takes a wake lock while it runs, so Android does not pause it.
 - Logs are in `data/logs/mtsig.log` (rotated at 1 MB, 5 files kept).
   `LOG_LEVEL=DEBUG` in `.env` logs more detail.
@@ -582,7 +589,7 @@ data in `data/`. Otherwise, the files that differ end up as
   ladders and the alerts), or every order would be recorded twice. See below.
 - Don't record trades on both devices before they have synced.
 - These stay on each device and are never synced: `.lock`, `logs/`,
-  `mtsig.pid` and the `*_status.json` heartbeats (see `data/.stignore`).
+  and the `*_status.json` heartbeats (see `data/.stignore`).
 - Replaced or deleted files are kept in `data/.stversions` (the last 10).
 - Syncthing runs with its own config in `~/.config/nx-sig-sync`, so it doesn't
   touch another Syncthing on the same device. After a phone restart, run
@@ -594,14 +601,13 @@ data in `data/`. Otherwise, the files that differ end up as
 the ladders and the alerts, shown by `status` and `ls tasks`
 (`background tasks run on pc (since 16.10 14:30)`).
 
-- `run ladder`, `run alerts`, `run mail-broker` and `./mtsig start` refuse to start when the
+- `run ladder`, `run alerts` and `run mail-broker` refuse to start when the
   other device runs them: stop them there first.
 - When the last background task on a device stops, it releases them, so the
   other device can start them after the next sync.
 - If the other device is off or crashed and can't stop them, take them over
   with `force`: `run ladder 1 force`, `run alerts force`,
-  `run mail-broker force`,
-  `./mtsig start force`. When the other device syncs again, its tasks see that
+  `run mail-broker force`. When the other device syncs again, its tasks see that
   and stop by themselves, without recording or sending anything.
 - The devices only sync when they reach each other. Tasks started on both while
   they are apart both run until the next sync; then the later start wins and
@@ -621,8 +627,7 @@ Everything is kept in `storage_dir` (`data/`, not in git):
 | `personal_rules.json` | your rules |
 | `base_trades.csv` | the basetrades (last buying prices), one per stock: Stock, Price, Count |
 | `mail_state.json` | the last email the mail broker handled |
-| `mtsig_status.json` | the mail broker's heartbeat, shown by `status` |
-| `mtsig.pid` | the process id of the running `./mtsig` |
+| `mtsig_status.json` | the mail broker's heartbeat and pid, shown by `status` and `ls mail-broker` |
 | `ladders.csv` | the saved ladders: Id, Stock, Direction, Step, From, Last (the last level sent), Created |
 | `ladders_status.json` | the ladder processes' heartbeats, shown by `ls tasks` |
 | `alerts.csv` | the alerts: Id, For (`basetrades` or `gain`), Direction, Percent, Created, Stock and Amount (of a gain alert) |
@@ -651,10 +656,8 @@ other: [open it online](https://serjhnn.github.io/nx-sig/assets/modules.html)
 nx-sig/
 ├── nxshell               start the shell
 ├── nxdemo                start the shell as a demo (demo/)
-├── mtsig                 start/stop/status of the mail broker
-│                         (mail trades service)
 ├── syncnx                sync data/ between phone and PC
-├── migrate_data          renames old data files once (temporary)
+├── migrate_data          renames old data files once, deletes mtsig.pid (temporary)
 ├── config.json           stocks, data folder, price API
 ├── demo/config.json      the demo's settings (./nxdemo)
 ├── .terminal.json        this device's table padding (not in git,
@@ -710,7 +713,7 @@ nx-sig/
     │   ├── base_trade_cmd.py basetrades
     │   ├── alert_cmd.py      alerts (the shell side)
     │   ├── ladder_cmd.py     ladders (the shell side)
-    │   ├── mail_cmd.py       run mail-broker, stop mail-broker
+    │   ├── mail_cmd.py       run, stop, ls mail-broker
     │   ├── web_cmd.py        run web, stop web
     │   ├── tasks_cmd.py      ls tasks
     │   ├── overview_cmd.py   status, xtop
@@ -749,6 +752,8 @@ python tests/test_statement.py     # bank statement parsing
 python tests/test_trades.py        # trades engine, statement import
 python tests/test_ladder.py        # ladder levels
 python tests/test_alerts.py        # alert levels and crossings
+python tests/test_mail_broker.py   # the mail broker's process, its Python
+python tests/test_process.py       # BackgroundTask, the service loop
 python tests/test_notifier.py      # the notify channel
 python tests/test_tasks_owner.py   # which device runs the tasks
 python tests/test_chart.py         # the price chart layout
@@ -805,7 +810,7 @@ Activate it in each new terminal before starting nX-sig, so
 
 ```bash
 source .venv/bin/activate
-./nxshell        # or ./mtsig, ./nxdemo, ./syncnx
+./nxshell        # or ./nxdemo, ./syncnx
 deactivate       # back to the system Python
 ```
 
@@ -818,4 +823,4 @@ export WATCHER_PYTHON=~/nx-sig/.venv/bin/python
 ```
 
 `NXSHELL_PYTHON` is used by `./nxshell`, `./nxdemo` and
-`./syncnx`, `WATCHER_PYTHON` by `run mail-broker` and `./mtsig`.
+`./syncnx`, `WATCHER_PYTHON` by `run mail-broker`.

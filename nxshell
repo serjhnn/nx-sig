@@ -2,6 +2,8 @@
 # start the nX-sig interactive shell (scripts/commands.py)
 #
 #   ./nxshell
+#   ./nxshell <command>   run one command and exit,
+#                         e.g. ./nxshell run mail-broker
 #
 # the Python used is $NXSHELL_PYTHON, or python3, or
 # python. it runs from the repo folder, so config.json,

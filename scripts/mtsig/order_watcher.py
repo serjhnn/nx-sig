@@ -3,8 +3,10 @@
 # runs as its own process, next to the CLI:
 #   python scripts/mtsig/order_watcher.py
 #   (needs Python 3.14+, see mail_reader.py)
-# or in the background:
-#   ./mtsig start | stop | status
+# or in the background, from the shell
+# (engines/mail_broker.py):
+#   run mail-broker [force], stop mail-broker,
+#   ls mail-broker
 #
 # waits for emails from IMAP_SENDER (.env), parses them
 # with order_parser.py and records FILLED orders of the
@@ -261,8 +263,8 @@ def setup_logging():
         encoding="utf-8",
     )
     handlers = [file_handler]
-    # the ./mtsig script runs in the background and
-    # sets LOG_CONSOLE=0
+    # run in the background (process.spawn) it has
+    # LOG_CONSOLE=0
     if os.getenv("LOG_CONSOLE", "1") != "0":
         handlers.append(logging.StreamHandler())
     root = logging.getLogger()
@@ -281,7 +283,7 @@ def _stop_on_signal(signum, frame):
 def main():
     global _last_order, _last_error
     # a background process ignores SIGINT, so
-    # ./mtsig stop (and plain kill) send SIGTERM
+    # 'stop mail-broker' (and plain kill) send SIGTERM
     signal.signal(signal.SIGTERM, _stop_on_signal)
     signal.signal(signal.SIGINT, signal.default_int_handler)
     setup_logging()
@@ -299,8 +301,8 @@ def main():
     _last_error = previous.get("last_error")
     _status("starting")
     try:
-        # ./mtsig start claims them first, with force
-        # if asked
+        # 'run mail-broker' claims them first, with
+        # force if asked
         tasks_owner.claim()
         watch_sender_emails(
             handle_email,

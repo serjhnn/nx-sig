@@ -66,7 +66,6 @@ START_WAIT_SECONDS = 30
 IGNORE = [
     ".lock",
     "logs",
-    "mtsig.pid",
     "mtsig_status.json",
     "ladders_status.json",
     "alerts_status.json",
@@ -117,8 +116,10 @@ def setup(peer_id=None):
 def status_lines():
     """this device's ID, the peers and the folder"""
     if not _running():
-        return ["syncthing is not running,",
-                "start it with 'sync.py setup'"]
+        return [
+            "syncthing is not running,",
+            "start it with 'sync.py setup'",
+        ]
     api = _Api()
     my_id = api.get("/rest/system/status")["myID"]
     conns = api.get("/rest/system/connections")
@@ -130,16 +131,19 @@ def status_lines():
         if dev_id != my_id
     }
     for dev_id, conn in peers.items():
-        state = ("connected" if conn["connected"]
-                 else "not connected")
+        state = (
+            "connected"
+            if conn["connected"]
+            else "not connected"
+        )
         lines.append(f"  {dev_id[:7]} {state}")
     if not peers:
         lines.append("  none, add one: setup <ID>")
-    folder = api.get(
-        f"/rest/db/status?folder={FOLDER_ID}"
+    folder = api.get(f"/rest/db/status?folder={FOLDER_ID}")
+    lines.append(
+        f"folder: {folder['state']}, "
+        f"{folder['needFiles']} to fetch"
     )
-    lines.append(f"folder: {folder['state']}, "
-                 f"{folder['needFiles']} to fetch")
     lines.append(f"web page: http://{api.address}")
     return lines
 
@@ -371,15 +375,16 @@ def _main(args):
         elif args == ["stop"]:
             print("stopped" if stop() else "not running")
         else:
-            print("usage: sync.py setup [ID] | status "
-                  "| stop")
+            print(
+                "usage: sync.py setup [ID] | status "
+                "| stop"
+            )
             return 2
     except (SyncError, OSError) as e:
         print("error:", e, file=sys.stderr)
         return 1
     except subprocess.CalledProcessError as e:
-        print("error: install failed:", e,
-              file=sys.stderr)
+        print("error: install failed:", e, file=sys.stderr)
         return 1
     return 0
 

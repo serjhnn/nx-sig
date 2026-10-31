@@ -222,17 +222,17 @@ for your own use first. In this order:
     2. ~~web and demo prices use it~~ (done)
     3. ~~alerts and ladders use it~~ (done)
     4. ~~a mail broker engine (`engines/`) that the
-       shell uses instead of `./mtsig`~~ (done; until
-       step 7 `./mtsig` doesn't see a broker started
-       from the shell, it has no `mtsig.pid`)
+       shell uses instead of `./mtsig`~~ (done)
     5. ~~a registry, so `tasks_run()` doesn't name
        every task~~ (done, `process.tasks()`)
     6. ~~one shared loop for the polling services
        (`process.run_loop`)~~ (done)
-    7. remove `./mtsig`; add a one-shot mode
+    7. ~~remove `./mtsig`; add a one-shot mode
        (`./nxshell run mail-broker`) and
        `ls mail-broker` (state, last order, last
-       error, last log lines)
+       error, last log lines)~~ (done; run
+       `./migrate_data` once on each device to
+       delete the old `mtsig.pid`)
 - Metrics (`scripts/metrics.py`): statistics of your
   actions, once enough data is collected
 - `strategy` commands

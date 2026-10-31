@@ -29,8 +29,6 @@
 #   watcher_status_get(), watcher_status_set(status)
 #       heartbeat of order_watcher.py (dict), kept in
 #       mtsig_status.json
-#   mtsig_pid_get()
-#       the pid in mtsig.pid, written by ./mtsig start
 #   ladders_get_all(), ladder_get(ladder_id)
 #       the saved ladders of ladders.csv (see
 #       engines/ladder.py)
@@ -449,19 +447,6 @@ def watcher_status_get():
 @_locked
 def watcher_status_set(status):
     _json_set(_watcher_status_path(), status)
-
-
-def mtsig_pid_get():
-    """
-    return the pid that ./mtsig start wrote to
-    mtsig.pid, or None; the process may have ended
-    since
-    """
-    try:
-        with open(os.path.join(DB_DIR, "mtsig.pid")) as f:
-            return int(f.read().strip())
-    except (OSError, ValueError):
-        return None
 
 
 def basetrades_get_all():

@@ -64,6 +64,6 @@ jobs:
           scripts/mtsig/mail_reader.py
       - name: shell scripts syntax
         run: |
-          for f in nxshell nxdemo mtsig syncnx migrate_data; do
+          for f in nxshell nxdemo syncnx migrate_data; do
             bash -n "$f"
           done

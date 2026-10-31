@@ -15,7 +15,7 @@
 #   add ladder <stock> <down|up> <step> from <price>
 #       [run]
 #   run ladder <id>, stop ladder <id>, rm ladder <id>
-#   run mail-broker, stop mail-broker
+#   run mail-broker, stop mail-broker, ls mail-broker
 #   run web, stop web      the logo web server
 #   ls tasks               running background tasks
 # and the commands of their own:
@@ -34,6 +34,9 @@
 # find the object and call its action, help and tab
 # completion are built from them. see CLI_BLUEPRINT.md
 #
+# ./nxshell <command> runs one command and exits, e.g.
+# ./nxshell run mail-broker from a boot script
+#
 # ./nxdemo starts the same shell as a demo, with its
 # own settings and sample data (engines/demo.py), and
 # the process that moves its prices
@@ -44,6 +47,7 @@ import glob
 import importlib
 import inspect
 import os
+import sys
 import textwrap
 
 import config
@@ -534,11 +538,23 @@ def _demo_end():
         demo_prices.stop()
 
 
+def run_once(nx, line):
+    """run one command without the prompt, as
+    './nxshell run mail-broker' does (e.g. from a boot
+    script)"""
+    line = nx.precmd(line)
+    nx.postcmd(nx.onecmd(line), line)
+
+
 if __name__ == "__main__":
     if config.demo():
         _demo_start()
     try:
-        NxSigShell().cmdloop()
+        nx = NxSigShell()
+        if sys.argv[1:]:
+            run_once(nx, " ".join(sys.argv[1:]))
+        else:
+            nx.cmdloop()
     except KeyboardInterrupt:
         print()
     finally:

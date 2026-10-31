@@ -1,5 +1,5 @@
 # tasks_owner: only one device runs the background tasks
-# (the mail broker and the ladders)
+# (the mail broker, the ladders and the alerts)
 #
 # data/ is synced between the phone and the PC, so both
 # see the same emails and ladders: the mail broker on
@@ -19,10 +19,6 @@
 # each device keeps its own id in .device in the repo
 # folder, not in data/, so it is never synced
 #
-#   python scripts/tasks_owner.py claim [force]
-#   python scripts/tasks_owner.py release
-#       for ./mtsig; claim prints why and exits 1 if
-#       another device owns them
 #   python tests/test_tasks_owner.py
 #       the tests
 #
@@ -46,7 +42,6 @@ import json
 import os
 import platform
 import subprocess
-import sys
 import uuid
 from datetime import datetime
 
@@ -164,30 +159,3 @@ def release():
     current = owner()
     if current and current["id"] == this_device()["id"]:
         tasks_owner_set(None)
-
-
-def _main(args):
-    if args in (["claim"], ["claim", "force"]):
-        try:
-            taken = claim(force=len(args) == 2)
-        except OwnerError as e:
-            print(f"error: {e}", file=sys.stderr)
-            return 1
-        if taken:
-            print(
-                "took over the background tasks from "
-                f"{describe(taken)}"
-            )
-        return 0
-    if args == ["release"]:
-        release()
-        return 0
-    print(
-        "usage: tasks_owner.py claim [force] | release",
-        file=sys.stderr,
-    )
-    return 2
-
-
-if __name__ == "__main__" and len(sys.argv) > 1:
-    sys.exit(_main(sys.argv[1:]))

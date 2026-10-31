@@ -134,6 +134,19 @@ class MailBrokerTest(unittest.TestCase):
         )
         self.assertEqual(status["last_error"]["text"], "y")
 
+    def test_log_tail(self):
+        self.assertEqual(mail_broker.log_tail(), [])
+        path = mail_broker.log_path()
+        os.makedirs(os.path.dirname(path))
+        with open(path, "w") as f:
+            f.write(
+                "".join(f"line {n}\n\n" for n in range(9))
+            )
+        self.assertEqual(
+            mail_broker.log_tail(3),
+            ["line 6", "line 7", "line 8"],
+        )
+
     def test_tasks_run(self):
         # the mail broker keeps the background tasks
         # until it ends

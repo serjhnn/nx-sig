@@ -11,7 +11,6 @@ import paths  # noqa: F401, scripts/ on sys.path
 import storage
 from tasks_owner import (
     OwnerError,
-    _main,
     claim,
     describe,
     lost,
@@ -146,17 +145,6 @@ class OwnerTest(unittest.TestCase):
             "pc (since 16.10 14:30)",
         )
         self.assertEqual(describe({"name": "pc"}), "pc")
-
-    def test_main(self):
-        self.assertEqual(_main(["claim"]), 0)
-        self.on_pc()
-        with mock.patch("sys.stderr"):
-            self.assertEqual(_main(["claim"]), 1)
-            self.assertEqual(_main(["bad"]), 2)
-        with mock.patch("sys.stdout"):
-            self.assertEqual(_main(["claim", "force"]), 0)
-        self.assertEqual(_main(["release"]), 0)
-        self.assertIsNone(owner())
 
 
 if __name__ == "__main__":

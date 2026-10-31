@@ -2,12 +2,14 @@
 # (order_watcher.py, engines/mail_broker.py starts and
 # stops it)
 #
-# MailBrokerCommands implements run [force] and stop;
-# its tasks() are its row in 'ls tasks'.
+# MailBrokerCommands implements run [force], stop and
+# ls (its state, last order and error, the last lines
+# of its log); its tasks() are its row in 'ls tasks'.
 # print_watcher_status() is its line in 'status'.
 # not in the demo (./nxdemo)
 
 import os
+import re
 from datetime import datetime
 
 import config
@@ -25,6 +27,14 @@ WATCHER_STALE_SECONDS = 15 * 60
 # an order the mail broker could not record stays visible in
 # 'status' this long
 WATCHER_ERROR_DAYS = 7
+# the log lines 'ls mail-broker' shows
+LOG_LINES = 5
+# '2026-10-31 14:29:40,612 INFO    name: text' of
+# process.setup_logging, shown as '14:29:40 INFO
+# name: text'
+_LOG_LINE = re.compile(
+    r"\d{4}-\d\d-\d\d (\d\d:\d\d:\d\d),\d+ +(\w+) +(.*)"
+)
 
 
 def print_watcher_status():
@@ -122,6 +132,23 @@ def _mail_broker_task():
     }
 
 
+def _when(text):
+    """'31.10 14:29' of an ISO time, '-' if none"""
+    try:
+        return f"{datetime.fromisoformat(text):%d.%m %H:%M}"
+    except (TypeError, ValueError):
+        return "-"
+
+
+def _log_line(line):
+    """a log line without its date and milliseconds,
+    so it fits the screen better"""
+    match = _LOG_LINE.fullmatch(line)
+    if not match:
+        return line
+    return " ".join(match.groups())
+
+
 def _not_in_demo():
     """True, after saying so, in the demo: it would
     record real broker emails as trades"""
@@ -136,6 +163,52 @@ def _not_in_demo():
 class MailBrokerCommands(Commands):
     name = "mail-broker"
     order = 60
+    # one mail broker: 'ls mail-broker'
+    plural_actions = ()
+
+    def ls(self, arg):
+        """
+        ls mail-broker
+            whether it runs, its state, the last
+            order and error, and the last lines of
+            its log
+        """
+        if arg.split():
+            print_wrapped("usage: ls mail-broker")
+            return
+        if _not_in_demo():
+            return
+        pid = mail_broker.running_pid()
+        print_wrapped(
+            f"mail broker: running (pid {pid})"
+            if pid
+            else "mail broker: not running"
+        )
+        status = mail_broker.status() or {}
+        if status.get("state"):
+            print_wrapped(
+                f"state: {status['state']}, "
+                f"{_when(status.get('updated'))}"
+            )
+            print_wrapped(
+                f"started: {_when(status.get('started'))}"
+            )
+        if status.get("last_order"):
+            print_wrapped(
+                f"last order: {status['last_order']}"
+            )
+        error = status.get("last_error") or {}
+        if error.get("text"):
+            print_error(
+                f"last error {_when(error.get('time'))}: "
+                f"{error['text']}"
+            )
+        lines = mail_broker.log_tail(LOG_LINES)
+        if lines:
+            log = os.path.relpath(mail_broker.log_path())
+            print_wrapped(f"log ({log}):")
+            for line in lines:
+                print_wrapped(f"  {_log_line(line)}")
 
     def run(self, arg):
         """

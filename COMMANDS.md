@@ -188,6 +188,11 @@ stop alerts
 ## mail-broker
 
 ```
+ls mail-broker
+    whether it runs, its state, the last
+    order and error, and the last lines of
+    its log
+
 run mail-broker [force]
     start the mail broker that records
     broker order emails as trades; it keeps
