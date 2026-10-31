@@ -219,7 +219,7 @@ for your own use first. In this order:
   - **One `BackgroundTask` class** for every task
     (`process.py`), in steps:
     1. ~~the class, with tests~~ (done)
-    2. web and demo prices use it
+    2. ~~web and demo prices use it~~ (done)
     3. alerts and ladders use it
     4. a mail broker engine (`engines/`) that the
        shell uses instead of `./mtsig`

@@ -168,7 +168,7 @@ class WebProcessTest(unittest.TestCase):
     def test_start(self):
         spawned = []
 
-        def spawn(args, out, wake=True):
+        def spawn(args, out, wake=True, python=None):
             spawned.append((args, wake))
             return FakeChild(500)
 

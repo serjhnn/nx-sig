@@ -42,7 +42,8 @@
 #       like market bars
 #   start(shell_pid), stop(), running_pid()
 #       the process that moves the prices,
-#       services/demo_prices_service.py; it runs while
+#       services/demo_prices_service.py (TASK, a
+#       process.BackgroundTask); it runs while
 #       the demo shell shell_pid or a background task
 #       (a ladder, the alerts) runs, so their prices
 #       keep moving after the shell is closed
@@ -59,7 +60,6 @@ import logging
 import math
 import os
 import random
-import signal
 import time
 from datetime import datetime
 
@@ -347,10 +347,7 @@ def status():
 
 
 def running_pid():
-    pid = (status() or {}).get("pid")
-    if pid and process.process_runs(pid, SERVICE, "run"):
-        return pid
-    return None
+    return TASK.running_pid()
 
 
 def needed():
@@ -368,46 +365,19 @@ def start(shell_pid):
     raise DemoPricesError outside the demo or when it
     stops right away
     """
-    if not config.demo():
-        raise DemoPricesError("only in the demo")
+    TASK.check_start(None)
     pid = running_pid()
     if pid:
         save_status(pid, None, "moving", shell_pid)
         return pid
-    out = _out_path()
-    child = process.spawn([SCRIPT, "run"], out)
-    # so running_pid() and needed() know it before the
-    # process writes its first heartbeat
-    save_status(child.pid, _now(), "starting", shell_pid)
-    deadline = (
-        time.monotonic() + process.START_CHECK_SECONDS
-    )
-    while time.monotonic() < deadline:
-        if child.poll() is not None:
-            raise DemoPricesError(
-                "the demo prices stopped right after "
-                "starting: "
-                + process.last_line([out, log_path()])
-            )
-        time.sleep(0.2)
-    return child.pid
+    TASK.shell = shell_pid
+    return TASK.start()
 
 
 def stop():
     """stop the process (SIGTERM, then SIGKILL), True
     if it was running"""
-    pid = running_pid()
-    if not pid or not process.kill(pid, signal.SIGTERM):
-        return False
-    deadline = time.monotonic() + process.STOP_WAIT_SECONDS
-    while time.monotonic() < deadline:
-        process.reap(pid)
-        if not running_pid():
-            return True
-        time.sleep(0.2)
-    process.kill(pid, signal.SIGKILL)
-    save_status(pid, None, "stopped")
-    return True
+    return TASK.stop()
 
 
 def save_status(pid, started, state, shell=None):
@@ -443,3 +413,37 @@ def log_path():
 
 def _now():
     return datetime.now().isoformat(timespec="seconds")
+
+
+class _DemoPricesTask(process.BackgroundTask):
+    # the demo has no other device
+    service = SERVICE
+    script = SCRIPT
+    name = "the demo prices"
+    owner_bound = False
+    error = DemoPricesError
+    # the shell start() is for
+    shell = None
+
+    def check_start(self, key):
+        if not config.demo():
+            raise DemoPricesError("only in the demo")
+
+    def status_get(self, key):
+        return status()
+
+    def save_status(self, key, pid, started, state):
+        save_status(pid, started, state)
+
+    def starting(self, key, pid):
+        # needed() knows the shell from the start
+        save_status(pid, _now(), "starting", self.shell)
+
+    def out_path(self, key):
+        return _out_path()
+
+    def log_path(self, key):
+        return log_path()
+
+
+TASK = _DemoPricesTask()

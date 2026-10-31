@@ -352,7 +352,7 @@ class DemoPricesProcessTest(unittest.TestCase):
     def test_start(self):
         spawned = []
 
-        def spawn(args, out):
+        def spawn(args, out, **kwargs):
             spawned.append(args)
             return FakeChild(500)
 
@@ -372,7 +372,9 @@ class DemoPricesProcessTest(unittest.TestCase):
 
     def test_start_fails(self):
         self.patch(
-            process, "spawn", lambda *a: FakeChild(5, 1)
+            process,
+            "spawn",
+            lambda *a, **k: FakeChild(5, 1),
         )
         self.patch(process, "START_CHECK_SECONDS", 1)
         with self.assertRaises(demo_prices.DemoPricesError):

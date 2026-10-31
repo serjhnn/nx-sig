@@ -17,7 +17,7 @@
 #   url()
 #       the address to open in a browser
 #   start(), stop(), running_pid()
-#       the process (the helpers are in process.py)
+#       the process, TASK (a process.BackgroundTask)
 #   status()
 #       its heartbeat, or None
 #   save_status(pid, started, state)
@@ -27,8 +27,6 @@
 
 import logging
 import os
-import signal
-import time
 from datetime import datetime
 
 import config
@@ -59,10 +57,7 @@ def status():
 
 
 def running_pid():
-    pid = (status() or {}).get("pid")
-    if pid and process.process_runs(pid, SERVICE, "run"):
-        return pid
-    return None
+    return TASK.running_pid()
 
 
 def start():
@@ -71,48 +66,13 @@ def start():
     WebError if it already runs or stops right away
     (the port is taken)
     """
-    pid = running_pid()
-    if pid:
-        raise WebError(
-            f"the web server already runs (pid {pid})"
-        )
-    child = process.spawn(
-        [SCRIPT, "run"], _out_path(), wake=False
-    )
-    # so running_pid() knows it before the process writes
-    # its first heartbeat
-    save_status(child.pid, _now(), "starting")
-    deadline = (
-        time.monotonic() + process.START_CHECK_SECONDS
-    )
-    while time.monotonic() < deadline:
-        if child.poll() is not None:
-            raise WebError(
-                "the web server stopped right after "
-                "starting: "
-                + process.last_line(
-                    [_out_path(), log_path()]
-                )
-            )
-        time.sleep(0.2)
-    return child.pid
+    return TASK.start()
 
 
 def stop():
     """stop the web server (SIGTERM, then SIGKILL),
     True if it was running"""
-    pid = running_pid()
-    if not pid or not process.kill(pid, signal.SIGTERM):
-        return False
-    deadline = time.monotonic() + process.STOP_WAIT_SECONDS
-    while time.monotonic() < deadline:
-        process.reap(pid)
-        if not running_pid():
-            return True
-        time.sleep(0.2)
-    process.kill(pid, signal.SIGKILL)
-    save_status(pid, None, "stopped")
-    return True
+    return TASK.stop()
 
 
 def save_status(pid, started, state):
@@ -144,3 +104,28 @@ def log_path():
 
 def _now():
     return datetime.now().isoformat(timespec="seconds")
+
+
+class _WebTask(process.BackgroundTask):
+    # sends nothing: on any device, no wake lock
+    service = SERVICE
+    script = SCRIPT
+    name = "the web server"
+    owner_bound = False
+    wake = False
+    error = WebError
+
+    def status_get(self, key):
+        return status()
+
+    def save_status(self, key, pid, started, state):
+        save_status(pid, started, state)
+
+    def out_path(self, key):
+        return _out_path()
+
+    def log_path(self, key):
+        return log_path()
+
+
+TASK = _WebTask()
