@@ -44,15 +44,15 @@ going to sleep, the next request just works again.
 ## Who may see it
 
 The page shows the positions and gains, private data
-unlike the logo. Proposed: `/xtop` and `/api/xtop`
-only when the server listens on `127.0.0.1`; with
-any other host (e.g. `0.0.0.0`) they return 403
-until a login exists, the logo page still works.
+unlike the logo. Decided: localhost only for now.
+`/xtop` and `/api/xtop` are served only when the
+server listens on `127.0.0.1`; with any other host
+(e.g. `0.0.0.0`) they return 403, the logo page
+still works.
 
-The other way: a login now, e.g. a `WEB_TOKEN` in
-`.env` the page asks for once (one more step).
-
-To decide before step 1.
+A login (e.g. a `WEB_TOKEN` in `.env` the page asks
+for once) comes later, when the page should be
+opened from another device.
 
 ## Steps
 
@@ -82,7 +82,7 @@ To decide before step 1.
    save battery. The logo page links to it.
 5. **Tests**: the engine rows, the JSON with faked
    prices, no polling while nobody watches, the
-   127.0.0.1 guard (or the login).
+   127.0.0.1 guard.
 6. **Docs**: README (the web server section, config
    `interval`), `TODO.md`, the generated files.
 
