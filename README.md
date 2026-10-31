@@ -660,6 +660,7 @@ nx-sig/
 ├── .github/workflows/tests.yml
 │                         CI: the tests on every push
 ├── CODE_STYLE.md         code style rules
+├── WEB_XTOP_PLAN.md      the plan of the web xtop page (not started)
 ├── CLAUDE.md             notes for Claude Code sessions
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg       the logo (README, the web page)

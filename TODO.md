@@ -277,8 +277,9 @@ for your own use first. In this order:
   config `web`, 127.0.0.1:8080 by default;
   `engines/web.py`, `services/web_service.py`).
   Still open:
-  - maybe a read-only page of the positions or
-    `ls tasks`; it would need a login before the
-    host is anything but 127.0.0.1
+  - **xtop page**: the live gain/loss in the
+    browser, updated by itself; planned in
+    [WEB_XTOP_PLAN.md](WEB_XTOP_PLAN.md), not
+    started
   - maybe start it after a phone restart, with the
     ladders (Termux:Boot)
