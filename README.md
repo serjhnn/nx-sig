@@ -662,7 +662,9 @@ left:
   notifiers, mail broker, tools) and an arrow to each type it imports,
   numbered and as wide as those imports.
 
-The page follows the light or dark setting of the system or the browser.
+The page follows the light or dark setting of the system or the browser;
+its `theme` button switches between that (auto), light and dark, and
+remembers the choice.
 
 <p align="center">
   <picture>
