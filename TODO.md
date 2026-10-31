@@ -236,11 +236,12 @@ for your own use first. In this order:
 - **Module map** (`assets/modules.html`), in steps:
   1. ~~the engines `process` loads by name (their
      `TASK`), dashed~~ (done)
-  2. finer types: core, tasks, engines, services,
-     commands, notifiers, mail broker, tools, tests
+  2. ~~finer types: core, tasks, engines, services,
+     commands, notifiers, mail broker, tools, tests~~
+     (done)
   3. a types view next to the modules view: one box
      per type, arrows with their number of imports
-  4. docs, screenshots of both views
+  4. docs, screenshots of both views in README.md
 - Metrics (`scripts/metrics.py`): statistics of your
   actions, once enough data is collected
 - `strategy` commands

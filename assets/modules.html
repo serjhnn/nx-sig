@@ -24,11 +24,15 @@
   --accent-soft: #d6efe8;
   --user: #b06a00;        /* what imports the module */
   --user-soft: #f6e6cc;
-  --g-core: #1d6f8f;
-  --g-engine: #2f7d4c;
-  --g-notify: #7656a8;
-  --g-mtsig: #9a6418;
-  --g-shell: #2d63b0;
+  /* the types, in GROUPS order: a validated categorical palette (light and
+     dark steps of the same hues), tools and tests a recessive gray */
+  --g-core: #2a78d6;
+  --g-tasks: #eb6834;
+  --g-engine: #1baf7a;
+  --g-services: #eda100;
+  --g-shell: #e87ba4;
+  --g-notify: #008300;
+  --g-mtsig: #6250d6;
   --g-tools: #6b7874;
   --g-tests: #8c8f8e;
   --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
@@ -39,8 +43,9 @@
     --bg: #0f1614; --surface: #16201d; --fg: #e3ece9; --muted: #93a6a0;
     --line: #2a3833; --edge: #3f524c; --accent: #3fd3ae; --accent-soft: #143a31;
     --user: #f0a93a; --user-soft: #3a2c12;
-    --g-core: #5fb8d9; --g-engine: #6cc98d; --g-notify: #b39ae6; --g-mtsig: #e0a552;
-    --g-shell: #7ea8ef; --g-tools: #9aa8a4; --g-tests: #7b807e;
+    --g-core: #3987e5; --g-tasks: #d95926; --g-engine: #199e70; --g-services: #c98500;
+    --g-shell: #d55181; --g-notify: #008300; --g-mtsig: #9085e9;
+    --g-tools: #9aa8a4; --g-tests: #7b807e;
     color-scheme: dark;
   }
 }
@@ -48,8 +53,9 @@
   --bg: #0f1614; --surface: #16201d; --fg: #e3ece9; --muted: #93a6a0;
   --line: #2a3833; --edge: #3f524c; --accent: #3fd3ae; --accent-soft: #143a31;
   --user: #f0a93a; --user-soft: #3a2c12;
-  --g-core: #5fb8d9; --g-engine: #6cc98d; --g-notify: #b39ae6; --g-mtsig: #e0a552;
-  --g-shell: #7ea8ef; --g-tools: #9aa8a4; --g-tests: #7b807e;
+  --g-core: #3987e5; --g-tasks: #d95926; --g-engine: #199e70; --g-services: #c98500;
+  --g-shell: #d55181; --g-notify: #008300; --g-mtsig: #9085e9;
+  --g-tools: #9aa8a4; --g-tests: #7b807e;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -157,13 +163,15 @@ path.e.dim { opacity: .08; }
 
 <script>
 const GROUPS = {
-  core:   ["core",       "config, data, prices"],
-  engine: ["engines",    "background work"],
-  notify: ["notify",     "message channels"],
-  mtsig:  ["mtsig",      "mail broker"],
-  shell:  ["shell",      "commands"],
-  tools:  ["tools",      "scripts and docs"],
-  tests:  ["tests",      ""],
+  core:     ["core",        "config, data on disk"],
+  tasks:    ["tasks",       "background tasks, the device that runs them"],
+  engine:   ["engines",     "the logic of each kind of data"],
+  services: ["services",    "the background processes"],
+  shell:    ["commands",    "the shell and its commands"],
+  notify:   ["notifiers",   "message channels"],
+  mtsig:    ["mail broker", "broker emails into trades"],
+  tools:    ["tools",       "scripts and docs"],
+  tests:    ["tests",       ""],
 };
 
 // id: [group, text, imports, loaded by name]
@@ -178,10 +186,10 @@ const MODS = {
   "gen_shots": ["tools", "Writes the demo pictures of README.md (assets/demo-*.svg) from a real run of ./nxdemo, so they can be made again when the output changes", [], []],
   "latest_trade": ["tools", "Prints the latest prices of config \"indices\" once", ["config"], []],
   "metrics": ["tools", "The metrics engine of nX-sig", [], []],
-  "process": ["engine", "The background tasks, BackgroundTask (the base class of the ladders, the alerts, the mail broker, the web server and the demo prices), the loop of their services and the process helpers", ["storage", "tasks_owner"], ["engines/alerts", "engines/demo_prices", "engines/ladder", "engines/mail_broker", "engines/web"]],
+  "process": ["tasks", "The background tasks, BackgroundTask (the base class of the ladders, the alerts, the mail broker, the web server and the demo prices), the loop of their services and the process helpers", ["storage", "tasks_owner"], ["engines/alerts", "engines/demo_prices", "engines/ladder", "engines/mail_broker", "engines/web"]],
   "storage": ["core", "Reads and writes all nX-sig data in config \"storage_dir\" (csv files for trades, json files for rules and the watcher)", ["config"], []],
   "sync": ["tools", "Keeps the data folder (config \"storage_dir\") the same on the phone (Termux) and the PC (Linux) with Syncthing", ["config", "storage"], []],
-  "tasks_owner": ["engine", "Only one device runs the background tasks (the mail broker, the ladders and the alerts)", ["storage"], []],
+  "tasks_owner": ["tasks", "Only one device runs the background tasks (the mail broker, the ladders and the alerts)", ["storage"], []],
   "engines/alerts": ["engine", "The alerts engine, price alerts for the basetrades and the gain of the held stocks, checked by one background process, services/alert_service.py", ["config", "engines/trades", "process", "storage"], []],
   "engines/basetrades": ["engine", "The basetrades engine, the last price you bought each stock at, one per stock", ["engines/trades", "storage"], []],
   "engines/demo": ["engine", "The demo engine, the sample data of ./nxdemo, which runs nX-sig without keys or accounts", ["config", "engines/alerts", "engines/demo_prices", "engines/ladder", "storage"], []],
@@ -193,10 +201,10 @@ const MODS = {
   "engines/statement": ["engine", "Read the trades out of a bank statement csv", ["storage"], []],
   "engines/trades": ["engine", "The trades engine, your buys and sells and what they add up to", ["config", "engines/statement", "storage"], []],
   "engines/web": ["engine", "The web server engine, a small page with the nX-sig logo, served by one background process, services/web_service.py", ["config", "process", "storage"], []],
-  "services/alert_service": ["engine", "The alerts process, checks the prices every INTERVAL seconds and notifies each crossing of the alerts (engines/alerts.py starts and stops it)", ["engines/alerts", "engines/basetrades", "engines/prices", "notifiers/notifier", "process"], []],
-  "services/demo_prices_service": ["engine", "The demo's prices process, moves the prices every \"interval\" seconds (demo/config.json \"demo\") while the demo shell or a background task of the demo runs (engines/demo_prices.py starts it)", ["config", "engines/demo_prices", "process"], []],
-  "services/ladder_service": ["engine", "The process of one ladder, checks the price every INTERVAL seconds and notifies each level passed (engines/ladder.py starts and stops it)", ["engines/ladder", "engines/prices", "notifiers/notifier", "process"], []],
-  "services/web_service": ["engine", "The web server process, a page with the nX-sig logo (engines/web.py starts it)", ["config", "engines/web", "process"], []],
+  "services/alert_service": ["services", "The alerts process, checks the prices every INTERVAL seconds and notifies each crossing of the alerts (engines/alerts.py starts and stops it)", ["engines/alerts", "engines/basetrades", "engines/prices", "notifiers/notifier", "process"], []],
+  "services/demo_prices_service": ["services", "The demo's prices process, moves the prices every \"interval\" seconds (demo/config.json \"demo\") while the demo shell or a background task of the demo runs (engines/demo_prices.py starts it)", ["config", "engines/demo_prices", "process"], []],
+  "services/ladder_service": ["services", "The process of one ladder, checks the price every INTERVAL seconds and notifies each level passed (engines/ladder.py starts and stops it)", ["engines/ladder", "engines/prices", "notifiers/notifier", "process"], []],
+  "services/web_service": ["services", "The web server process, a page with the nX-sig logo (engines/web.py starts it)", ["config", "engines/web", "process"], []],
   "notifiers/demo_notify": ["notify", "The notify channel of the demo (./nxdemo), used instead of config.json \"notify\" (see notifier.py)", ["engines/demo"], []],
   "notifiers/notifier": ["notify", "Sends the ladder and alert messages through the channel of config.json \"notify\"", ["config"], ["notifiers/telegram_notify", "notifiers/termux_notify", "notifiers/ntfy_notify", "notifiers/demo_notify"]],
   "notifiers/ntfy_notify": ["notify", "A push notification through ntfy.sh, the notify channel \"ntfy\" of config.json (see notifier.py)", [], []],

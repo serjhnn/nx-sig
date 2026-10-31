@@ -49,14 +49,11 @@ FOLDERS = (
 BEGIN = "// BEGIN modules, written by gen_deps.py\n"
 END = "// END modules\n"
 
-# the folders give the other groups, every module
-# left is a tool
+# the folders give the other groups (engines/ and
+# chart are engines), every module left is a tool
 CORE = {"config", "storage"}
-ENGINES = {
-    "tasks_owner",
-    "process",
-    "chart",
-}
+TASKS = {"process", "tasks_owner"}
+ENGINES = {"chart"}
 
 
 def _paths():
@@ -210,10 +207,12 @@ def _text(tree, source):
 def _group(key):
     if key in CORE:
         return "core"
-    if key in ENGINES or key.startswith(
-        ("engines/", "services/")
-    ):
+    if key in TASKS:
+        return "tasks"
+    if key in ENGINES or key.startswith("engines/"):
         return "engine"
+    if key.startswith("services/"):
+        return "services"
     if key.startswith("notifiers/"):
         return "notify"
     if key.startswith("mtsig/"):
