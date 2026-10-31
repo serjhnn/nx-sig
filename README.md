@@ -650,7 +650,36 @@ shell. The script is temporary and will be removed later.
 The module map shows how the modules import each
 other: [open it online](https://serjhnn.github.io/nx-sig/assets/modules.html)
 (GitHub Pages, from `main`) or open
-`assets/modules.html` in a browser.
+`assets/modules.html` in a browser. It has two views, switched at its top
+left:
+
+- **modules**: every module, in columns by import depth. Hover or click one:
+  green marks what it imports, amber what imports it, dashed lines the
+  modules loaded by name (`commands` collects the `shell/*_cmd.py`,
+  `process` the engines' `TASK`).
+- **types** ([open it](https://serjhnn.github.io/nx-sig/assets/modules.html#types)):
+  one box per type of module (core, tasks, engines, services, commands,
+  notifiers, mail broker, tools) and an arrow to each type it imports,
+  numbered and as wide as those imports.
+
+The page follows the light or dark setting of the system or the browser.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/map-modules-dark.png">
+    <img src="assets/map-modules-light.png" alt="the modules view with process selected: what it imports, what imports it, the engines it loads by name" width="760">
+  </picture>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/map-types-dark.png">
+    <img src="assets/map-types-light.png" alt="the types view: one box per type, arrows with their number of imports" width="760">
+  </picture>
+</p>
+
+The pictures are taken by hand; the map itself is written from the code by
+`scripts/gen_deps.py`.
 
 ```
 nx-sig/
@@ -672,6 +701,7 @@ nx-sig/
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg       the logo (README, the web page)
 ├── assets/demo-*.svg     the demo pictures of this README
+├── assets/map-*.png      the module map pictures of this README
 │                         (scripts/gen_shots.py)
 ├── assets/modules.html  the module map (generated), also online:
 │                         serjhnn.github.io/nx-sig/assets/modules.html

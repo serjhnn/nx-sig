@@ -242,7 +242,8 @@ for your own use first. In this order:
   3. ~~a types view next to the modules view: one box
      per type, arrows with their number of imports~~
      (done, `modules.html#types`)
-  4. docs, screenshots of both views in README.md
+  4. ~~docs, screenshots of both views in README.md~~
+     (done)
 - Metrics (`scripts/metrics.py`): statistics of your
   actions, once enough data is collected
 - `strategy` commands
