@@ -239,8 +239,9 @@ for your own use first. In this order:
   2. ~~finer types: core, tasks, engines, services,
      commands, notifiers, mail broker, tools, tests~~
      (done)
-  3. a types view next to the modules view: one box
-     per type, arrows with their number of imports
+  3. ~~a types view next to the modules view: one box
+     per type, arrows with their number of imports~~
+     (done, `modules.html#types`)
   4. docs, screenshots of both views in README.md
 - Metrics (`scripts/metrics.py`): statistics of your
   actions, once enough data is collected

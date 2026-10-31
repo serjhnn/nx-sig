@@ -131,6 +131,23 @@ path.e.dim { opacity: .08; }
 .hint { color: var(--muted); font-size: 13px; }
 .foot { color: var(--muted); font-size: 12.5px; max-width: 75ch; }
 .foot code { font-family: var(--mono); font-size: 12px; }
+.views { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.views button { font: 500 12.5px var(--mono); color: var(--muted); background: var(--surface); border: 0; padding: 6px 12px; cursor: pointer; }
+.views button + button { border-left: 1px solid var(--line); }
+.views button[aria-pressed="true"] { color: var(--fg); background: var(--accent-soft); }
+.views button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* the types view: a staircase, one row per type, placed by JS; the panel
+   goes below the graph, which takes the whole width */
+.main.types { grid-template-columns: minmax(0, 1fr); }
+.graph.types { display: block; padding: 0; }
+.graph.types .col-head { position: absolute; top: 14px; z-index: 1; }
+.tnode { position: absolute; z-index: 1; width: 150px; flex-direction: column; align-items: flex-start; gap: 1px; padding: 7px 10px; white-space: normal; }
+.tnode .tname { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
+.tnode small { font-size: 11px; line-height: 1.35; }
+text.elabel { font: 600 11px var(--mono); fill: var(--muted); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; text-anchor: middle; dominant-baseline: middle; transition: opacity .15s; }
+text.elabel.out { fill: var(--accent); }
+text.elabel.in { fill: var(--user); }
+text.elabel.dim { opacity: .15; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -143,6 +160,10 @@ path.e.dim { opacity: .08; }
   </header>
 
   <div class="controls">
+    <div class="views" role="group" aria-label="View">
+      <button type="button" id="view-modules" aria-pressed="true">modules</button>
+      <button type="button" id="view-types" aria-pressed="false">types</button>
+    </div>
     <input class="search" id="search" type="search" placeholder="find a module…" aria-label="Find a module" autocomplete="off">
     <label class="toggle"><input type="checkbox" id="transitive"> all levels</label>
     <label class="toggle"><input type="checkbox" id="tests"> show tests</label>
@@ -158,7 +179,8 @@ path.e.dim { opacity: .08; }
     <aside class="panel" id="panel" aria-live="polite"></aside>
   </div>
 
-  <p class="foot">Columns are import depth: a module sits one column right of the deepest module it imports, so every import points left. Solid lines are <code>import</code> statements; dashed lines are modules loaded by name at run time (<code>importlib</code>): <code>commands</code> collects every <code>shell/*_cmd.py</code>, <code>notifier</code> loads only the channel named by config.json <code>"notify"</code>, and <code>process</code> collects the <code>TASK</code> of every engine that has one. Those engines import <code>process</code>, so its dashed lines point right and don't place it. Written from the code by <code>python scripts/gen_deps.py</code>.</p>
+  <p class="foot" id="foot-modules">Columns are import depth: a module sits one column right of the deepest module it imports, so every import points left. Solid lines are <code>import</code> statements; dashed lines are modules loaded by name at run time (<code>importlib</code>): <code>commands</code> collects every <code>shell/*_cmd.py</code>, <code>notifier</code> loads only the channel named by config.json <code>"notify"</code>, and <code>process</code> collects the <code>TASK</code> of every engine that has one. Those engines import <code>process</code>, so its dashed lines point right and don't place it. Written from the code by <code>python scripts/gen_deps.py</code>.</p>
+  <p class="foot" id="foot-types" hidden>One box per type of module. An arrow goes from a type to a type its modules import; its number and width are how many imports, and a dashed arrow is one made only of modules loaded by name. Imports between modules of the same type are counted in its box. Columns are import depth, as in the modules view; <code>tasks</code> loading the engines points right. Click a module in the panel to see it in the modules view. Written from the code by <code>python scripts/gen_deps.py</code>.</p>
 </div>
 
 <script>
@@ -255,8 +277,20 @@ const GROUP_ORDER = Object.keys(GROUPS);
 
 const $ = id => document.getElementById(id);
 const graph = $("graph"), svg = $("edges"), panel = $("panel");
-const state = { selected: null, hovered: null, transitive: false, tests: false, query: "" };
+const state = {
+  view: "modules", selected: null, hovered: null,
+  tSelected: null, tHovered: null,
+  transitive: false, tests: false, query: "",
+};
 let ids = [], edges = [], nodeEls = {}, edgeEls = [], level = {};
+// what the panel shows: it is redrawn only when that changes, so a click
+// on one of its chips isn't lost to a redraw on blur
+let shown = null;
+function showPanel(key, render) {
+  if (key === shown) return;
+  shown = key;
+  render();
+}
 
 function visible() {
   return Object.keys(MODS).filter(id => state.tests || MODS[id][0] !== "tests");
@@ -301,7 +335,7 @@ function closure(id, next) {
   return seen;
 }
 
-function build() {
+function buildModules() {
   ids = visible();
   edges = [];
   ids.forEach(id => {
@@ -329,7 +363,9 @@ function build() {
     col.forEach((id, i) => pos[id] = i);
   });
 
-  graph.querySelectorAll(".col").forEach(el => el.remove());
+  graph.querySelectorAll(".col, .tnode, .types-head").forEach(el => el.remove());
+  graph.classList.remove("types");
+  graph.style.width = graph.style.height = "";
   nodeEls = {};
   cols.forEach((col, c) => {
     const el = document.createElement("div");
@@ -361,7 +397,7 @@ function build() {
   draw();
 }
 
-function draw() {
+function drawModules() {
   const g = graph.getBoundingClientRect();
   svg.setAttribute("width", graph.scrollWidth);
   svg.setAttribute("height", graph.scrollHeight);
@@ -387,7 +423,7 @@ function draw() {
   paint();
 }
 
-function paint() {
+function paintModules() {
   const f = state.hovered || state.selected;
   const deps = f ? (state.transitive ? closure(f, allDeps) : new Set(allDeps(f))) : new Set();
   const usr = f ? (state.transitive ? closure(f, users) : new Set(users(f))) : new Set();
@@ -410,7 +446,7 @@ function paint() {
     p.classList.toggle("in", !!inn && !out);
     p.classList.toggle("dim", !!f && !out && !inn);
   });
-  renderPanel(f);
+  showPanel(`m|${f}|${state.selected}|${state.transitive}|${ids.length}`, () => renderPanel(f));
 }
 
 function chips(list, cls) {
@@ -458,6 +494,301 @@ function bindChips() {
 
 function select(id) { state.selected = id; state.hovered = null; paint(); }
 
+// ---------------- the types view ----------------
+// one box per type; an arrow from a type to each type its modules import,
+// numbered and as wide as those imports
+
+let tIds = [], tEdges = [], tNodeEls = {}, tEdgeEls = [], tLevel = {}, tInside = {};
+const typeOf = id => MODS[id][0];
+const tDeps = g => tEdges.filter(e => e.from === g).map(e => e.to);
+const tUsers = g => tEdges.filter(e => e.to === g).map(e => e.from);
+const tImportDeps = g => tEdges.filter(e => e.from === g && e.imports).map(e => e.to);
+const tModules = g => ids.filter(id => typeOf(id) === g);
+
+function tClosure(g, next) {
+  const seen = new Set(), stack = [...next(g)];
+  while (stack.length) {
+    const x = stack.pop();
+    if (seen.has(x)) continue;
+    seen.add(x);
+    stack.push(...next(x));
+  }
+  return seen;
+}
+
+// the type edges from the module edges of the visible modules
+function typeGraph() {
+  ids = visible();
+  tIds = GROUP_ORDER.filter(g => ids.some(id => typeOf(id) === g));
+  const agg = {};
+  tInside = {};
+  ids.forEach(id => {
+    const add = (d, dyn) => {
+      if (!ids.includes(d)) return;
+      const a = typeOf(id), b = typeOf(d);
+      if (a === b) {
+        if (!dyn) tInside[a] = (tInside[a] || 0) + 1;
+        return;
+      }
+      const e = agg[a + ">" + b] = agg[a + ">" + b] || { from: a, to: b, imports: 0, loads: 0 };
+      e[dyn ? "loads" : "imports"]++;
+    };
+    imports(id).forEach(d => add(d, false));
+    loads(id).forEach(d => add(d, true));
+  });
+  tEdges = Object.values(agg);
+}
+
+function buildTypes() {
+  typeGraph();
+  // placed by imports, and by loads unless they import back (as in the
+  // modules view: tasks loads the engines, which import tasks)
+  const placeBy = g => tEdges.filter(e => e.from === g &&
+    (e.imports || !tClosure(e.to, tImportDeps).has(g))).map(e => e.to);
+  const lv = {}, visiting = new Set();
+  let cycle = false;
+  const walk = g => {
+    if (g in lv) return lv[g];
+    if (visiting.has(g)) { cycle = true; return 0; }
+    visiting.add(g);
+    const d = placeBy(g);
+    lv[g] = d.length ? 1 + Math.max(...d.map(walk)) : 0;
+    visiting.delete(g);
+    return lv[g];
+  };
+  tIds.forEach(walk);
+  tLevel = lv;
+  const depth = Math.max(...Object.values(lv));
+  // one row per type, by depth then type: a staircase from core at the
+  // top left, so no two arrows run along the same line
+  const rows = [...tIds].sort((a, b) =>
+    lv[a] - lv[b] || GROUP_ORDER.indexOf(a) - GROUP_ORDER.indexOf(b));
+  const X0 = 20, Y0 = 44, YSTEP = 74, W = 150;
+  // the columns as far apart as the width allows, so the arrows between
+  // them have room
+  const room = graph.parentElement.clientWidth - 2 * X0 - W - 2;
+  const XSTEP = Math.round(Math.min(260, Math.max(165, room / Math.max(depth, 1))));
+
+  graph.querySelectorAll(".col, .tnode, .types-head").forEach(el => el.remove());
+  graph.classList.add("types");
+  graph.style.width = `${X0 * 2 + depth * XSTEP + W}px`;
+  graph.style.height = `${Y0 + rows.length * YSTEP}px`;
+  for (let c = 0; c <= depth; c++) {
+    const h = document.createElement("div");
+    h.className = "col-head types-head";
+    h.style.left = `${X0 + c * XSTEP}px`;
+    h.textContent = `depth ${c}`;
+    graph.appendChild(h);
+  }
+  tNodeEls = {};
+  rows.forEach((g, r) => {
+    const n = tModules(g).length, inside = tInside[g] || 0;
+    const b = document.createElement("button");
+    b.className = "node tnode";
+    b.type = "button";
+    b.style.left = `${X0 + lv[g] * XSTEP}px`;
+    b.style.top = `${Y0 + r * YSTEP}px`;
+    b.style.setProperty("--gc", `var(--g-${g})`);
+    b.innerHTML = `<span class="tname"><i></i>${GROUPS[g][0]}</span>` +
+      `<small>${n} module${n === 1 ? "" : "s"}` +
+      (inside ? `<br>${inside} import${inside === 1 ? "" : "s"} inside` : "") + `</small>`;
+    b.addEventListener("mouseenter", () => { state.tHovered = g; paint(); });
+    b.addEventListener("mouseleave", () => { state.tHovered = null; paint(); });
+    b.addEventListener("focus", () => { state.tHovered = g; paint(); });
+    b.addEventListener("blur", () => { state.tHovered = null; paint(); });
+    b.addEventListener("click", () => selectType(state.tSelected === g ? null : g));
+    tNodeEls[g] = b;
+    graph.appendChild(b);
+  });
+
+  const between = tEdges.reduce((s, e) => s + e.imports, 0);
+  const inside = Object.values(tInside).reduce((s, v) => s + v, 0);
+  $("stats").textContent =
+    `${tIds.length} types · ${between} imports between them · ${inside} inside · ` +
+    `${tEdges.reduce((s, e) => s + e.loads, 0)} loaded by name · ` +
+    (cycle ? "has an import cycle" : "no cycles");
+  if (state.tSelected && !tIds.includes(state.tSelected)) state.tSelected = null;
+  draw();
+}
+
+function drawTypes() {
+  const g = graph.getBoundingClientRect();
+  svg.setAttribute("width", graph.scrollWidth);
+  svg.setAttribute("height", graph.scrollHeight);
+  svg.innerHTML = "";
+  const rect = {};
+  tIds.forEach(t => rect[t] = tNodeEls[t].getBoundingClientRect());
+  const midY = t => rect[t].top + rect[t].height / 2;
+  // an arrow leaves its type on the left and reaches the other on the
+  // right; one to a column further right (tasks loading the engines)
+  // the other way round. where several meet a side, they attach at
+  // different heights, in the order of their other ends
+  const ends = tEdges.map(e => {
+    const back = tLevel[e.to] >= tLevel[e.from];
+    return { e, back, from: [e.from, back ? "r" : "l"], to: [e.to, back ? "l" : "r"] };
+  });
+  const port = {};
+  ends.forEach(x => [[x.from, x.e.to], [x.to, x.e.from]].forEach(([[t, side], other]) => {
+    (port[t + side] = port[t + side] || []).push([x, other]);
+  }));
+  const yAt = new Map();
+  Object.values(port).forEach(list => {
+    list.sort((a, b) => midY(a[1]) - midY(b[1]));
+    list.forEach(([x, other], i) => {
+      const t = x.e.from === other ? x.e.to : x.e.from, r = rect[t];
+      const y = r.top + r.height * (i + 1) / (list.length + 1);
+      yAt.set(x.e.from === other ? x.to : x.from, y);
+    });
+  });
+  tEdgeEls = ends.map(({ e, back, from, to }) => {
+    const a = rect[e.from], b = rect[e.to];
+    const y1 = yAt.get(from) - g.top, y2 = yAt.get(to) - g.top;
+    const x1 = (back ? a.right : a.left) - g.left;
+    const x2 = (back ? b.left : b.right) - g.left;
+    const dx = Math.max(14, Math.abs(x1 - x2) * 0.45) * (back ? -1 : 1);
+    const c1 = x1 - dx, c2 = x2 + dx;
+    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("d", `M${x1},${y1} C${c1},${y1} ${c2},${y2} ${x2},${y2}`);
+    p.setAttribute("class", "e" + (e.imports ? "" : " dyn"));
+    const count = e.imports + e.loads;
+    p.style.strokeWidth = (1 + Math.sqrt(count) * 0.9).toFixed(2);
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = `${GROUPS[e.from][0]} → ${GROUPS[e.to][0]}: ` +
+      `${e.imports} import${e.imports === 1 ? "" : "s"}` +
+      (e.loads ? `, ${e.loads} loaded by name` : "");
+    p.appendChild(title);
+    svg.appendChild(p);
+    // the number near where the arrow leaves its type: the arrows leave
+    // at different heights there, so their numbers don't overlap
+    const at = (u, p0, p1, p2, p3) =>
+      (1 - u) ** 3 * p0 + 3 * (1 - u) ** 2 * u * p1 + 3 * (1 - u) * u * u * p2 + u ** 3 * p3;
+    const u = Math.min(0.3, 26 / Math.max(Math.abs(x2 - x1), 1));
+    const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t.setAttribute("class", "elabel");
+    t.setAttribute("x", at(u, x1, c1, c2, x2).toFixed(1));
+    t.setAttribute("y", at(u, y1, y1, y2, y2).toFixed(1));
+    t.textContent = count;
+    svg.appendChild(t);
+    return [p, t];
+  });
+  spreadLabels(tEdgeEls.map(([, t]) => t));
+  paint();
+}
+
+// push apart the numbers that overlap, up and down, a few rounds
+function spreadLabels(labels) {
+  const pts = labels.map(t => ({ t, x: +t.getAttribute("x"), y: +t.getAttribute("y") }));
+  for (let round = 0; round < 40; round++) {
+    let moved = false;
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        const a = pts[i], b = pts[j];
+        const dy = b.y - a.y, gap = 13 - Math.abs(dy);
+        if (Math.abs(b.x - a.x) >= 18 || gap <= 0) continue;
+        const push = gap / 2 * (dy >= 0 ? 1 : -1);
+        a.y -= push;
+        b.y += push;
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  pts.forEach(p => p.t.setAttribute("y", p.y.toFixed(1)));
+}
+
+function paintTypes() {
+  const f = state.tHovered || state.tSelected;
+  const deps = f ? (state.transitive ? tClosure(f, tDeps) : new Set(tDeps(f))) : new Set();
+  const usr = f ? (state.transitive ? tClosure(f, tUsers) : new Set(tUsers(f))) : new Set();
+  const q = state.query;
+  tIds.forEach(g => {
+    const el = tNodeEls[g];
+    const match = !!q && (GROUPS[g][0].includes(q) || tModules(g).some(id => id.includes(q)));
+    el.classList.toggle("is-focus", g === f);
+    el.classList.toggle("is-dep", deps.has(g) && g !== f);
+    el.classList.toggle("is-user", usr.has(g) && g !== f && !deps.has(g));
+    el.classList.toggle("is-dim", !!f && g !== f && !deps.has(g) && !usr.has(g));
+    el.classList.toggle("is-match", match);
+    el.setAttribute("aria-pressed", g === state.tSelected);
+  });
+  tEdges.forEach((e, i) => {
+    const els = tEdgeEls[i];
+    if (!els) return;
+    const out = f && (state.transitive ? (e.from === f || deps.has(e.from)) && deps.has(e.to) : e.from === f);
+    const inn = f && (state.transitive ? (e.to === f || usr.has(e.to)) && usr.has(e.from) : e.to === f);
+    els.forEach(el => {
+      el.classList.toggle("out", !!out);
+      el.classList.toggle("in", !!inn && !out);
+      el.classList.toggle("dim", !!f && !out && !inn);
+    });
+  });
+  showPanel(`t|${f}|${state.tSelected}|${tIds.length}`, () => renderTypePanel(f));
+}
+
+function typeChips(list) {
+  if (!list.length) return `<div class="none">none</div>`;
+  return `<div class="chips">${list.map(([g, n, cls]) =>
+    `<button type="button" class="chip ${cls}" data-type="${g}">${GROUPS[g][0]} ${n}</button>`).join("")}</div>`;
+}
+
+function renderTypePanel(g) {
+  if (!g) {
+    panel.innerHTML = `
+      <div><h3>How to read it</h3>
+      <p class="hint">One box per type of module. An arrow goes from a type to the types its modules import, with how many imports. Hover or click a type: <span style="color:var(--accent)">green</span> marks what it imports, <span style="color:var(--user)">amber</span> what imports it.</p></div>
+      <div><h3>Types</h3>${typeChips(tIds.map(x => [x, tModules(x).length, ""]))}</div>`;
+    bindTypeChips();
+    return;
+  }
+  const out = tEdges.filter(e => e.from === g), inn = tEdges.filter(e => e.to === g);
+  const n = tModules(g).length;
+  panel.innerHTML = `
+    <div>
+      <h2 style="--gc:var(--g-${g})"><i></i>${GROUPS[g][0]}</h2>
+      <div class="path">${n} module${n === 1 ? "" : "s"} · ${tInside[g] || 0} imports inside</div>
+    </div>
+    ${GROUPS[g][1] ? `<p>${GROUPS[g][1]}</p>` : ""}
+    <div><h3>Imports from <b>${out.length}</b></h3>${typeChips(out.map(e => [e.to, e.imports + e.loads, "dep" + (e.imports ? "" : " dynamic")]))}</div>
+    <div><h3>Imported by <b>${inn.length}</b></h3>${typeChips(inn.map(e => [e.from, e.imports + e.loads, "user" + (e.imports ? "" : " dynamic")]))}</div>
+    <div><h3>Modules <b>${n}</b></h3>${chips(tModules(g).map(x => [x]), "")}</div>
+    <p class="hint">Click a module to see it in the modules view.${state.tSelected === g ? " Click the type again or press Esc to clear." : ""}</p>`;
+  bindTypeChips();
+}
+
+function bindTypeChips() {
+  panel.querySelectorAll("[data-type]").forEach(c =>
+    c.addEventListener("click", () => selectType(c.dataset.type)));
+  // a module: to the modules view, selected
+  panel.querySelectorAll("[data-go]").forEach(c =>
+    c.addEventListener("click", () => {
+      setView("modules");
+      select(c.dataset.go);
+      nodeEls[c.dataset.go].scrollIntoView({ block: "nearest", inline: "nearest" });
+    }));
+}
+
+function selectType(g) { state.tSelected = g; state.tHovered = null; paint(); }
+
+// ---------------- both views ----------------
+
+const build = () => state.view === "types" ? buildTypes() : buildModules();
+const draw = () => state.view === "types" ? drawTypes() : drawModules();
+const paint = () => state.view === "types" ? paintTypes() : paintModules();
+
+function setView(view) {
+  if (view === state.view) return;
+  state.view = view;
+  document.querySelector(".main").classList.toggle("types", view === "types");
+  $("view-modules").setAttribute("aria-pressed", view === "modules");
+  $("view-types").setAttribute("aria-pressed", view === "types");
+  $("foot-modules").hidden = view !== "modules";
+  $("foot-types").hidden = view !== "types";
+  $("search").placeholder = view === "types" ? "find a type or module…" : "find a module…";
+  try { localStorage.setItem("nx-sig-map-view", view); } catch (e) {}
+  try { history.replaceState(null, "", view === "types" ? "#types" : location.pathname + location.search); } catch (e) {}
+  build();
+}
+
 $("legend").innerHTML =
   GROUP_ORDER.filter(g => g !== "tests").map(g => `<span class="key"><i style="background:var(--g-${g})"></i>${GROUPS[g][0]}</span>`).join("") +
   `<span class="key"><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="4 3"/></svg>loaded by name</span>`;
@@ -467,12 +798,29 @@ $("tests").addEventListener("change", e => { state.tests = e.target.checked; bui
 $("search").addEventListener("input", e => { state.query = e.target.value.trim().toLowerCase(); paint(); });
 $("search").addEventListener("keydown", e => {
   if (e.key !== "Enter" || !state.query) return;
+  if (state.view === "types") {
+    const q = state.query;
+    const hit = tIds.find(g => GROUPS[g][0].startsWith(q)) || tIds.find(g => tModules(g).some(id => id.includes(q)));
+    if (hit) selectType(hit);
+    return;
+  }
   const hit = ids.find(id => label(id).startsWith(state.query)) || ids.find(id => id.includes(state.query));
   if (hit) { select(hit); nodeEls[hit].scrollIntoView({ block: "nearest", inline: "nearest" }); }
 });
-document.addEventListener("keydown", e => { if (e.key === "Escape") select(null); });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  state.view === "types" ? selectType(null) : select(null);
+});
+$("view-modules").addEventListener("click", () => setView("modules"));
+$("view-types").addEventListener("click", () => setView("types"));
 
-build();
+// the view: #types in the address, else the one used last
+let startView = "modules";
+try { startView = localStorage.getItem("nx-sig-map-view") || "modules"; } catch (e) {}
+if (location.hash === "#types") startView = "types";
+if (location.hash === "#modules") startView = "modules";
+buildModules();
+setView(startView);
 new ResizeObserver(() => draw()).observe(graph);
 document.fonts && document.fonts.ready.then(draw);
 </script>
