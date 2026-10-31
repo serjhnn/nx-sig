@@ -16,7 +16,6 @@
 
 import logging
 import os
-import signal
 import sys
 from datetime import datetime
 from http.server import (
@@ -120,9 +119,7 @@ def make_server(host, port):
 
 def run():
     """serve until SIGTERM or Ctrl+C"""
-    signal.signal(signal.SIGTERM, _stop_on_signal)
-    signal.signal(signal.SIGINT, signal.default_int_handler)
-    process.setup_logging(web.log_path())
+    process.service_setup(web.TASK)
     pid = os.getpid()
     started = datetime.now().isoformat(timespec="seconds")
     host, port = config.web_host(), config.web_port()
@@ -150,11 +147,6 @@ def run():
         sys.exit(1)
     finally:
         server.server_close()
-
-
-def _stop_on_signal(signum, frame):
-    # handled like Ctrl+C: the heartbeat says 'stopped'
-    raise KeyboardInterrupt
 
 
 if __name__ == "__main__" and sys.argv[1:] == ["run"]:

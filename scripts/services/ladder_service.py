@@ -10,14 +10,11 @@
 
 import logging
 import os
-import signal
 import sys
-import time
-from datetime import datetime
 
 import requests
 
-# engines/, process.py and tasks_owner.py are in
+# engines/ and process.py are in
 # scripts/, one level up
 sys.path.insert(
     1,
@@ -27,7 +24,6 @@ sys.path.insert(
 )
 
 import process
-import tasks_owner
 from engines import ladder
 from notifiers.notifier import notify
 from engines.prices import get_latest_prices
@@ -38,70 +34,36 @@ log = logging.getLogger("ladder")
 def run(ladder_id):
     """check the price every INTERVAL seconds and notify
     each level passed, until SIGTERM or Ctrl+C"""
-    signal.signal(signal.SIGTERM, _stop_on_signal)
-    signal.signal(signal.SIGINT, signal.default_int_handler)
-    process.setup_logging(ladder.log_path(ladder_id))
+    process.service_setup(ladder.TASK, ladder_id)
     saved = ladder.get(ladder_id)
     if saved is None:
         log.error("no ladder %s in ladders.csv", ladder_id)
         sys.exit(1)
-    pid = os.getpid()
-    started = datetime.now().isoformat(timespec="seconds")
     log.info(
         "ladder %s starting, pid %s: %s %s every %g "
         "from %g, next level %g",
         ladder_id,
-        pid,
+        os.getpid(),
         saved["Stock"],
         saved["Direction"],
         saved["Step"],
         saved["From"],
         ladder.next_level(saved),
     )
-    ladder.save_status(ladder_id, pid, started, "starting")
-    try:
-        while True:
-            if tasks_owner.lost():
-                log.warning(
-                    "%s took over the background "
-                    "tasks, ladder %s stops",
-                    tasks_owner.describe(
-                        tasks_owner.owner()
-                    ),
-                    ladder_id,
-                )
-                ladder.save_status(
-                    ladder_id, pid, started, "taken over"
-                )
-                break
-            if ladder.next_level(saved) <= 0:
-                log.info("no levels left, ladder ends")
-                ladder.save_status(
-                    ladder_id, pid, started, "done"
-                )
-                break
-            state, price = _check(saved)
-            ladder.save_status(
-                ladder_id, pid, started, state, price
-            )
-            time.sleep(ladder.INTERVAL)
-    except KeyboardInterrupt:
-        ladder.save_status(
-            ladder_id, pid, started, "stopped"
-        )
-        log.info("ladder %s stopped", ladder_id)
-    except Exception:
-        log.critical(
-            "ladder %s crashed", ladder_id, exc_info=True
-        )
-        ladder.save_status(
-            ladder_id, pid, started, "crashed"
-        )
-        sys.exit(1)
-    finally:
-        process.release_if_idle(
-            ending=(ladder.TASK, ladder_id)
-        )
+
+    def done():
+        if ladder.next_level(saved) <= 0:
+            return "no levels left, ladder ends"
+        return None
+
+    process.run_loop(
+        ladder.TASK,
+        ladder_id,
+        lambda: _check(saved),
+        ladder.INTERVAL,
+        done,
+        log,
+    )
 
 
 def _check(saved):
@@ -146,11 +108,6 @@ def _check(saved):
     saved["Last"] = level
     log.info("sent: %s", text)
     return "waiting", price
-
-
-def _stop_on_signal(signum, frame):
-    # handled like Ctrl+C: the heartbeat says 'stopped'
-    raise KeyboardInterrupt
 
 
 if __name__ == "__main__" and len(sys.argv) == 2:

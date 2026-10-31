@@ -9,14 +9,11 @@
 
 import logging
 import os
-import signal
 import sys
-import time
-from datetime import datetime
 
 import requests
 
-# engines/, process.py and tasks_owner.py are in
+# engines/ and process.py are in
 # scripts/, one level up
 sys.path.insert(
     1,
@@ -26,7 +23,6 @@ sys.path.insert(
 )
 
 import process
-import tasks_owner
 from engines import alerts, basetrades
 from notifiers.notifier import notify
 from engines.prices import get_latest_prices
@@ -37,46 +33,22 @@ log = logging.getLogger("alerts")
 def run():
     """check the prices every INTERVAL seconds and
     notify each crossing, until SIGTERM or Ctrl+C"""
-    signal.signal(signal.SIGTERM, _stop_on_signal)
-    signal.signal(signal.SIGINT, signal.default_int_handler)
-    process.setup_logging(alerts.log_path())
-    pid = os.getpid()
-    started = datetime.now().isoformat(timespec="seconds")
-    log.info("alerts starting, pid %s", pid)
-    alerts.save_status(pid, started, "starting")
-    try:
-        while True:
-            if tasks_owner.lost():
-                log.warning(
-                    "%s took over the background "
-                    "tasks, alerts stop",
-                    tasks_owner.describe(
-                        tasks_owner.owner()
-                    ),
-                )
-                alerts.save_status(
-                    pid, started, "taken over"
-                )
-                break
-            saved = alerts.alerts_get_all()
-            if not saved:
-                log.info("no alerts left, alerts end")
-                alerts.save_status(pid, started, "done")
-                break
-            state, past_now = _check(saved)
-            alerts.save_status(
-                pid, started, state, past_now
-            )
-            time.sleep(alerts.INTERVAL)
-    except KeyboardInterrupt:
-        alerts.save_status(pid, started, "stopped")
-        log.info("alerts stopped")
-    except Exception:
-        log.critical("alerts crashed", exc_info=True)
-        alerts.save_status(pid, started, "crashed")
-        sys.exit(1)
-    finally:
-        process.release_if_idle(ending=(alerts.TASK, None))
+    process.service_setup(alerts.TASK)
+    log.info("alerts starting, pid %s", os.getpid())
+
+    def done():
+        if not alerts.alerts_get_all():
+            return "no alerts left, alerts end"
+        return None
+
+    process.run_loop(
+        alerts.TASK,
+        None,
+        lambda: _check(alerts.alerts_get_all()),
+        alerts.INTERVAL,
+        done,
+        log,
+    )
 
 
 def _check(saved):
@@ -112,11 +84,6 @@ def _check(saved):
         past_now[str(alert_id)][name] = key
         log.info("sent: %s", text)
     return state, past_now
-
-
-def _stop_on_signal(signum, frame):
-    # handled like Ctrl+C: the heartbeat says 'stopped'
-    raise KeyboardInterrupt
 
 
 if __name__ == "__main__" and sys.argv[1:] == ["run"]:

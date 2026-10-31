@@ -429,8 +429,9 @@ class _AlertsTask(process.BackgroundTask):
     def status_get(self, key):
         return alerts_status_get()
 
-    def save_status(self, key, pid, started, state):
-        save_status(pid, started, state)
+    def save_status(self, key, pid, started, state, *extra):
+        # extra: the stocks past each alert
+        save_status(pid, started, state, *extra)
 
     def out_path(self, key):
         return _out_path()

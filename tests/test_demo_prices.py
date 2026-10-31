@@ -419,7 +419,7 @@ class DemoPricesProcessTest(unittest.TestCase):
             demo_prices, "needed", lambda: next(needed)
         )
         self.patch(
-            demo_prices_service.time,
+            process.time,
             "sleep",
             lambda s: None,
         )

@@ -227,8 +227,8 @@ for your own use first. In this order:
        from the shell, it has no `mtsig.pid`)
     5. ~~a registry, so `tasks_run()` doesn't name
        every task~~ (done, `process.tasks()`)
-    6. one shared loop for the polling services
-       (`process.run_loop`)
+    6. ~~one shared loop for the polling services
+       (`process.run_loop`)~~ (done)
     7. remove `./mtsig`; add a one-shot mode
        (`./nxshell run mail-broker`) and
        `ls mail-broker` (state, last order, last

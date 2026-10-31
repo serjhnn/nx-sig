@@ -28,6 +28,14 @@
 #   release_if_idle(ending=None)
 #       release the wake lock and the background tasks
 #       when none runs any more
+#   service_setup(task, key=None)
+#       the start of a service: SIGTERM is handled like
+#       Ctrl+C, logging to the task's log
+#   run_loop(task, key, check, interval, done=None,
+#            log=None)
+#       the loop of a polling service (a ladder, the
+#       alerts, the demo prices): heartbeats, the
+#       owner check, the end states, release_if_idle
 #   wake_lock(command)
 #       termux-wake-lock / termux-wake-unlock
 #   last_line(paths)
@@ -91,9 +99,10 @@ class BackgroundTask:
         """its heartbeat, a dict with "pid", or None"""
         raise NotImplementedError
 
-    def save_status(self, key, pid, started, state):
+    def save_status(self, key, pid, started, state, *extra):
         """write its heartbeat; started None keeps the
-        saved one"""
+        saved one; extra is what its service's check
+        adds (a ladder's price)"""
         raise NotImplementedError
 
     def out_path(self, key):
@@ -330,6 +339,82 @@ def release_if_idle(ending=None):
         return
     wake_lock("termux-wake-unlock")
     tasks_owner.release()
+
+
+def service_setup(task, key=None):
+    """the start of a service process: SIGTERM is
+    handled like Ctrl+C (its heartbeat says 'stopped'),
+    logging to task.log_path(key)"""
+    signal.signal(signal.SIGTERM, _stop_on_signal)
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+    setup_logging(task.log_path(key))
+
+
+def run_loop(
+    task, key, check, interval, done=None, log=None
+):
+    """
+    the loop of a polling service, after
+    service_setup(): writes the 'starting' heartbeat,
+    then each round
+      - owner-bound and another device took the
+        background tasks over: 'taken over', it ends
+      - done() returns why it ends (logged): 'done'
+      - else check() returns (state, *extra), saved in
+        the heartbeat; then it sleeps interval seconds
+        (a number or a function that returns it)
+    SIGTERM or Ctrl+C: 'stopped'; an exception:
+    'crashed', logged, exit 1. at the end the wake lock
+    and the background tasks are released when no other
+    task runs
+    """
+    log = log or logging.getLogger(task.name)
+    label = task.label(key)
+    pid = os.getpid()
+    started = _now()
+    task.save_status(key, pid, started, "starting")
+    try:
+        while True:
+            if task.owner_bound and tasks_owner.lost():
+                log.warning(
+                    "%s took over the background tasks, "
+                    "%s stops",
+                    tasks_owner.describe(
+                        tasks_owner.owner()
+                    ),
+                    label,
+                )
+                task.save_status(
+                    key, pid, started, "taken over"
+                )
+                break
+            reason = done() if done else None
+            if reason:
+                log.info(reason)
+                task.save_status(key, pid, started, "done")
+                break
+            task.save_status(key, pid, started, *check())
+            seconds = (
+                interval()
+                if callable(interval)
+                else interval
+            )
+            time.sleep(seconds)
+    except KeyboardInterrupt:
+        task.save_status(key, pid, started, "stopped")
+        log.info("%s stopped", label)
+    except Exception:
+        log.critical("%s crashed", label, exc_info=True)
+        task.save_status(key, pid, started, "crashed")
+        sys.exit(1)
+    finally:
+        if task.wake:
+            release_if_idle(ending=(task, key))
+
+
+def _stop_on_signal(signum, frame):
+    # handled like Ctrl+C: the heartbeat says 'stopped'
+    raise KeyboardInterrupt
 
 
 def wake_lock(command):

@@ -173,17 +173,21 @@ class FakeTask(BackgroundTask):
         with open(self.script, "w") as f:
             f.write(FAKE_SERVICE)
         self.status = {}
+        # every heartbeat's state and extra
+        self.states = []
 
     def status_get(self, key):
         return self.status.get(key)
 
-    def save_status(self, key, pid, started, state):
+    def save_status(self, key, pid, started, state, *extra):
         previous = self.status.get(key) or {}
         self.status[key] = {
             "pid": pid,
             "started": started or previous.get("started"),
             "state": state,
+            "extra": extra,
         }
+        self.states.append((state, *extra))
 
     def out_path(self, key):
         return os.path.join(self.folder, f"{key}.out")
@@ -310,6 +314,149 @@ class BackgroundTaskTest(unittest.TestCase):
             with self.assertRaisesRegex(FakeError, "phone"):
                 self.task.start(force=True)
         self.assertEqual(self.task.status, {})
+
+
+class RunLoopTest(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.task = FakeTask(tmp.name)
+        # holds the wake lock, as the polling ones do
+        self.task.wake = True
+        self.lost = False
+        self.releases = []
+        self.sleeps = []
+        for target, name, value in (
+            (
+                process.tasks_owner,
+                "lost",
+                lambda: self.lost,
+            ),
+            (
+                process.tasks_owner,
+                "owner",
+                lambda: {"name": "phone"},
+            ),
+            (
+                process.tasks_owner,
+                "describe",
+                lambda owner: owner["name"],
+            ),
+            (
+                process,
+                "release_if_idle",
+                lambda ending=None: self.releases.append(
+                    ending
+                ),
+            ),
+            (process.time, "sleep", self.sleeps.append),
+        ):
+            p = mock.patch.object(target, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+        self.log = mock.Mock()
+
+    def run_loop(self, check, done=None, interval=5):
+        process.run_loop(
+            self.task, 3, check, interval, done, self.log
+        )
+
+    def test_done(self):
+        rounds = iter([None, None, "no levels left"])
+        prices = iter([10, 11])
+        self.run_loop(
+            lambda: ("waiting", next(prices)),
+            lambda: next(rounds),
+            interval=lambda: 7,
+        )
+        self.assertEqual(
+            self.task.states,
+            [
+                ("starting",),
+                ("waiting", 10),
+                ("waiting", 11),
+                ("done",),
+            ],
+        )
+        self.assertEqual(self.sleeps, [7, 7])
+        self.log.info.assert_called_with("no levels left")
+        self.assertEqual(self.releases, [(self.task, 3)])
+        status = self.task.status[3]
+        self.assertEqual(status["pid"], os.getpid())
+        self.assertTrue(status["started"])
+
+    def test_taken_over(self):
+        def check():
+            self.lost = True
+            return ("waiting",)
+
+        self.run_loop(check)
+        self.assertEqual(
+            self.task.states[-1], ("taken over",)
+        )
+        self.assertIn(
+            "phone", self.log.warning.call_args.args
+        )
+        # not owner-bound: it doesn't look
+        self.task.owner_bound = False
+        self.task.states = []
+        rounds = iter([None, "end"])
+        self.run_loop(
+            lambda: ("waiting",), lambda: next(rounds)
+        )
+        self.assertEqual(
+            self.task.states,
+            [("starting",), ("waiting",), ("done",)],
+        )
+
+    def test_stopped(self):
+        # SIGTERM is a KeyboardInterrupt
+        def check():
+            raise KeyboardInterrupt
+
+        self.run_loop(check)
+        self.assertEqual(self.task.states[-1], ("stopped",))
+        self.log.info.assert_called_with(
+            "%s stopped", "the fake"
+        )
+        self.assertEqual(len(self.releases), 1)
+
+    def test_crashed(self):
+        def check():
+            raise ValueError("bad")
+
+        with self.assertRaises(SystemExit) as e:
+            self.run_loop(check)
+        self.assertEqual(e.exception.code, 1)
+        self.assertEqual(self.task.states[-1], ("crashed",))
+        self.log.critical.assert_called_once()
+        self.assertEqual(len(self.releases), 1)
+
+    def test_no_wake_lock(self):
+        # nothing to release
+        self.task.wake = False
+        self.run_loop(lambda: ("waiting",), lambda: "end")
+        self.assertEqual(self.releases, [])
+
+    def test_service_setup(self):
+        handlers = {}
+        logs = []
+        with (
+            mock.patch.object(
+                process.signal,
+                "signal",
+                lambda sig, handler: handlers.update(
+                    {sig: handler}
+                ),
+            ),
+            mock.patch.object(
+                process, "setup_logging", logs.append
+            ),
+        ):
+            process.service_setup(self.task, 3)
+        self.assertEqual(logs, [self.task.log_path(3)])
+        with self.assertRaises(KeyboardInterrupt):
+            handlers[signal.SIGTERM](signal.SIGTERM, None)
 
 
 if __name__ == "__main__":

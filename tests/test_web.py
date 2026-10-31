@@ -229,7 +229,7 @@ class WebProcessTest(unittest.TestCase):
         # serves until SIGTERM (KeyboardInterrupt)
         self.patch(process, "setup_logging", lambda p: None)
         self.patch(
-            web_service.signal, "signal", lambda *a: None
+            process.signal, "signal", lambda *a: None
         )
         server = mock.Mock()
         server.serve_forever.side_effect = KeyboardInterrupt
@@ -246,7 +246,7 @@ class WebProcessTest(unittest.TestCase):
     def test_service_port_taken(self):
         self.patch(process, "setup_logging", lambda p: None)
         self.patch(
-            web_service.signal, "signal", lambda *a: None
+            process.signal, "signal", lambda *a: None
         )
         taken = socket.socket()
         self.addCleanup(taken.close)

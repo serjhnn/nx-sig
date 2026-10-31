@@ -251,8 +251,9 @@ class _LadderTask(process.BackgroundTask):
     def status_get(self, key):
         return ladder_status_get(key)
 
-    def save_status(self, key, pid, started, state):
-        save_status(key, pid, started, state)
+    def save_status(self, key, pid, started, state, *extra):
+        # extra: the price
+        save_status(key, pid, started, state, *extra)
 
     def out_path(self, key):
         return _out_path(key)
