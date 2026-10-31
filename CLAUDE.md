@@ -117,10 +117,20 @@ processes, so nothing is sent anywhere.
   git fetch -q origin main <branch>
   # must print nothing:
   git log --oneline origin/<branch>..origin/main
+  ```
+
+  Then check the `tests.yml` run of the branch
+  (GitHub MCP `actions_list`, `list_workflow_runs`,
+  branch `<branch>`, perPage 1): its `head_sha` must
+  be `origin/<branch>`'s and its conclusion
+  `success`. If it is still running, wait for it
+  once; if it failed, don't push, report what
+  failed. Then push and report the branch run's
+  number:
+
+  ```bash
   git push origin origin/<branch>:main
   ```
 
-  Then wait about a minute and check the `tests.yml`
-  run on main (GitHub MCP `actions_list`,
-  `list_workflow_runs`, branch `main`, perPage 1).
-  Report the run number and result.
+  The run on main isn't checked: it tests the same
+  commit, and the user checks it on GitHub.
