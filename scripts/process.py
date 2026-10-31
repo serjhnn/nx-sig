@@ -1,5 +1,7 @@
-# process: the helpers of the background processes
-# (the ladders, the alerts, the mail broker)
+# process: the background tasks, BackgroundTask (the
+# base class of the ladders, the alerts, the mail
+# broker, the web server and the demo prices), the
+# loop of their services and the process helpers
 #
 #   python tests/test_process.py  the tests
 #

@@ -233,6 +233,14 @@ for your own use first. In this order:
        error, last log lines)~~ (done; run
        `./migrate_data` once on each device to
        delete the old `mtsig.pid`)
+- **Module map** (`assets/modules.html`), in steps:
+  1. ~~the engines `process` loads by name (their
+     `TASK`), dashed~~ (done)
+  2. finer types: core, tasks, engines, services,
+     commands, notifiers, mail broker, tools, tests
+  3. a types view next to the modules view: one box
+     per type, arrows with their number of imports
+  4. docs, screenshots of both views
 - Metrics (`scripts/metrics.py`): statistics of your
   actions, once enough data is collected
 - `strategy` commands

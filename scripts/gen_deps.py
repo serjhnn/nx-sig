@@ -17,7 +17,8 @@
 #              if __name__ == "__main__"
 #   loaded     the modules loaded by name (importlib):
 #              commands loads every shell/*_cmd.py,
-#              notifier the values of its CHANNELS
+#              notifier the values of its CHANNELS,
+#              process every engines/*.py with a TASK
 #   text       the first sentence of the header comment
 #
 # public functions:
@@ -148,7 +149,21 @@ def _channels(tree):
     return []
 
 
-def _loaded(key, tree, known):
+def _has_task(tree):
+    """True if the module sets TASK at its top level,
+    as an engine with a background task does"""
+    return any(
+        isinstance(node, ast.Assign)
+        and any(
+            getattr(t, "id", None) == "TASK"
+            for t in node.targets
+        )
+        for node in tree.body
+    )
+
+
+def _loaded(key, tree, trees):
+    known = set(trees)
     if key == "commands":
         return sorted(
             k
@@ -161,6 +176,13 @@ def _loaded(key, tree, known):
             for k in _channels(tree)
             if f"notifiers/{k}" in known
         ]
+    if key == "process":
+        return sorted(
+            k
+            for k in known
+            if k.startswith("engines/")
+            and _has_task(trees[k])
+        )
     return []
 
 
@@ -219,7 +241,7 @@ def modules():
         # an imported module is not also loaded by name
         loaded = [
             k
-            for k in _loaded(key, tree, known)
+            for k in _loaded(key, tree, trees)
             if k not in imports
         ]
         found[key] = [

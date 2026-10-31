@@ -152,7 +152,7 @@ path.e.dim { opacity: .08; }
     <aside class="panel" id="panel" aria-live="polite"></aside>
   </div>
 
-  <p class="foot">Columns are import depth: a module sits one column right of the deepest module it imports, so every arrow points left. Solid lines are <code>import</code> statements; dashed lines are modules loaded by name at run time (<code>importlib</code>): <code>commands</code> collects every <code>shell/*_cmd.py</code>, and <code>notifier</code> loads only the channel named by config.json <code>"notify"</code>. Written from the code by <code>python scripts/gen_deps.py</code>.</p>
+  <p class="foot">Columns are import depth: a module sits one column right of the deepest module it imports, so every import points left. Solid lines are <code>import</code> statements; dashed lines are modules loaded by name at run time (<code>importlib</code>): <code>commands</code> collects every <code>shell/*_cmd.py</code>, <code>notifier</code> loads only the channel named by config.json <code>"notify"</code>, and <code>process</code> collects the <code>TASK</code> of every engine that has one. Those engines import <code>process</code>, so its dashed lines point right and don't place it. Written from the code by <code>python scripts/gen_deps.py</code>.</p>
 </div>
 
 <script>
@@ -178,7 +178,7 @@ const MODS = {
   "gen_shots": ["tools", "Writes the demo pictures of README.md (assets/demo-*.svg) from a real run of ./nxdemo, so they can be made again when the output changes", [], []],
   "latest_trade": ["tools", "Prints the latest prices of config \"indices\" once", ["config"], []],
   "metrics": ["tools", "The metrics engine of nX-sig", [], []],
-  "process": ["engine", "The helpers of the background processes (the ladders, the alerts, the mail broker)", ["storage", "tasks_owner"], []],
+  "process": ["engine", "The background tasks, BackgroundTask (the base class of the ladders, the alerts, the mail broker, the web server and the demo prices), the loop of their services and the process helpers", ["storage", "tasks_owner"], ["engines/alerts", "engines/demo_prices", "engines/ladder", "engines/mail_broker", "engines/web"]],
   "storage": ["core", "Reads and writes all nX-sig data in config \"storage_dir\" (csv files for trades, json files for rules and the watcher)", ["config"], []],
   "sync": ["tools", "Keeps the data folder (config \"storage_dir\") the same on the phone (Termux) and the PC (Linux) with Syncthing", ["config", "storage"], []],
   "tasks_owner": ["engine", "Only one device runs the background tasks (the mail broker, the ladders and the alerts)", ["storage"], []],
@@ -248,7 +248,7 @@ const GROUP_ORDER = Object.keys(GROUPS);
 const $ = id => document.getElementById(id);
 const graph = $("graph"), svg = $("edges"), panel = $("panel");
 const state = { selected: null, hovered: null, transitive: false, tests: false, query: "" };
-let ids = [], edges = [], nodeEls = {}, edgeEls = [];
+let ids = [], edges = [], nodeEls = {}, edgeEls = [], level = {};
 
 function visible() {
   return Object.keys(MODS).filter(id => state.tests || MODS[id][0] !== "tests");
@@ -257,6 +257,10 @@ const imports = id => MODS[id][2];
 const loads = id => MODS[id][3] || [];
 const allDeps = id => [...imports(id), ...loads(id)];
 const users = id => ids.filter(u => allDeps(u).includes(id));
+// what places a module: its imports, and what it loads by name unless that
+// imports it back (process loads the engines, which import process)
+const layoutDeps = id =>
+  [...imports(id), ...loads(id).filter(d => !closure(d, imports).has(id))];
 const label = id => id.includes("/") ? id.split("/")[1] : id;
 const prefix = id => id.includes("/") ? id.split("/")[0] + "/" : "";
 const fileOf = id =>
@@ -269,7 +273,7 @@ function levels() {
     if (id in lv) return lv[id];
     if (visiting.has(id)) { cycle = true; return 0; }
     visiting.add(id);
-    const d = allDeps(id).filter(x => ids.includes(x));
+    const d = layoutDeps(id).filter(x => ids.includes(x));
     lv[id] = d.length ? 1 + Math.max(...d.map(walk)) : 0;
     visiting.delete(id);
     return lv[id];
@@ -297,6 +301,7 @@ function build() {
     loads(id).forEach(d => ids.includes(d) && edges.push({ from: id, to: d, dyn: true }));
   });
   const { lv, cycle } = levels();
+  level = lv;
   const depth = Math.max(...Object.values(lv));
   const cols = Array.from({ length: depth + 1 }, () => []);
   ids.forEach(id => cols[lv[id]].push(id));
@@ -355,9 +360,16 @@ function draw() {
   svg.innerHTML = "";
   edgeEls = edges.map(e => {
     const a = nodeEls[e.from].getBoundingClientRect(), b = nodeEls[e.to].getBoundingClientRect();
-    const x1 = a.left - g.left, y1 = a.top + a.height / 2 - g.top;
-    const x2 = b.right - g.left, y2 = b.top + b.height / 2 - g.top;
-    const dx = Math.max(24, (x1 - x2) * 0.45);
+    // most arrows point left; one to a column further right (a module
+    // loaded by name that imports this one) leaves from the right side,
+    // a little lower than that import, so both lines show
+    const back = level[e.to] >= level[e.from];
+    const shift = back ? 6 : 0;
+    const y1 = a.top + a.height / 2 - g.top + shift;
+    const y2 = b.top + b.height / 2 - g.top + shift;
+    const x1 = (back ? a.right : a.left) - g.left;
+    const x2 = (back ? b.left : b.right) - g.left;
+    const dx = Math.max(24, Math.abs(x1 - x2) * 0.45) * (back ? -1 : 1);
     const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
     p.setAttribute("d", `M${x1},${y1} C${x1 - dx},${y1} ${x2 + dx},${y2} ${x2},${y2}`);
     p.setAttribute("class", "e" + (e.dyn ? " dyn" : ""));
