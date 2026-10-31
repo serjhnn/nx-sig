@@ -5,7 +5,8 @@
 #   stop tasks all
 #
 # TaskCommands joins the tasks() rows of every module
-# (the ladders, the mail broker), so a new feature with
+# (the ladders, the alerts, the mail broker, the web
+# server), so a new feature with
 # background tasks adds itself here. print_owner() is
 # the line about the device that runs them
 # (tasks_owner.py), also in 'status'
@@ -62,9 +63,10 @@ class TaskCommands(Commands):
         """
         stop tasks all
             stop every background task running on
-            this device: the ladders, the alerts
-            and the mail broker, as their own stop
-            commands do; they stay saved
+            this device: the ladders, the alerts,
+            the mail broker and the web server, as
+            their own stop commands do; they stay
+            saved
         """
         if arg.lower().split() != ["all"]:
             print_wrapped("usage: stop tasks all")

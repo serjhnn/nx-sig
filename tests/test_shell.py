@@ -2060,6 +2060,14 @@ class ShellTest(unittest.TestCase):
                 "state": "connected",
             }
         )
+        storage.web_status_set(
+            {
+                "pid": 888,
+                "started": now.isoformat(),
+                "updated": now.isoformat(),
+                "state": "serving",
+            }
+        )
         started = f"{now:%d.%m %H:%M}"
         with mock.patch.object(
             process, "process_runs", lambda *a: True
@@ -2075,6 +2083,8 @@ class ShellTest(unittest.TestCase):
                 f"{started}  waiting",
                 f" -  mail-broker      777  {started}  "
                 "connected",
+                f" -  web              888  {started}  "
+                "serving",
             ],
         )
         self.assertEqual(
@@ -2093,6 +2103,16 @@ class ShellTest(unittest.TestCase):
             os.path.join(storage.DB_DIR, "mtsig.pid"), "w"
         ) as f:
             f.write("777\n")
+        # the web server "runs", web.stop() is faked so
+        # nothing is killed
+        web_stops = []
+        for name, value in (
+            ("running_pid", lambda: not web_stops and 888),
+            ("stop", lambda: web_stops.append(1) or True),
+        ):
+            p = mock.patch.object(web, name, value)
+            p.start()
+            self.addCleanup(p.stop)
         with mock.patch.object(
             process, "process_runs", lambda *a: True
         ):
@@ -2105,8 +2125,10 @@ class ShellTest(unittest.TestCase):
                 "alerts stopped",
                 "stopping the mail broker...",
                 "mtsig stop: ok",
+                "web server stopped",
             ],
         )
+        self.assertEqual(web_stops, [1])
         self.assertEqual(self.running, set())
         self.assertFalse(self.alerts_running)
         self.assertEqual(self.mtsig_calls[-1][-1], "stop")

@@ -6,9 +6,11 @@
 #
 # it listens on config "web" "host" and "port"
 # (127.0.0.1:8080 by default, so only this device can
-# open it). it is not one of the background tasks: it
-# sends nothing, so it runs on any device, without the
-# Termux wake lock, and web_status.json is not synced.
+# open it). 'ls tasks' shows it, but it sends nothing,
+# so it isn't tied to the device that runs the
+# background tasks (tasks_owner.py): it runs on any
+# device, without the Termux wake lock, and
+# web_status.json is not synced.
 # logs: {storage_dir}/logs/web.log
 #
 # public functions:

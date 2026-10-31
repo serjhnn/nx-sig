@@ -542,11 +542,13 @@ packages to install). Open the address in a browser on the same device.
 - It serves only `/` (the page) and `/logo.svg`, reads no data and
   changes nothing; any other path is `404`.
 - `run web` starts it, `stop web` stops it; it keeps running when the shell
-  is closed. `status` shows `web: running at http://127.0.0.1:8080/`.
+  is closed. `status` shows `web: running at http://127.0.0.1:8080/`, and
+  `ls tasks` its row (`stop tasks all` stops it too).
 - It listens on `127.0.0.1:8080`, so only this device can open it; config
   `web` changes the address and the port (see above). If the port is
   taken, `run web` says so.
-- It isn't one of the background tasks: it sends nothing, so it runs on
+- Unlike the ladders, the alerts and the mail broker, it sends nothing, so
+  it isn't tied to the device that runs the background tasks: it runs on
   either device (or both), without the Termux wake lock. Logs are in
   `data/logs/web.log`.
 
