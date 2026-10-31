@@ -4,7 +4,11 @@
 #   python tests/test_process.py  the tests
 #
 # public functions:
-#   spawn(args, out_path, wake=True)
+#   BackgroundTask
+#       the base class of a background task: an engine
+#       subclass says its script, heartbeat and paths,
+#       running_pid(), start() and stop() are shared
+#   spawn(args, out_path, wake=True, python=None)
 #       start python <args> in the background, holding
 #       the Termux wake lock (unless not wake); return
 #       the Popen
@@ -34,8 +38,11 @@ import logging
 import logging.handlers
 import os
 import shutil
+import signal
 import subprocess
 import sys
+import time
+from datetime import datetime
 
 import tasks_owner
 from storage import (
@@ -54,16 +61,174 @@ LOG_MAX_BYTES = 200_000
 LOG_BACKUP_COUNT = 2
 
 
-def spawn(args, out_path, wake=True):
-    """start python <args> as a background process
-    with its output in out_path, holding the Termux wake
-    lock unless not wake; return the Popen"""
+class BackgroundTask:
+    """
+    a kind of background task, one process per key
+    (a ladder's id; None for a task that runs once,
+    like the alerts). a subclass sets the attributes
+    and implements status_get(), save_status(),
+    out_path() and log_path(); the others have
+    defaults
+    """
+
+    # the script the process runs, e.g.
+    # "alert_service.py", and its full path
+    service = ""
+    script = ""
+    # "the alerts process": how the messages name it
+    name = ""
+    # claims the background tasks for this device
+    # (tasks_owner.py) and releases them when the
+    # last one stops
+    owner_bound = True
+    # holds the Termux wake lock
+    wake = True
+    # seconds to watch for a crash at start, to wait
+    # after SIGTERM; None: the constants above
+    start_check = None
+    stop_wait = None
+    # the exception start() raises
+    error = Exception
+
+    def status_get(self, key):
+        """its heartbeat, a dict with "pid", or None"""
+        raise NotImplementedError
+
+    def save_status(self, key, pid, started, state):
+        """write its heartbeat; started None keeps the
+        saved one"""
+        raise NotImplementedError
+
+    def out_path(self, key):
+        """the process output (errors before its
+        logging is set up)"""
+        raise NotImplementedError
+
+    def log_path(self, key):
+        raise NotImplementedError
+
+    def label(self, key):
+        """the task in a message: 'ladder 3'"""
+        return self.name
+
+    def arg(self, key):
+        """the last argument of the script, which
+        running_pid() checks"""
+        return "run" if key is None else key
+
+    def args(self, key):
+        """the script and its arguments"""
+        return [self.script, str(self.arg(key))]
+
+    def python(self):
+        """the interpreter, None for this one"""
+        return None
+
+    def check_start(self, key):
+        """raise self.error if it can't start"""
+
+    def already_running(self, key, pid):
+        """the message when it runs already"""
+        return f"{self.label(key)} already runs (pid {pid})"
+
+    def starting(self, key, pid):
+        """the first heartbeat, written by start(), so
+        running_pid() knows the process before it
+        writes its own"""
+        self.save_status(key, pid, _now(), "starting")
+
+    def running_pid(self, key=None):
+        """the pid of its process, None if it doesn't
+        run"""
+        pid = (self.status_get(key) or {}).get("pid")
+        if pid and process_runs(
+            pid, self.service, self.arg(key)
+        ):
+            return pid
+        return None
+
+    def start(self, key=None, force=False):
+        """
+        start its process and return the pid; raise
+        self.error if check_start() refuses, it runs
+        already, another device runs the background
+        tasks (owner_bound, unless force) or it stops
+        right away
+        """
+        self.check_start(key)
+        pid = self.running_pid(key)
+        if pid:
+            raise self.error(self.already_running(key, pid))
+        if self.owner_bound:
+            try:
+                tasks_owner.claim(force)
+            except tasks_owner.OwnerError as e:
+                raise self.error(str(e)) from None
+        out = self.out_path(key)
+        child = spawn(
+            self.args(key),
+            out,
+            wake=self.wake,
+            python=self.python(),
+        )
+        self.starting(key, child.pid)
+        # catch a crash at start, e.g. a missing package
+        deadline = time.monotonic() + _or(
+            self.start_check, START_CHECK_SECONDS
+        )
+        while time.monotonic() < deadline:
+            if child.poll() is not None:
+                self._release()
+                raise self.error(
+                    f"{self.label(key)} stopped right "
+                    "after starting: "
+                    + last_line([out, self.log_path(key)])
+                )
+            time.sleep(0.2)
+        return child.pid
+
+    def stop(self, key=None):
+        """
+        stop its process (SIGTERM, then SIGKILL after
+        stop_wait), True if it was running
+        """
+        pid = self.running_pid(key)
+        if not pid:
+            return False
+        if not kill(pid, signal.SIGTERM):
+            self._release()
+            return False
+        deadline = time.monotonic() + _or(
+            self.stop_wait, STOP_WAIT_SECONDS
+        )
+        while time.monotonic() < deadline:
+            reap(pid)
+            if not self.running_pid(key):
+                break
+            time.sleep(0.2)
+        else:
+            kill(pid, signal.SIGKILL)
+            self.save_status(key, pid, None, "stopped")
+        self._release()
+        return True
+
+    def _release(self):
+        if self.owner_bound:
+            release_if_idle()
+
+
+def spawn(args, out_path, wake=True, python=None):
+    """start python <args> (python is the path of the
+    interpreter, this one if None) as a background
+    process with its output in out_path, holding the
+    Termux wake lock unless not wake; return the
+    Popen"""
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     if wake:
         wake_lock("termux-wake-lock")
     with open(out_path, "w") as out:
         return subprocess.Popen(
-            [sys.executable, *args],
+            [python or sys.executable, *args],
             cwd=ROOT_DIR,
             stdin=subprocess.DEVNULL,
             stdout=out,
@@ -211,3 +376,12 @@ def setup_logging(path):
     for handler in handlers:
         handler.setFormatter(formatter)
         root.addHandler(handler)
+
+
+def _or(value, default):
+    # 0 is a value, not a missing one
+    return default if value is None else value
+
+
+def _now():
+    return datetime.now().isoformat(timespec="seconds")

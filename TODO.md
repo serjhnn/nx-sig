@@ -216,6 +216,21 @@ for your own use first. In this order:
   `scripts/engines/ladder.py`). Still open:
   - maybe start the ladders that were running before
     when the phone restarts
+  - **One `BackgroundTask` class** for every task
+    (`process.py`), in steps:
+    1. ~~the class, with tests~~ (done)
+    2. web and demo prices use it
+    3. alerts and ladders use it
+    4. a mail broker engine (`engines/`) that the
+       shell uses instead of `./mtsig`
+    5. a registry, so `tasks_run()` doesn't name
+       every task
+    6. one shared loop for the polling services
+       (`process.run_loop`)
+    7. remove `./mtsig`; add a one-shot mode
+       (`./nxshell run mail-broker`) and
+       `ls mail-broker` (state, last order, last
+       error, last log lines)
 - Metrics (`scripts/metrics.py`): statistics of your
   actions, once enough data is collected
 - `strategy` commands

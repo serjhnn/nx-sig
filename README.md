@@ -720,7 +720,8 @@ nx-sig/
     ├── config.py         reads config.json once, typed settings with defaults,
     │                     this device's padding (.terminal.json)
     ├── storage.py        trades, rules and mail broker state on disk
-    ├── process.py        the helpers of the background processes
+    ├── process.py        the helpers of the background processes, BackgroundTask
+    │                     (start/stop/running pid shared by the tasks)
     ├── chart.py          the price chart of 'chart'
     ├── tasks_owner.py    one device runs the background tasks
     ├── sync.py           syncs data/ between phone and PC (Syncthing)

@@ -3,6 +3,7 @@
 #   python tests/test_process.py
 
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -12,7 +13,9 @@ import unittest
 import paths  # noqa: F401, scripts/ on sys.path
 from unittest import mock
 
+import process
 from process import (
+    BackgroundTask,
     kill,
     last_line,
     process_runs,
@@ -90,6 +93,176 @@ class ProcessTest(unittest.TestCase):
                 last_line([empty]),
                 "no output, see the log",
             )
+
+
+# the service of FakeTask: prints, then sleeps; argv
+# "crash" ends right away, "stubborn" ignores SIGTERM
+FAKE_SERVICE = """\
+import signal, sys, time
+print("up", flush=True)
+if sys.argv[-1] == "crash":
+    sys.exit("boom")
+if sys.argv[-1] == "stubborn":
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+time.sleep(30)
+"""
+
+
+class FakeError(Exception):
+    pass
+
+
+class FakeTask(BackgroundTask):
+    service = "fake_service.py"
+    name = "the fake"
+    wake = False
+    start_check = 0.3
+    stop_wait = 0.3
+    error = FakeError
+
+    def __init__(self, folder):
+        self.folder = folder
+        self.script = os.path.join(folder, self.service)
+        with open(self.script, "w") as f:
+            f.write(FAKE_SERVICE)
+        self.status = {}
+
+    def status_get(self, key):
+        return self.status.get(key)
+
+    def save_status(self, key, pid, started, state):
+        previous = self.status.get(key) or {}
+        self.status[key] = {
+            "pid": pid,
+            "started": started or previous.get("started"),
+            "state": state,
+        }
+
+    def out_path(self, key):
+        return os.path.join(self.folder, f"{key}.out")
+
+    def log_path(self, key):
+        return os.path.join(self.folder, f"{key}.log")
+
+
+class BackgroundTaskTest(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.task = FakeTask(tmp.name)
+        self.claims = []
+        self.releases = []
+        patcher = mock.patch.object(
+            process.tasks_owner, "claim", self.claims.append
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(
+            process,
+            "release_if_idle",
+            lambda: self.releases.append(1),
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        # no Termux here, but never take the wake lock
+        patcher = mock.patch.object(
+            process, "wake_lock", lambda command: None
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        # keep the children, so the test ends them
+        self.children = []
+        spawn = process.spawn
+
+        def keep(*args, **kwargs):
+            child = spawn(*args, **kwargs)
+            self.children.append(child)
+            return child
+
+        patcher = mock.patch.object(process, "spawn", keep)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(self._end_children)
+
+    def _end_children(self):
+        for child in self.children:
+            if child.poll() is None:
+                child.send_signal(signal.SIGKILL)
+            child.wait()
+
+    def test_start_and_stop(self):
+        pid = self.task.start()
+        self.assertEqual(self.task.running_pid(), pid)
+        self.assertEqual(
+            self.task.status[None]["state"], "starting"
+        )
+        # owner_bound: claimed, not forced
+        self.assertEqual(self.claims, [False])
+        with self.assertRaises(FakeError) as e:
+            self.task.start()
+        self.assertEqual(
+            str(e.exception),
+            f"the fake already runs (pid {pid})",
+        )
+        self.assertTrue(self.task.stop())
+        self.assertIsNone(self.task.running_pid())
+        self.assertFalse(self.task.stop())
+        self.assertEqual(len(self.releases), 1)
+
+    def test_keys(self):
+        # one process per key, its last argument
+        pid = self.task.start(7)
+        self.assertEqual(self.task.running_pid(7), pid)
+        self.assertIsNone(self.task.running_pid(8))
+        self.assertIsNone(self.task.running_pid())
+        self.assertTrue(self.task.stop(7))
+
+    def test_crash_at_start(self):
+        with self.assertRaises(FakeError) as e:
+            self.task.start("crash")
+        self.assertEqual(
+            str(e.exception),
+            "the fake stopped right after starting: boom",
+        )
+        self.assertEqual(len(self.releases), 1)
+
+    def test_kill_after_stop_wait(self):
+        self.task.start("stubborn")
+        self.assertTrue(self.task.stop("stubborn"))
+        # SIGKILL ends it a moment later
+        self.children[-1].wait()
+        self.assertIsNone(self.task.running_pid("stubborn"))
+        self.assertEqual(
+            self.task.status["stubborn"]["state"],
+            "stopped",
+        )
+
+    def test_not_owner_bound(self):
+        self.task.owner_bound = False
+        self.task.start()
+        self.assertTrue(self.task.stop())
+        self.assertEqual(self.claims, [])
+        self.assertEqual(self.releases, [])
+
+    def test_check_start_and_owner(self):
+        def refuse(key):
+            raise FakeError("no fakes saved")
+
+        self.task.check_start = refuse
+        with self.assertRaisesRegex(FakeError, "no fakes"):
+            self.task.start()
+        del self.task.check_start
+
+        def owned(force):
+            raise process.tasks_owner.OwnerError("phone")
+
+        with mock.patch.object(
+            process.tasks_owner, "claim", owned
+        ):
+            with self.assertRaisesRegex(FakeError, "phone"):
+                self.task.start(force=True)
+        self.assertEqual(self.task.status, {})
 
 
 if __name__ == "__main__":
