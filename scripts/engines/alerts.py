@@ -62,7 +62,7 @@
 #   start(force=False), stop(), running_pid()
 #       the process; only on the device that runs the
 #       background tasks (tasks_owner.py), force takes
-#       them over (the helpers are in process.py)
+#       them over (TASK, a process.BackgroundTask)
 #   status()
 #       its heartbeat, or None
 #   save_status(pid, started, state, past_now=None)
@@ -72,14 +72,11 @@
 
 import logging
 import os
-import signal
-import time
 from datetime import datetime
 
 import config
 import process
 import storage
-import tasks_owner
 from storage import (
     ROOT_DIR,
     alert_add,
@@ -355,10 +352,7 @@ def status():
 
 
 def running_pid():
-    pid = (alerts_status_get() or {}).get("pid")
-    if pid and process.process_runs(pid, SERVICE, "run"):
-        return pid
-    return None
+    return TASK.running_pid()
 
 
 def start(force=False):
@@ -368,58 +362,13 @@ def start(force=False):
     another device runs the background tasks (unless
     force) or it stops right away
     """
-    if not alerts_get_all():
-        raise AlertError("no alerts, see 'help add alert'")
-    pid = running_pid()
-    if pid:
-        raise AlertError(
-            f"the alerts are already checked (pid {pid})"
-        )
-    try:
-        tasks_owner.claim(force)
-    except tasks_owner.OwnerError as e:
-        raise AlertError(str(e)) from None
-    child = process.spawn([SCRIPT, "run"], _out_path())
-    # so running_pid() knows it before the process writes
-    # its first heartbeat
-    save_status(child.pid, _now(), "starting")
-    deadline = (
-        time.monotonic() + process.START_CHECK_SECONDS
-    )
-    while time.monotonic() < deadline:
-        if child.poll() is not None:
-            process.release_if_idle()
-            raise AlertError(
-                "the alerts process stopped right after "
-                "starting: "
-                + process.last_line(
-                    [_out_path(), log_path()]
-                )
-            )
-        time.sleep(0.2)
-    return child.pid
+    return TASK.start(force=force)
 
 
 def stop():
     """stop the alerts process (SIGTERM, then SIGKILL),
     True if it was running"""
-    pid = running_pid()
-    if not pid:
-        return False
-    if not process.kill(pid, signal.SIGTERM):
-        process.release_if_idle()
-        return False
-    deadline = time.monotonic() + process.STOP_WAIT_SECONDS
-    while time.monotonic() < deadline:
-        process.reap(pid)
-        if not running_pid():
-            break
-        time.sleep(0.2)
-    else:
-        process.kill(pid, signal.SIGKILL)
-        save_status(pid, None, "stopped")
-    process.release_if_idle()
-    return True
+    return TASK.stop()
 
 
 def _out_path():
@@ -459,3 +408,35 @@ def save_status(pid, started, state, past_now=None):
         )
     except Exception:
         log.exception("could not write the alerts status")
+
+
+class _AlertsTask(process.BackgroundTask):
+    # one process checks every alert
+    service = SERVICE
+    script = SCRIPT
+    name = "the alerts process"
+    error = AlertError
+
+    def check_start(self, key):
+        if not alerts_get_all():
+            raise AlertError(
+                "no alerts, see 'help add alert'"
+            )
+
+    def already_running(self, key, pid):
+        return f"the alerts are already checked (pid {pid})"
+
+    def status_get(self, key):
+        return alerts_status_get()
+
+    def save_status(self, key, pid, started, state):
+        save_status(pid, started, state)
+
+    def out_path(self, key):
+        return _out_path()
+
+    def log_path(self, key):
+        return log_path()
+
+
+TASK = _AlertsTask()

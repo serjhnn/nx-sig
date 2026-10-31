@@ -42,21 +42,17 @@
 #   log_path(ladder_id)
 #       the log file of its process
 #
-# the process helpers (spawn, release_if_idle, ...) are
-# in process.py
+# the process is TASK, a process.BackgroundTask
 
 import glob
 import logging
 import math
 import os
-import signal
-import time
 from datetime import datetime
 
 import config
 import process
 import storage
-import tasks_owner
 from storage import (
     ROOT_DIR,
     ladder_add,
@@ -128,13 +124,7 @@ def passed_level(ladder, price):
 
 
 def running_pid(ladder_id):
-    status = ladder_status_get(ladder_id) or {}
-    pid = status.get("pid")
-    if pid and process.process_runs(
-        pid, SERVICE, ladder_id
-    ):
-        return pid
-    return None
+    return TASK.running_pid(ladder_id)
 
 
 def get(ladder_id):
@@ -163,53 +153,7 @@ def start(ladder_id, force=False):
     background tasks (unless force) or it stops right
     away
     """
-    if ladder_get(ladder_id) is None:
-        raise LadderError(
-            f"no ladder {ladder_id}, see 'ls ladders'"
-        )
-    pid = running_pid(ladder_id)
-    if pid:
-        raise LadderError(
-            f"ladder {ladder_id} is already running "
-            f"(pid {pid})"
-        )
-    try:
-        tasks_owner.claim(force)
-    except tasks_owner.OwnerError as e:
-        raise LadderError(str(e)) from None
-    child = process.spawn(
-        [SCRIPT, str(ladder_id)], _out_path(ladder_id)
-    )
-    # so running_pid() knows it before the process writes
-    # its first heartbeat
-    ladder_status_set(
-        ladder_id,
-        {
-            "pid": child.pid,
-            "started": _now(),
-            "updated": _now(),
-            "state": "starting",
-        },
-    )
-    # catch a crash at start, e.g. a missing package
-    deadline = (
-        time.monotonic() + process.START_CHECK_SECONDS
-    )
-    while time.monotonic() < deadline:
-        if child.poll() is not None:
-            process.release_if_idle()
-            raise LadderError(
-                f"ladder {ladder_id} stopped right after "
-                "starting: "
-                + process.last_line(
-                    [
-                        _out_path(ladder_id),
-                        log_path(ladder_id),
-                    ]
-                )
-            )
-        time.sleep(0.2)
-    return child.pid
+    return TASK.start(ladder_id, force)
 
 
 def stop(ladder_id):
@@ -218,27 +162,8 @@ def stop(ladder_id):
     SIGKILL after STOP_WAIT_SECONDS), True if it was
     running; the ladder stays saved
     """
-    if ladder_get(ladder_id) is None:
-        raise LadderError(
-            f"no ladder {ladder_id}, see 'ls ladders'"
-        )
-    pid = running_pid(ladder_id)
-    if not pid:
-        return False
-    if not process.kill(pid, signal.SIGTERM):
-        process.release_if_idle()
-        return False
-    deadline = time.monotonic() + process.STOP_WAIT_SECONDS
-    while time.monotonic() < deadline:
-        process.reap(pid)
-        if not running_pid(ladder_id):
-            break
-        time.sleep(0.2)
-    else:
-        process.kill(pid, signal.SIGKILL)
-        save_status(ladder_id, pid, None, "stopped")
-    process.release_if_idle()
-    return True
+    _check_exists(ladder_id)
+    return TASK.stop(ladder_id)
 
 
 def remove(ladder_id):
@@ -294,3 +219,43 @@ def save_status(ladder_id, pid, started, state, price=None):
         )
     except Exception:
         log.exception("could not write the ladder status")
+
+
+def _check_exists(ladder_id):
+    if ladder_get(ladder_id) is None:
+        raise LadderError(
+            f"no ladder {ladder_id}, see 'ls ladders'"
+        )
+
+
+class _LadderTask(process.BackgroundTask):
+    # one process per ladder, its id is the key
+    service = SERVICE
+    script = SCRIPT
+    error = LadderError
+
+    def label(self, key):
+        return f"ladder {key}"
+
+    def check_start(self, key):
+        _check_exists(key)
+
+    def already_running(self, key, pid):
+        return (
+            f"ladder {key} is already running (pid {pid})"
+        )
+
+    def status_get(self, key):
+        return ladder_status_get(key)
+
+    def save_status(self, key, pid, started, state):
+        save_status(key, pid, started, state)
+
+    def out_path(self, key):
+        return _out_path(key)
+
+    def log_path(self, key):
+        return log_path(key)
+
+
+TASK = _LadderTask()

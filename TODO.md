@@ -220,7 +220,7 @@ for your own use first. In this order:
     (`process.py`), in steps:
     1. ~~the class, with tests~~ (done)
     2. ~~web and demo prices use it~~ (done)
-    3. alerts and ladders use it
+    3. ~~alerts and ladders use it~~ (done)
     4. a mail broker engine (`engines/`) that the
        shell uses instead of `./mtsig`
     5. a registry, so `tasks_run()` doesn't name
