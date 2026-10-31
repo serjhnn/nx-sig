@@ -680,8 +680,12 @@ remembers the choice.
   </picture>
 </p>
 
-The pictures are taken by hand; the map itself is written from the code by
-`scripts/gen_deps.py`.
+The map is written from the code by `scripts/gen_deps.py`, the pictures
+are taken from it by `python scripts/gen_map_shots.py`: run it again when
+the map changes. It needs Playwright for Python, which isn't in
+`requirements.txt` (`pip install playwright`, then
+`python -m playwright install chromium`, or give a Chromium with
+`--chromium PATH`).
 
 ```
 nx-sig/
@@ -703,8 +707,9 @@ nx-sig/
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg       the logo (README, the web page)
 ├── assets/demo-*.svg     the demo pictures of this README
-├── assets/map-*.png      the module map pictures of this README
 │                         (scripts/gen_shots.py)
+├── assets/map-*.png      the module map pictures of this README
+│                         (scripts/gen_map_shots.py)
 ├── assets/modules.html  the module map (generated), also online:
 │                         serjhnn.github.io/nx-sig/assets/modules.html
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
@@ -770,6 +775,7 @@ nx-sig/
     ├── gen_docs.py       writes COMMANDS.md from the help texts
     ├── gen_deps.py       writes assets/modules.html from the imports
     ├── gen_shots.py      writes the demo pictures (assets/demo-*.svg)
+    ├── gen_map_shots.py  takes the module map pictures (assets/map-*.png)
     └── check_style.py    checks the code style rules and the generated files
 ```
 
