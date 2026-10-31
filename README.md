@@ -322,6 +322,9 @@ and keep the average. Gain/loss in `status` is `count × price − count × avg`
 
 ### The mail broker (mtsig, mail trades service)
 
+In the shell, `run mail-broker [force]` starts it and `stop mail-broker`
+stops it (after a clean logout); `./mtsig` does the same from the command line:
+
 ```bash
 ./mtsig start      # run it in the background
 ./mtsig start force  # also when the other device runs the tasks
@@ -347,7 +350,8 @@ Status *FILLED*
   emails it missed and never records an order twice. On the very first start it
   begins after the newest email, so old emails are not imported.
 - A dropped connection is reconnected automatically.
-- `./mtsig` finds a Python 3.14+ by itself, or uses `WATCHER_PYTHON`.
+- `run mail-broker` and `./mtsig` find a Python 3.14+ by themselves (the
+  shell's own when it is new enough), or use `WATCHER_PYTHON`.
   In Termux it takes a wake lock while it runs, so Android does not pause it.
 - Logs are in `data/logs/mtsig.log` (rotated at 1 MB, 5 files kept).
   `LOG_LEVEL=DEBUG` in `.env` logs more detail.
@@ -683,6 +687,7 @@ nx-sig/
     │   ├── alerts.py         basetrade and gain alerts, starts their process
     │   ├── demo.py           the demo's sample data (./nxdemo)
     │   ├── demo_prices.py    the demo's prices, a random walk
+    │   ├── mail_broker.py    the mail broker, starts its process (Python 3.14)
     │   └── web.py            the web server, starts its process
     ├── services/         the background processes, <engine>_service.py
     │   ├── ladder_service.py one ladder's process: price, notify
@@ -705,7 +710,7 @@ nx-sig/
     │   ├── base_trade_cmd.py basetrades
     │   ├── alert_cmd.py      alerts (the shell side)
     │   ├── ladder_cmd.py     ladders (the shell side)
-    │   ├── mail_cmd.py       mail broker (./mtsig)
+    │   ├── mail_cmd.py       run mail-broker, stop mail-broker
     │   ├── web_cmd.py        run web, stop web
     │   ├── tasks_cmd.py      ls tasks
     │   ├── overview_cmd.py   status, xtop
@@ -813,4 +818,4 @@ export WATCHER_PYTHON=~/nx-sig/.venv/bin/python
 ```
 
 `NXSHELL_PYTHON` is used by `./nxshell`, `./nxdemo` and
-`./syncnx`, `WATCHER_PYTHON` by `./mtsig`.
+`./syncnx`, `WATCHER_PYTHON` by `run mail-broker` and `./mtsig`.

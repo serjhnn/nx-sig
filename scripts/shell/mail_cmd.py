@@ -1,23 +1,18 @@
 # mail_cmd: the shell side of the mail broker
-# (order_watcher.py, started by ./mtsig)
+# (order_watcher.py, engines/mail_broker.py starts and
+# stops it)
 #
-# MailBrokerCommands implements run [force] and stop
-# (./mtsig start [force]/stop); its tasks() are its row
-# in 'ls tasks'.
+# MailBrokerCommands implements run [force] and stop;
+# its tasks() are its row in 'ls tasks'.
 # print_watcher_status() is its line in 'status'.
 # not in the demo (./nxdemo)
 
 import os
-import subprocess
 from datetime import datetime
 
 import config
-import process
-from storage import (
-    ROOT_DIR,
-    mtsig_pid_get,
-    watcher_status_get,
-)
+import tasks_owner
+from engines import mail_broker
 from shell.interface import Commands
 from shell.ui import (
     print_error,
@@ -38,7 +33,7 @@ def print_watcher_status():
     if config.demo():
         print_wrapped("mail broker: not in the demo")
         return
-    status = watcher_status_get()
+    status = mail_broker.status()
     if not status or not status.get("updated"):
         print_wrapped("mail broker: not started")
         return
@@ -101,24 +96,16 @@ def print_watcher_status():
 def _mail_broker_task():
     """the 'ls tasks' row of the mail broker, or None
     if it isn't running"""
-    pid = mtsig_pid_get()
-    if pid is None or not process.process_runs(
-        pid, "order_watcher.py"
-    ):
+    pid = mail_broker.running_pid()
+    if pid is None:
         return None
-    status = watcher_status_get() or {}
+    status = mail_broker.status() or {}
     started = updated = None
-    # the heartbeat may be left from an earlier run
-    if status.get("pid") == pid:
-        try:
-            started = datetime.fromisoformat(
-                status["started"]
-            )
-            updated = datetime.fromisoformat(
-                status["updated"]
-            )
-        except (KeyError, TypeError, ValueError):
-            pass
+    try:
+        started = datetime.fromisoformat(status["started"])
+        updated = datetime.fromisoformat(status["updated"])
+    except (KeyError, TypeError, ValueError):
+        pass
     state = status.get("state", "") if updated else "-"
     healthy = state in ("starting", "connected", "waiting")
     if updated:
@@ -135,38 +122,15 @@ def _mail_broker_task():
     }
 
 
-def _mtsig(*args):
-    """run ./mtsig <args> and print what it says"""
+def _not_in_demo():
+    """True, after saying so, in the demo: it would
+    record real broker emails as trades"""
     if config.demo():
-        # it would record real broker emails as trades
         print_error(
             "the mail broker is not in the demo, it "
             "records real broker emails"
         )
-        return
-    action = args[0]
-    if action == "start":
-        # it waits 3s to catch a crash at start
-        print_wrapped("starting the mail broker...")
-    elif action == "stop":
-        # it waits up to 20s for a clean logout
-        print_wrapped("stopping the mail broker...")
-    try:
-        result = subprocess.run(
-            [os.path.join(ROOT_DIR, "mtsig"), *args],
-            capture_output=True,
-            text=True,
-            # its own session, so Ctrl+C or closing the
-            # shell doesn't reach the mail broker
-            start_new_session=True,
-        )
-    except OSError as e:
-        print_error(f"error: can't run ./mtsig: {e}")
-        return
-    for line in result.stdout.splitlines():
-        print_wrapped(line)
-    for line in result.stderr.splitlines():
-        print_error(line)
+    return config.demo()
 
 
 class MailBrokerCommands(Commands):
@@ -176,28 +140,55 @@ class MailBrokerCommands(Commands):
     def run(self, arg):
         """
         run mail-broker [force]
-            start the mail broker (./mtsig start)
-            that records broker order emails as
-            trades; it keeps running when the shell
-            is closed; force takes the background
-            tasks over from the other device, see
-            'help run ladder'
+            start the mail broker that records
+            broker order emails as trades; it keeps
+            running when the shell is closed; force
+            takes the background tasks over from the
+            other device, see 'help run ladder'
         """
         args = [a.lower() for a in arg.split()]
         if args not in ([], ["force"]):
             print_wrapped("usage: run mail-broker [force]")
             return
-        _mtsig("start", *args)
+        if _not_in_demo():
+            return
+        force = args == ["force"]
+        if force and tasks_owner.lost():
+            print_wrapped(
+                "taking over the background tasks from "
+                + tasks_owner.describe(tasks_owner.owner())
+            )
+        # it waits 3s to catch a crash at start
+        print_wrapped("starting the mail broker...")
+        try:
+            pid = mail_broker.start(force)
+        except mail_broker.MailBrokerError as e:
+            print_error(f"error: {e}")
+            if "right after starting" in str(e):
+                log = os.path.relpath(
+                    mail_broker.log_path()
+                )
+                print_wrapped(f"log: {log}")
+            return
+        print_wrapped(f"mail broker started (pid {pid})")
 
     def stop(self, arg):
         """
         stop mail-broker
-            stop the mail broker (./mtsig stop)
+            stop the mail broker, after a clean
+            logout
         """
         if arg.split():
             print_wrapped("usage: stop mail-broker")
             return
-        _mtsig("stop")
+        if _not_in_demo():
+            return
+        # it waits up to 20s for a clean logout
+        print_wrapped("stopping the mail broker...")
+        if mail_broker.stop():
+            print_wrapped("mail broker stopped")
+        else:
+            print_wrapped("mail broker is not running")
 
     def complete(self, action, args):
         return [["force"]] if action == "run" else []

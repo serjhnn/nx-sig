@@ -35,6 +35,8 @@ jobs:
         run: python tests/test_ladder.py
       - name: alerts
         run: python tests/test_alerts.py
+      - name: mail_broker
+        run: python tests/test_mail_broker.py
       - name: notifier
         run: python tests/test_notifier.py
       - name: shell

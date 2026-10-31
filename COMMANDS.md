@@ -189,15 +189,15 @@ stop alerts
 
 ```
 run mail-broker [force]
-    start the mail broker (./mtsig start)
-    that records broker order emails as
-    trades; it keeps running when the shell
-    is closed; force takes the background
-    tasks over from the other device, see
-    'help run ladder'
+    start the mail broker that records
+    broker order emails as trades; it keeps
+    running when the shell is closed; force
+    takes the background tasks over from the
+    other device, see 'help run ladder'
 
 stop mail-broker
-    stop the mail broker (./mtsig stop)
+    stop the mail broker, after a clean
+    logout
 ```
 
 ## web

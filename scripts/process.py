@@ -50,7 +50,7 @@ from storage import (
     alerts_status_get,
     ladder_status_get,
     ladders_get_all,
-    mtsig_pid_get,
+    watcher_status_get,
 )
 
 # how long start() watches for a crash at start
@@ -303,7 +303,7 @@ def tasks_run(
             pid, "ladder_service.py", l["Id"]
         ):
             return True
-    pid = mtsig_pid_get()
+    pid = (watcher_status_get() or {}).get("pid")
     if (
         not watcher_ending
         and pid

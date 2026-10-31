@@ -4,13 +4,13 @@
 #
 # every test runs commands through NxSigShell.onecmd()
 # against a temporary data folder, so the real data is
-# not touched. the prices, Telegram, the ladder and
-# alerts processes and ./mtsig are faked: nothing is
+# not touched. the prices, Telegram, the ladder,
+# alerts and mail broker processes are faked: nothing is
 # started and nothing is sent. every printed line is
 # also checked to fit width().
 #
 # the fakes replace the engines (prices, ladder,
-# subprocess, the .env keys), not names inside the
+# mail_broker, the .env keys), not names inside the
 # shell, so they work wherever the shell code lives.
 #
 # the tests pin down what the commands print, so a
@@ -22,7 +22,6 @@ import io
 import json
 import os
 import re
-import subprocess
 import tempfile
 import threading
 import time
@@ -38,7 +37,7 @@ import paths  # noqa: F401, scripts/ on sys.path
 import chart
 import config
 from engines import alerts, demo, demo_prices, ladder
-from engines import web
+from engines import mail_broker, web
 from engines import prices
 from notifiers import notifier
 import process
@@ -88,8 +87,10 @@ class ShellTest(unittest.TestCase):
         self.feeds = []
         # the ids of the ladders that "run"
         self.running = set()
-        # what ./mtsig was called with
-        self.mtsig_calls = []
+        # the mail broker "runs", and the force of
+        # each mail_broker.start
+        self.broker_running = False
+        self.broker_forced = []
         # [(time, price)] the fake bars request returns,
         # and the requests made
         self.bars = []
@@ -167,7 +168,21 @@ class ShellTest(unittest.TestCase):
                 ),
             ),
             mock.patch.object(
-                subprocess, "run", self._fake_run
+                mail_broker,
+                "start",
+                self._fake_broker_start,
+            ),
+            mock.patch.object(
+                mail_broker, "stop", self._fake_broker_stop
+            ),
+            mock.patch.object(
+                mail_broker,
+                "running_pid",
+                lambda: (
+                    FAKE_PID
+                    if self.broker_running
+                    else None
+                ),
             ),
         ]
         for p in self._patches:
@@ -239,14 +254,26 @@ class ShellTest(unittest.TestCase):
         self.running.discard(ladder_id)
         return was_running
 
-    def _fake_run(self, args, **kwargs):
-        self.mtsig_calls.append(args)
-        return subprocess.CompletedProcess(
-            args,
-            0,
-            stdout=f"mtsig {args[-1]}: ok\n",
-            stderr="",
-        )
+    def _fake_broker_start(self, force=False):
+        self.broker_forced.append(force)
+        if self.broker_running:
+            raise mail_broker.MailBrokerError(
+                "the mail broker already runs (pid "
+                f"{FAKE_PID})"
+            )
+        try:
+            tasks_owner.claim(force)
+        except tasks_owner.OwnerError as e:
+            raise mail_broker.MailBrokerError(
+                str(e)
+            ) from None
+        self.broker_running = True
+        return FAKE_PID
+
+    def _fake_broker_stop(self):
+        was_running = self.broker_running
+        self.broker_running = False
+        return was_running
 
     # ---------------- helpers ----------------
 
@@ -1742,25 +1769,34 @@ class ShellTest(unittest.TestCase):
             self.lines("run mail-broker"),
             [
                 "starting the mail broker...",
-                "mtsig start: ok",
+                f"mail broker started (pid {FAKE_PID})",
+            ],
+        )
+        self.assertEqual(
+            self.lines("run mail-broker"),
+            [
+                "starting the mail broker...",
+                "error: the mail broker already runs "
+                f"(pid {FAKE_PID})",
             ],
         )
         self.assertEqual(
             self.lines("stop mail-broker"),
             [
                 "stopping the mail broker...",
-                "mtsig stop: ok",
+                "mail broker stopped",
             ],
         )
-        mtsig = os.path.join(storage.ROOT_DIR, "mtsig")
+        self.assertEqual(
+            self.lines("stop mail-broker"),
+            [
+                "stopping the mail broker...",
+                "mail broker is not running",
+            ],
+        )
         self.run_cmd("run mail-broker force")
         self.assertEqual(
-            self.mtsig_calls,
-            [
-                [mtsig, "start"],
-                [mtsig, "stop"],
-                [mtsig, "start", "force"],
-            ],
+            self.broker_forced, [False, False, True]
         )
         self.assertEqual(
             self.lines("run mail-broker now"),
@@ -1770,6 +1806,19 @@ class ShellTest(unittest.TestCase):
             self.lines("stop mail-broker now"),
             ["usage: stop mail-broker"],
         )
+
+    def test_mail_broker_fails(self):
+        def crash(force=False):
+            raise mail_broker.MailBrokerError(
+                "the mail broker stopped right after "
+                "starting: LOGIN failed"
+            )
+
+        log = os.path.relpath(mail_broker.log_path())
+        with mock.patch.object(mail_broker, "start", crash):
+            out = self.run_cmd("run mail-broker")
+        self.assertIn("LOGIN failed", out)
+        self.assertIn(log.split(os.sep)[-1], out)
 
     # ---------------- web server ----------------
 
@@ -1870,7 +1919,7 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.lines("stop mail-broker"), refused
         )
-        self.assertEqual(self.mtsig_calls, [])
+        self.assertEqual(self.broker_forced, [])
 
     def test_demo_messages(self):
         def after_command():
@@ -2047,14 +2096,10 @@ class ShellTest(unittest.TestCase):
                 "state": "waiting",
             },
         )
-        # the pid file of ./mtsig start
-        with open(
-            os.path.join(storage.DB_DIR, "mtsig.pid"), "w"
-        ) as f:
-            f.write("777\n")
+        self.broker_running = True
         storage.watcher_status_set(
             {
-                "pid": 777,
+                "pid": FAKE_PID,
                 "started": now.isoformat(),
                 "updated": now.isoformat(),
                 "state": "connected",
@@ -2081,8 +2126,8 @@ class ShellTest(unittest.TestCase):
                 "-" * width(),
                 f" 1  ladder SOXL     {FAKE_PID}  "
                 f"{started}  waiting",
-                f" -  mail-broker      777  {started}  "
-                "connected",
+                f" -  mail-broker     {FAKE_PID}  "
+                f"{started}  connected",
                 f" -  web              888  {started}  "
                 "serving",
             ],
@@ -2099,10 +2144,7 @@ class ShellTest(unittest.TestCase):
         self.run_cmd("add ladder SOXL down 10 from 100 run")
         self.run_cmd("add ladder MUU up 5 from 50 run")
         self.run_cmd("add alert basetrades down 10 percent")
-        with open(
-            os.path.join(storage.DB_DIR, "mtsig.pid"), "w"
-        ) as f:
-            f.write("777\n")
+        self.broker_running = True
         # the web server "runs", web.stop() is faked so
         # nothing is killed
         web_stops = []
@@ -2124,14 +2166,14 @@ class ShellTest(unittest.TestCase):
                 "ladder 2 stopped",
                 "alerts stopped",
                 "stopping the mail broker...",
-                "mtsig stop: ok",
+                "mail broker stopped",
                 "web server stopped",
             ],
         )
         self.assertEqual(web_stops, [1])
         self.assertEqual(self.running, set())
         self.assertFalse(self.alerts_running)
-        self.assertEqual(self.mtsig_calls[-1][-1], "stop")
+        self.assertFalse(self.broker_running)
         for line in ("stop tasks", "stop tasks 1"):
             self.assertEqual(
                 self.lines(line),

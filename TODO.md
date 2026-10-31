@@ -79,9 +79,9 @@ In this order, before metrics and strategy add more:
    - ~~`ladder_cmd.py`: its reads (`ladder_get`,
      `ladders_get_all`, `ladder_status_get`) through
      `ladder.py`~~ (done, `scripts/engines/ladder.py`)
-   - `mail_cmd.py`: `mtsig_pid_get` and
+   - ~~`mail_cmd.py`: `mtsig_pid_get` and
      `watcher_status_get` through a small mail broker
-     function (e.g. in `mtsig/`)
+     function~~ (done, `scripts/engines/mail_broker.py`)
    - `overview_cmd.py`: `config` through the engines
      (the gain alert settings); ~~`start_polling`~~
      (done, `scripts/engines/prices.py`)
@@ -221,8 +221,10 @@ for your own use first. In this order:
     1. ~~the class, with tests~~ (done)
     2. ~~web and demo prices use it~~ (done)
     3. ~~alerts and ladders use it~~ (done)
-    4. a mail broker engine (`engines/`) that the
-       shell uses instead of `./mtsig`
+    4. ~~a mail broker engine (`engines/`) that the
+       shell uses instead of `./mtsig`~~ (done; until
+       step 7 `./mtsig` doesn't see a broker started
+       from the shell, it has no `mtsig.pid`)
     5. a registry, so `tasks_run()` doesn't name
        every task
     6. one shared loop for the polling services
