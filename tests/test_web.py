@@ -9,6 +9,7 @@
 # mock: test_alerts.py turns logging off for the run
 
 import http.client
+import os
 import socket
 import tempfile
 import threading
@@ -164,6 +165,14 @@ class WebProcessTest(unittest.TestCase):
         p = mock.patch.object(target, name, value)
         p.start()
         self.addCleanup(p.stop)
+
+    def test_log_tail(self):
+        self.assertEqual(web.log_tail(), [])
+        path = web.log_path()
+        os.makedirs(os.path.dirname(path))
+        with open(path, "w") as f:
+            f.write("one\ntwo\nthree\n")
+        self.assertEqual(web.log_tail(2), ["two", "three"])
 
     def test_start(self):
         spawned = []

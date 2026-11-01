@@ -42,9 +42,13 @@
 #       termux-wake-lock / termux-wake-unlock
 #   last_line(paths)
 #       the last line of a process output or its log
+#   log_tail(path, count=5)
+#       the last lines of a log, for 'ls mail-broker'
+#       and 'ls web'
 #   setup_logging(path)
 #       log to path and to the console
 
+import collections
 import importlib
 import logging
 import logging.handlers
@@ -437,6 +441,22 @@ def last_line(paths):
         if lines:
             return lines[-1].strip()
     return "no output, see the log"
+
+
+def log_tail(path, count=5):
+    """the last count lines of the log at path (not
+    the rotated ones), [] if there is none"""
+    try:
+        with open(
+            path, encoding="utf-8", errors="replace"
+        ) as f:
+            lines = collections.deque(
+                (l.rstrip() for l in f if l.strip()),
+                maxlen=count,
+            )
+    except OSError:
+        return []
+    return list(lines)
 
 
 def setup_logging(path):

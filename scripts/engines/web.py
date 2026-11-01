@@ -24,6 +24,8 @@
 #       write the heartbeat
 #   log_path()
 #       the log file of the process
+#   log_tail(count=5)
+#       its last lines, for 'ls web'
 
 import logging
 import os
@@ -100,6 +102,12 @@ def _out_path():
 
 def log_path():
     return os.path.join(storage.DB_DIR, "logs", "web.log")
+
+
+def log_tail(count=5):
+    """the last count lines of its log (not the
+    rotated ones), [] if there is none"""
+    return process.log_tail(log_path(), count)
 
 
 def _now():

@@ -29,7 +29,6 @@
 #   log_tail(count=5)
 #       its last lines, for 'ls mail-broker'
 
-import collections
 import logging
 import os
 import shutil
@@ -138,17 +137,7 @@ def log_path():
 def log_tail(count=5):
     """the last count lines of its log (not the
     rotated ones), [] if there is none"""
-    try:
-        with open(
-            log_path(), encoding="utf-8", errors="replace"
-        ) as f:
-            lines = collections.deque(
-                (l.rstrip() for l in f if l.strip()),
-                maxlen=count,
-            )
-    except OSError:
-        return []
-    return list(lines)
+    return process.log_tail(log_path(), count)
 
 
 def _new_enough(path):

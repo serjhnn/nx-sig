@@ -18,6 +18,7 @@ from process import (
     BackgroundTask,
     kill,
     last_line,
+    log_tail,
     process_runs,
 )
 
@@ -93,6 +94,22 @@ class ProcessTest(unittest.TestCase):
                 last_line([empty]),
                 "no output, see the log",
             )
+
+    def test_log_tail(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "a.log")
+            self.assertEqual(log_tail(path), [])
+            with open(path, "w") as f:
+                f.write(
+                    "".join(
+                        f"line {n}\n\n" for n in range(9)
+                    )
+                )
+            self.assertEqual(
+                log_tail(path, 3),
+                ["line 6", "line 7", "line 8"],
+            )
+            self.assertEqual(len(log_tail(path)), 5)
 
 
 class TasksTest(unittest.TestCase):
