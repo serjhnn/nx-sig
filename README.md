@@ -550,8 +550,12 @@ A small web page with the nX-sig logo, as wide as the screen, served by
 `scripts/services/web_service.py` with Python's own `http.server` (no
 packages to install). Open the address in a browser on the same device.
 
-- It serves only `/` (the page) and `/logo.svg`, reads no data and
-  changes nothing; any other path is `404`.
+- It serves only `/` (the page), `/logo.svg`, `/style.css` (the style
+  every page shares, `assets/web/style.css`) and the fonts it uses
+  (`/fonts/`, IBM Plex, bundled so nothing comes from the internet); it
+  reads no data and changes nothing, any other path is `404`.
+- The main page with the live gain/loss comes next, planned in
+  [WEB_PLAN.md](WEB_PLAN.md).
 - `run web` starts it, `stop web` stops it; it keeps running when the shell
   is closed. `status` shows `web: running at http://127.0.0.1:8080/`, and
   `ls tasks` its row (`stop tasks all` stops it too).
@@ -705,10 +709,11 @@ nx-sig/
 ├── .github/workflows/tests.yml
 │                         CI: the tests on every push
 ├── CODE_STYLE.md         code style rules
-├── WEB_XTOP_PLAN.md      the plan of the web xtop page (not started)
+├── WEB_PLAN.md           the plan of the web version (main page)
 ├── CLAUDE.md             notes for Claude Code sessions
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg       the logo (README, the web page)
+├── assets/web/           the web pages' style (style.css) and fonts
 ├── assets/demo-*.svg     the demo pictures of this README
 │                         (scripts/gen_shots.py)
 ├── assets/map-*.png      the module map pictures of this README

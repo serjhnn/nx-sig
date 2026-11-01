@@ -102,6 +102,7 @@ class WebServerTest(unittest.TestCase):
                 "text/html; charset=utf-8",
             )
             self.assertIn(b'<img src="/logo.svg"', body)
+            self.assertIn(b'href="/style.css"', body)
             self.assertIn(b"width=device-width", body)
 
     def test_logo(self):
@@ -118,6 +119,36 @@ class WebServerTest(unittest.TestCase):
             len(body),
         )
 
+    def test_style(self):
+        response, body = self.request("/style.css")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            response.getheader("Content-Type"),
+            "text/css; charset=utf-8",
+        )
+        with open(web_service.STYLE_PATH, "rb") as f:
+            self.assertEqual(body, f.read())
+
+    def test_fonts(self):
+        # every font the style uses is served
+        with open(web_service.STYLE_PATH) as f:
+            style = f.read()
+        names = [
+            n
+            for n in os.listdir(web_service.FONTS_DIR)
+            if n.endswith(".woff2")
+        ]
+        self.assertEqual(len(names), 4)
+        for name in names:
+            self.assertIn(f'url("/fonts/{name}")', style)
+            response, body = self.request(f"/fonts/{name}")
+            self.assertEqual(response.status, 200)
+            self.assertEqual(
+                response.getheader("Content-Type"),
+                "font/woff2",
+            )
+            self.assertEqual(body[:4], b"wOF2")
+
     def test_head(self):
         response, body = self.request("/", "HEAD")
         self.assertEqual(response.status, 200)
@@ -132,6 +163,12 @@ class WebServerTest(unittest.TestCase):
             "/assets/logo.svg",
             "/../config.json",
             "/logo.svg/",
+            "/fonts/",
+            "/fonts/OFL.txt",
+            "/fonts/x.woff2",
+            "/fonts/../style.css",
+            "/fonts/../../../config.json",
+            "/web/style.css",
         ):
             response, _ = self.request(path)
             self.assertEqual(response.status, 404, path)

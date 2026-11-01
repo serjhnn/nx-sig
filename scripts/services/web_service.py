@@ -4,11 +4,14 @@
 #   python scripts/services/web_service.py run
 #       ('run web' in the shell starts it)
 #
-# it serves only two paths, read-only, and touches no
-# data:
-#   /          a page with the logo, as wide as the
-#              screen
-#   /logo.svg  assets/logo.svg
+# it serves only these paths, read-only, and touches
+# no data:
+#   /             a page with the logo, as wide as the
+#                 screen
+#   /logo.svg     assets/logo.svg
+#   /style.css    assets/web/style.css, the style
+#                 every page shares
+#   /fonts/<f>    a .woff2 of assets/web/fonts/
 # anything else is 404, a method other than GET or HEAD
 # 501 (http.server).
 #
@@ -39,7 +42,9 @@ from engines import web
 LOGO_PATH = os.path.join(
     config.ROOT_DIR, "assets", "logo.svg"
 )
-# the logo's own background, so it blends in
+WEB_DIR = os.path.join(config.ROOT_DIR, "assets", "web")
+STYLE_PATH = os.path.join(WEB_DIR, "style.css")
+FONTS_DIR = os.path.join(WEB_DIR, "fonts")
 PAGE = """<!doctype html>
 <html lang="en">
 <head>
@@ -47,12 +52,8 @@ PAGE = """<!doctype html>
 <meta name="viewport"
  content="width=device-width, initial-scale=1">
 <title>nX-sig</title>
+<link rel="stylesheet" href="/style.css">
 <style>
-html, body {
-  margin: 0;
-  height: 100%;
-  background: #0d1117;
-}
 body {
   display: flex;
   align-items: center;
@@ -89,9 +90,14 @@ class Handler(BaseHTTPRequestHandler):
             body = PAGE.encode()
             kind = "text/html; charset=utf-8"
         elif path == "/logo.svg":
-            with open(LOGO_PATH, "rb") as f:
-                body = f.read()
+            body = _read(LOGO_PATH)
             kind = "image/svg+xml"
+        elif path == "/style.css":
+            body = _read(STYLE_PATH)
+            kind = "text/css; charset=utf-8"
+        elif _font(path):
+            body = _read(_font(path))
+            kind = "font/woff2"
         else:
             self.send_error(404)
             return
@@ -108,6 +114,23 @@ class Handler(BaseHTTPRequestHandler):
         log.info(
             "%s %s", self.address_string(), format % args
         )
+
+
+def _read(path):
+    with open(path, "rb") as f:
+        return f.read()
+
+
+def _font(path):
+    """the file of a /fonts/<name>.woff2 path, None
+    if there is none; only the names in FONTS_DIR, so
+    no other file can be asked for"""
+    name = path.removeprefix("/fonts/")
+    if name == path or not name.endswith(".woff2"):
+        return None
+    if name not in os.listdir(FONTS_DIR):
+        return None
+    return os.path.join(FONTS_DIR, name)
 
 
 def make_server(host, port):

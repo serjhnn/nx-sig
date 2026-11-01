@@ -305,9 +305,10 @@ for your own use first. In this order:
   config `web`, 127.0.0.1:8080 by default;
   `engines/web.py`, `services/web_service.py`).
   Still open:
-  - **xtop page**: the live gain/loss in the
-    browser, updated by itself; planned in
-    [WEB_XTOP_PLAN.md](WEB_XTOP_PLAN.md), not
-    started
+  - **main page**: the web `status`, the live
+    gain/loss, the tasks and the last trades,
+    updated by itself; planned in
+    [WEB_PLAN.md](WEB_PLAN.md). Step 1 (the shared
+    style, `/style.css`) is done
   - maybe start it after a phone restart, with the
     ladders (Termux:Boot)
