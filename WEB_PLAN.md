@@ -39,11 +39,10 @@ shared by every page:
   page), `/logo.svg`, `/style.css` and `/fonts/`, on
   `127.0.0.1:8080` by default (config `web` `host`,
   `port`).
-- `status` and `xtop` work out the positions in the
-  shell: `held_positions()` in `shell/ui.py`,
-  `_xtop_rows()` in `shell/overview_cmd.py`. The web
-  service shouldn't import shell code, the logic
-  belongs in `engines/`.
+- `engines/positions.py` works out the held stocks
+  and their gain for `status`, `xtop` and `ls
+  stocks`; the web uses it too (the web service
+  doesn't import shell code).
 - `prices.get_latest_prices()` loads the `.env`
   keys itself and gives the made-up prices in the
   demo.
@@ -88,13 +87,14 @@ opened from another device.
    `assets/web/fonts/`. Served as `/style.css` and
    `/fonts/<file>.woff2` (only the files in that
    folder); the logo page uses it.
-2. **The positions in an engine**:
-   `engines/positions.py` with `held()` and
-   `rows(prices)` plus the total, moved from
+2. ~~**The positions in an engine**~~ (done):
+   `engines/positions.py` with `held()`,
+   `rows(prices)` and `total(rows)`, moved from
    `shell/ui.py` and `shell/overview_cmd.py`.
-   `xtop`, `status` and `ls stocks` use it, their
-   output doesn't change (the existing tests must
-   pass as they are).
+   `xtop`, `status` and `ls stocks` use it, the
+   shell tests pass as they were. `status` now
+   works out the gain like `xtop` (count * (price
+   - avg)), so the two can't differ by a cent.
 3. **The status in an engine**: one function with
    what `status` shows (the positions, the mail
    broker's and the web server's state, the running

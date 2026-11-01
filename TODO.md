@@ -308,7 +308,8 @@ for your own use first. In this order:
   - **main page**: the web `status`, the live
     gain/loss, the tasks and the last trades,
     updated by itself; planned in
-    [WEB_PLAN.md](WEB_PLAN.md). Step 1 (the shared
-    style, `/style.css`) is done
+    [WEB_PLAN.md](WEB_PLAN.md). Steps 1 (the shared
+    style, `/style.css`) and 2 (the positions in
+    `engines/positions.py`) are done
   - maybe start it after a phone restart, with the
     ladders (Termux:Boot)

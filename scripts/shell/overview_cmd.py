@@ -15,6 +15,7 @@ import sys
 from datetime import datetime
 
 import config
+from engines import positions
 from engines.prices import start_polling
 from shell.ui import (
     FEEDS,
@@ -22,12 +23,10 @@ from shell.ui import (
     print_table,
     rule,
     BOLD,
-    BUY_COLOR,
     COUNT_COLOR,
     DIM,
     PRICE_COLOR,
     RESET,
-    SELL_COLOR,
     TOTAL_STOCK_COLOR,
     width,
     space_separator,
@@ -35,7 +34,6 @@ from shell.ui import (
     fetch_prices,
     color_for_gain,
     key_reader,
-    held_positions,
     print_error,
     print_wrapped,
     supports_color,
@@ -67,8 +65,7 @@ class OverviewCmd:
             print_wrapped("usage: status")
             return
 
-        positions = held_positions()
-        if not positions:
+        if not positions.held():
             print_wrapped("no stocks held")
             print_watcher_status()
             print_web_status()
@@ -102,26 +99,17 @@ class OverviewCmd:
                 else separator
             ),
         ]
-        for stock, total_count, avg_price in positions:
-            name = f"{stock.name:<5}"
-            count = f"{total_count:>5}"
-            avg = f"{avg_price:>9.2f}"
+        for row in positions.rows(prices):
+            name = f"{row['stock'].name:<5}"
+            count = f"{row['count']:>5}"
+            avg = f"{row['avg']:>9.2f}"
             price = f"{'-':>8}"
             state = f"{'-':>9}"
             state_color = DIM
-            if stock.name in prices:
-                current = prices[stock.name]
-                gain = (
-                    total_count * current
-                    - total_count * avg_price
-                )
-                price = f"{current:>8.2f}"
-                state = f"{gain:>+9.2f}"
-                state_color = (
-                    BUY_COLOR
-                    if gain > 0
-                    else SELL_COLOR if gain < 0 else DIM
-                )
+            if row["gain"] is not None:
+                price = f"{row['price']:>8.2f}"
+                state = f"{row['gain']:>+9.2f}"
+                state_color = color_for_gain(row["gain"])
             if color:
                 name = (
                     f"{BOLD}{TOTAL_STOCK_COLOR}"
@@ -185,7 +173,7 @@ class OverviewCmd:
                 )
                 return
 
-        if not held_positions():
+        if not positions.held():
             print_wrapped("no stocks held")
             return
 
@@ -265,32 +253,6 @@ class OverviewCmd:
             print()
 
 
-def _xtop_rows(prices):
-    """one dict per held stock: stock, count, avg, price,
-    gain (count * (price - avg)) and pct; price, gain and
-    pct are None without a price"""
-    rows = []
-    # re-read every time: the order watcher may record
-    # a trade while xtop runs
-    for stock, count, avg_price in held_positions():
-        row = {
-            "stock": stock,
-            "count": count,
-            "avg": avg_price,
-            "price": None,
-            "gain": None,
-            "pct": None,
-            "cost": abs(count) * avg_price,
-        }
-        if stock.name in prices:
-            row["price"] = prices[stock.name]
-            row["gain"] = count * (row["price"] - avg_price)
-            if row["cost"]:
-                row["pct"] = row["gain"] / row["cost"] * 100
-        rows.append(row)
-    return rows
-
-
 def _xtop_lines(
     prices, error, updated, interval, color, notes=()
 ):
@@ -319,8 +281,10 @@ def _xtop_lines(
     )
     lines = [column_sep.join(header_cols), separator]
 
-    total_gain = total_cost = 0.0
-    for row in _xtop_rows(prices):
+    # read on every redraw: the mail broker may record
+    # a trade while xtop runs
+    rows = positions.rows(prices)
+    for row in rows:
         name = f"{row['stock'].name:<5}"
         qty = f"{row['count']:>4}"
         avg = f"{row['avg']:>8.2f}"
@@ -334,8 +298,6 @@ def _xtop_lines(
             if row["pct"] is not None:
                 gain_pct = f"{row['pct']:>+7.2f}%"
             gain_color = color_for_gain(row["gain"])
-            total_gain += row["gain"]
-            total_cost += row["cost"]
         if color:
             name = (
                 f"{BOLD}{TOTAL_STOCK_COLOR}"
@@ -353,6 +315,7 @@ def _xtop_lines(
         )
 
     lines.append(separator)
+    total_gain, total_cost, _ = positions.total(rows)
     lines.append(
         _xtop_total_line(total_gain, total_cost, color)
     )

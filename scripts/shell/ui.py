@@ -52,7 +52,7 @@
 #                      the last lines of a log, under
 #                      'log (<path>):'
 #   complete_options(text, line, options_per_position)
-#   fetch_prices(), held_positions(), color_for_gain(gain)
+#   fetch_prices(), color_for_gain(gain)
 
 import contextlib
 import os
@@ -72,7 +72,6 @@ from config import (
     theme_setting,
     width_setting,
 )
-from engines import trades
 from storage import Stock, TradeType
 from engines.prices import get_latest_prices
 
@@ -452,15 +451,6 @@ def fetch_prices(feed=None):
     except Exception as e:  # network or API errors
         print_error(f"error: can't get current prices: {e}")
     return {}
-
-
-def held_positions():
-    """(stock, count, average buy price) of every stock
-    whose count is not 0"""
-    positions = [
-        (stock, *trades.total(stock)) for stock in Stock
-    ]
-    return [p for p in positions if p[1] != 0]
 
 
 def color_for_gain(gain):

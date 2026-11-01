@@ -5,6 +5,7 @@
 # StocksCommands implements it for the verb commands of
 # commands.py
 
+from engines import positions
 from shell.interface import Commands
 from shell.ui import (
     print_table,
@@ -18,7 +19,6 @@ from shell.ui import (
     column_separator,
     fetch_prices,
     color_for_gain,
-    held_positions,
     parse_stock,
     print_wrapped,
     supports_color,
@@ -55,7 +55,7 @@ class StocksCommands(Commands):
         self._totals_all()
 
     def _totals_all(self):
-        totals = held_positions()
+        totals = positions.held()
         if not totals:
             print_wrapped("no stocks held")
             return
