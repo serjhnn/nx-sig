@@ -208,6 +208,11 @@ stop mail-broker
 ## web
 
 ```
+ls web
+    whether the web server runs, its address
+    and who can open it, its state and the
+    last lines of its log
+
 run web
     start the web server that shows the
     nX-sig logo, at config "web" "host" and

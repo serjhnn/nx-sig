@@ -9,7 +9,6 @@
 # not in the demo (./nxdemo)
 
 import os
-import re
 from datetime import datetime
 
 import config
@@ -18,7 +17,9 @@ from engines import mail_broker
 from shell.interface import Commands
 from shell.ui import (
     print_error,
+    print_log_tail,
     print_wrapped,
+    short_time,
 )
 
 # order_watcher.py writes a heartbeat at least every 9
@@ -29,12 +30,6 @@ WATCHER_STALE_SECONDS = 15 * 60
 WATCHER_ERROR_DAYS = 7
 # the log lines 'ls mail-broker' shows
 LOG_LINES = 5
-# '2026-10-31 14:29:40,612 INFO    name: text' of
-# process.setup_logging, shown as '14:29:40 INFO
-# name: text'
-_LOG_LINE = re.compile(
-    r"\d{4}-\d\d-\d\d (\d\d:\d\d:\d\d),\d+ +(\w+) +(.*)"
-)
 
 
 def print_watcher_status():
@@ -132,23 +127,6 @@ def _mail_broker_task():
     }
 
 
-def _when(text):
-    """'31.10 14:29' of an ISO time, '-' if none"""
-    try:
-        return f"{datetime.fromisoformat(text):%d.%m %H:%M}"
-    except (TypeError, ValueError):
-        return "-"
-
-
-def _log_line(line):
-    """a log line without its date and milliseconds,
-    so it fits the screen better"""
-    match = _LOG_LINE.fullmatch(line)
-    if not match:
-        return line
-    return " ".join(match.groups())
-
-
 def _not_in_demo():
     """True, after saying so, in the demo: it would
     record real broker emails as trades"""
@@ -186,29 +164,26 @@ class MailBrokerCommands(Commands):
         )
         status = mail_broker.status() or {}
         if status.get("state"):
+            updated = short_time(status.get("updated"))
+            started = short_time(status.get("started"))
             print_wrapped(
-                f"state: {status['state']}, "
-                f"{_when(status.get('updated'))}"
+                f"state: {status['state']}, {updated}"
             )
-            print_wrapped(
-                f"started: {_when(status.get('started'))}"
-            )
+            print_wrapped(f"started: {started}")
         if status.get("last_order"):
             print_wrapped(
                 f"last order: {status['last_order']}"
             )
         error = status.get("last_error") or {}
         if error.get("text"):
+            when = short_time(error.get("time"))
             print_error(
-                f"last error {_when(error.get('time'))}: "
-                f"{error['text']}"
+                f"last error {when}: {error['text']}"
             )
-        lines = mail_broker.log_tail(LOG_LINES)
-        if lines:
-            log = os.path.relpath(mail_broker.log_path())
-            print_wrapped(f"log ({log}):")
-            for line in lines:
-                print_wrapped(f"  {_log_line(line)}")
+        print_log_tail(
+            mail_broker.log_path(),
+            mail_broker.log_tail(LOG_LINES),
+        )
 
     def run(self, arg):
         """

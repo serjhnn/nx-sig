@@ -47,6 +47,10 @@
 #   parse_keywords(args, keywords)
 #                       {keyword: value} of 'count 10 ...'
 #   short_date(value)
+#   short_time(text)   '31.10 14:29' of an ISO time
+#   print_log_tail(path, lines)
+#                      the last lines of a log, under
+#                      'log (<path>):'
 #   complete_options(text, line, options_per_position)
 #   fetch_prices(), held_positions(), color_for_gain(gain)
 
@@ -57,6 +61,7 @@ import select
 import shutil
 import sys
 import textwrap
+from datetime import datetime
 
 from config import (
     DEFAULT_THEME,
@@ -342,6 +347,36 @@ def short_date(value):
         if len(value) == 10
         else value
     )
+
+
+def short_time(text):
+    """'31.10 14:29' of an ISO time, '-' if none"""
+    try:
+        return f"{datetime.fromisoformat(text):%d.%m %H:%M}"
+    except (TypeError, ValueError):
+        return "-"
+
+
+# '2026-10-31 14:29:40,612 INFO    name: text' of
+# process.setup_logging, shown as '14:29:40 INFO
+# name: text'
+_LOG_LINE = re.compile(
+    r"\d{4}-\d\d-\d\d (\d\d:\d\d:\d\d),\d+ +(\w+) +(.*)"
+)
+
+
+def print_log_tail(path, lines):
+    """print 'log (<path>):' and lines, without their
+    date and milliseconds so they fit the screen
+    better; nothing if there are no lines"""
+    if not lines:
+        return
+    print_wrapped(f"log ({os.path.relpath(path)}):")
+    for line in lines:
+        match = _LOG_LINE.fullmatch(line)
+        if match:
+            line = " ".join(match.groups())
+        print_wrapped(f"  {line}")
 
 
 def parse_id(text):

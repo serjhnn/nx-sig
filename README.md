@@ -306,7 +306,7 @@ every background task on this device.
 | `basetrade` | `ls`, `add`, `rm` | `add basetrade MRVU price 100 count 10`, `add basetrade SOXL` or `all` (from the trades, see below) |
 | `alert` | `ls`, `add`, `rm`, `run`, `stop` | `add alert basetrades down 10 percent` |
 | `mail-broker` | `ls`, `run`, `stop` | `run mail-broker`, `ls mail-broker`: its state, last order and error, last log lines |
-| `web` | `run`, `stop` | `run web`: the web page with the logo, see below |
+| `web` | `ls`, `run`, `stop` | `run web`: the web page with the logo, `ls web`: its address, state and last log lines, see below |
 | `tasks` | `ls`, `stop` | `ls tasks`: running background tasks, `stop tasks all` stops them |
 
 And the commands of their own: `status` (positions with gain/loss, the
@@ -555,6 +555,9 @@ packages to install). Open the address in a browser on the same device.
 - `run web` starts it, `stop web` stops it; it keeps running when the shell
   is closed. `status` shows `web: running at http://127.0.0.1:8080/`, and
   `ls tasks` its row (`stop tasks all` stops it too).
+- `ls web` shows whether it runs, its address (default or config `web`),
+  who can open it (only this device, or the network for `0.0.0.0`), its
+  state and start time and the last lines of its log.
 - It listens on `127.0.0.1:8080`, so only this device can open it; config
   `web` changes the address and the port (see above). If the port is
   taken, `run web` says so.
@@ -751,7 +754,7 @@ nx-sig/
     │   ├── alert_cmd.py      alerts (the shell side)
     │   ├── ladder_cmd.py     ladders (the shell side)
     │   ├── mail_cmd.py       run, stop, ls mail-broker
-    │   ├── web_cmd.py        run web, stop web
+    │   ├── web_cmd.py        run web, stop web, ls web
     │   ├── tasks_cmd.py      ls tasks
     │   ├── overview_cmd.py   status, xtop
     │   ├── chart_cmd.py      chart

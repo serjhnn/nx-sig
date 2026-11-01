@@ -301,7 +301,7 @@ for your own use first. In this order:
   `delayed_sip` or `iex` feed, as `ls basetrades`
   does)
 - ~~**Web server with the logo**~~ (done: `run web`,
-  `stop web`, a page with `assets/logo.svg` at
+  `stop web`, `ls web`, a page with `assets/logo.svg` at
   config `web`, 127.0.0.1:8080 by default;
   `engines/web.py`, `services/web_service.py`).
   Still open:

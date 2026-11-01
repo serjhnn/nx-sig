@@ -1943,9 +1943,83 @@ class ShellTest(unittest.TestCase):
         self.assertEqual(
             self.lines("stop web now"), ["usage: stop web"]
         )
+
+    def test_ls_web(self):
+        running = []
+        for name, value in (
+            ("running_pid", lambda: running and 9),
+        ):
+            p = mock.patch.object(web, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+        local = mock.patch.dict(config.DATA, {}, clear=True)
+        local.start()
+        self.addCleanup(local.stop)
         self.assertEqual(
             self.lines("ls web"),
-            ["web has no ls, it has run/stop"],
+            [
+                "web server: not running, see 'run web'",
+                "address: http://127.0.0.1:8080/ (default)",
+                "open from: only this device",
+            ],
+        )
+        running.append(9)
+        storage.web_status_set(
+            {
+                "pid": 9,
+                "started": "2026-11-01T13:55:00",
+                "updated": "2026-11-01T14:02:00",
+                "state": "serving",
+            }
+        )
+        path = web.log_path()
+        os.makedirs(os.path.dirname(path))
+        with open(path, "w") as f:
+            for n in range(7):
+                f.write(
+                    "2026-11-01 14:02:0"
+                    f"{n},123 INFO    web: GET / {n}\n"
+                )
+        out = self.lines("ls web")
+        self.assertEqual(
+            out[:5],
+            [
+                "web server: running (pid 9)",
+                "address: http://127.0.0.1:8080/ (default)",
+                "open from: only this device",
+                "state: serving, 01.11 14:02",
+                "started: 01.11 13:55",
+            ],
+        )
+        log = os.path.relpath(path)
+        # the log path may be wrapped
+        self.assertEqual(
+            "".join(out[5:-5]).replace(" ", ""),
+            f"log({log}):".replace(" ", ""),
+        )
+        self.assertEqual(
+            out[-5:],
+            [
+                f"  14:02:0{n} INFO web: GET / {n}"
+                for n in range(2, 7)
+            ],
+        )
+        config.DATA["web"] = {"host": "0.0.0.0", "port": 81}
+        self.assertEqual(
+            self.lines("ls web")[1:3],
+            [
+                "address: http://127.0.0.1:81/ "
+                '(config "web")',
+                "open from: this device and the network",
+            ],
+        )
+        config.DATA["web"] = {"host": "192.168.1.5"}
+        self.assertEqual(
+            self.lines("ls web")[2],
+            "open from: devices that reach 192.168.1.5",
+        )
+        self.assertEqual(
+            self.lines("ls web now"), ["usage: ls web"]
         )
 
     # ---------------- the demo ----------------
@@ -2306,7 +2380,7 @@ class ShellTest(unittest.TestCase):
             [
                 "ls: stocks, trades, ladders, rules, "
                 "basetrades,",
-                "  alerts, mail-broker, tasks",
+                "  alerts, mail-broker, web, tasks",
             ],
         )
         self.assertEqual(
@@ -3227,7 +3301,7 @@ class ShellTest(unittest.TestCase):
             {
                 "ls": ["stocks"]
                 + data
-                + ["mail-broker", "task"],
+                + ["mail-broker", "web", "task"],
                 "add": data,
                 "rm": data,
                 "run": tasks + ["web"],
@@ -3254,6 +3328,7 @@ class ShellTest(unittest.TestCase):
                 "basetrades",
                 "alerts",
                 "mail-broker",
+                "web",
                 "tasks",
             ],
         )

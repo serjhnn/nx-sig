@@ -261,7 +261,7 @@ const MODS = {
   "shell/terminal_cmd": ["shell", "The terminal the shell runs in", ["config", "shell/ui", "tasks_owner"], []],
   "shell/trade_cmd": ["shell", "The trades, your buys and sells", ["engines/trades", "shell/interface", "shell/ui"], []],
   "shell/ui": ["shell", "The look of the shell and the helpers every command module shares", ["config", "engines/prices", "engines/trades", "storage"], []],
-  "shell/web_cmd": ["shell", "The shell side of the web server, the engine is engines/web.py", ["engines/web", "shell/interface", "shell/ui"], []],
+  "shell/web_cmd": ["shell", "The shell side of the web server, the engine is engines/web.py", ["config", "engines/web", "shell/interface", "shell/ui"], []],
   "mtsig/mail_reader": ["mtsig", "Fetch and watch messages in an IMAP mailbox", [], []],
   "mtsig/order_parser": ["mtsig", "Parse broker order emails", [], []],
   "mtsig/order_watcher": ["mtsig", "Records broker order emails as trades", ["config", "engines/mail_broker", "engines/trades", "mtsig/mail_reader", "mtsig/order_parser", "process", "storage", "tasks_owner"], []],
