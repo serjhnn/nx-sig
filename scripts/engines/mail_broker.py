@@ -28,6 +28,14 @@
 #       the log file of the process
 #   log_tail(count=5)
 #       its last lines, for 'ls mail-broker'
+#   summary()
+#       its state for 'status' and the web page
+#   task()
+#       its task row, None if it isn't running
+#
+# a task row (the 'ls tasks' row, the web's task
+# list) is {"id", "task", "pid", "started", "state",
+# "healthy"}, started a datetime or None
 
 import logging
 import os
@@ -51,6 +59,12 @@ _NEEDS_CHECK = (
 # the IMAP login takes a moment, and the logout at
 # stop up to 20s
 START_CHECK_SECONDS = 3
+# order_watcher.py writes a heartbeat at least every 9
+# minutes (IMAP IDLE renewal)
+STALE_SECONDS = 15 * 60
+# an order it could not record stays in 'status' this
+# long
+ERROR_DAYS = 7
 STOP_WAIT_SECONDS = 20
 
 log = logging.getLogger("mail_broker")
@@ -138,6 +152,118 @@ def log_tail(count=5):
     """the last count lines of its log (not the
     rotated ones), [] if there is none"""
     return process.log_tail(log_path(), count)
+
+
+def summary():
+    """its state for 'status' and the web page:
+    {"state", "updated", "last_order", "error", "log"}
+
+    state is "demo" (it never runs in the demo), "not
+    started", "unknown" (a bad heartbeat), "stopped",
+    "no reply" (no heartbeat for STALE_SECONDS),
+    "running" or the heartbeat's own (e.g.
+    "crashed"); updated the heartbeat's datetime;
+    error {"time", "text"} of an order it could not
+    record in the last ERROR_DAYS; log its log file
+    when it is worth a look (an error, a crash, no
+    reply); each None when there is none"""
+    result = {
+        "state": "demo",
+        "updated": None,
+        "last_order": None,
+        "error": None,
+        "log": None,
+    }
+    if config.demo():
+        return result
+    heartbeat = status()
+    if not heartbeat or not heartbeat.get("updated"):
+        result["state"] = "not started"
+        return result
+    try:
+        updated = datetime.fromisoformat(
+            heartbeat["updated"]
+        )
+    except ValueError:
+        result["state"] = "unknown"
+        return result
+
+    raw = heartbeat.get("state", "")
+    age = (datetime.now() - updated).total_seconds()
+    if raw == "stopped":
+        state = "stopped"
+    elif age > STALE_SECONDS:
+        state = "no reply"
+    elif raw in ("starting", "connected", "waiting"):
+        state = "running"
+    else:
+        state = raw
+    result.update(
+        state=state,
+        updated=updated,
+        last_order=heartbeat.get("last_order") or None,
+    )
+    error = _recent_error(heartbeat)
+    result["error"] = error
+    if heartbeat.get("log") and (
+        error
+        or raw.startswith("crashed")
+        or age > STALE_SECONDS
+    ):
+        result["log"] = heartbeat["log"]
+    return result
+
+
+def _recent_error(heartbeat):
+    """{"time", "text"} of its last error if it is
+    newer than ERROR_DAYS, else None"""
+    error = heartbeat.get("last_error") or {}
+    try:
+        time = (
+            datetime.fromisoformat(error["time"])
+            if error.get("time")
+            else None
+        )
+    except ValueError:
+        time = None
+    if not time:
+        return None
+    if (datetime.now() - time).days >= ERROR_DAYS:
+        return None
+    return {"time": time, "text": error.get("text", "")}
+
+
+def task():
+    """the task row of the mail broker, None if it
+    isn't running"""
+    pid = running_pid()
+    if pid is None:
+        return None
+    heartbeat = status() or {}
+    started = updated = None
+    try:
+        started = datetime.fromisoformat(
+            heartbeat["started"]
+        )
+        updated = datetime.fromisoformat(
+            heartbeat["updated"]
+        )
+    except (KeyError, TypeError, ValueError):
+        pass
+    state = heartbeat.get("state", "") if updated else "-"
+    healthy = state in ("starting", "connected", "waiting")
+    if updated:
+        age = (datetime.now() - updated).total_seconds()
+        if age > STALE_SECONDS:
+            state, healthy = "no reply", False
+    return {
+        "id": "-",
+        "task": "mail-broker",
+        "pid": pid,
+        "started": started,
+        "state": state,
+        "healthy": healthy,
+    }
 
 
 def _new_enough(path):

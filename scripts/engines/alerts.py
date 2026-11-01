@@ -69,6 +69,12 @@
 #       write the heartbeat that 'ls tasks' shows
 #   log_path()
 #       the log file of the process
+#   task()
+#       its task row, None if it isn't running
+#
+# a task row (the 'ls tasks' row, the web's task
+# list) is {"id", "task", "pid", "started", "state",
+# "healthy"}, started a datetime or None
 
 import logging
 import os
@@ -381,6 +387,39 @@ def log_path():
     return os.path.join(
         storage.DB_DIR, "logs", "alerts.log"
     )
+
+
+def task():
+    """the task row of the alerts process, None if it
+    isn't running"""
+    pid = running_pid()
+    if not pid:
+        return None
+    heartbeat = status() or {}
+    started = _time(heartbeat, "started")
+    updated = _time(heartbeat, "updated")
+    state = heartbeat.get("state") or "-"
+    healthy = state in ("starting", "waiting")
+    if updated:
+        age = (datetime.now() - updated).total_seconds()
+        if age > STALE_SECONDS:
+            state, healthy = "no reply", False
+    return {
+        "id": "-",
+        "task": "alerts",
+        "pid": pid,
+        "started": started,
+        "state": state,
+        "healthy": healthy,
+    }
+
+
+def _time(heartbeat, key):
+    """the time heartbeat[key], or None"""
+    try:
+        return datetime.fromisoformat(heartbeat[key])
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def _now():

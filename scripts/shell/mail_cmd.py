@@ -9,7 +9,6 @@
 # not in the demo (./nxdemo)
 
 import os
-from datetime import datetime
 
 import config
 import tasks_owner
@@ -22,109 +21,52 @@ from shell.ui import (
     short_time,
 )
 
-# order_watcher.py writes a heartbeat at least every 9
-# minutes (IMAP IDLE renewal)
-WATCHER_STALE_SECONDS = 15 * 60
-# an order the mail broker could not record stays visible in
-# 'status' this long
-WATCHER_ERROR_DAYS = 7
 # the log lines 'ls mail-broker' shows
 LOG_LINES = 5
 
 
 def print_watcher_status():
-    """print one line about order_watcher.py from its
-    heartbeat file"""
-    if config.demo():
+    """print the line about the mail broker in
+    'status', and its recent error and log"""
+    info = mail_broker.summary()
+    state, updated = info["state"], info["updated"]
+    if state == "demo":
         print_wrapped("mail broker: not in the demo")
         return
-    status = mail_broker.status()
-    if not status or not status.get("updated"):
+    if state == "not started":
         print_wrapped("mail broker: not started")
         return
-    try:
-        updated = datetime.fromisoformat(status["updated"])
-    except ValueError:
+    if state == "unknown":
         print_wrapped("mail broker: unknown state")
         return
-
-    state = status.get("state", "")
-    age = (datetime.now() - updated).total_seconds()
     if state == "stopped":
         line = f"mail broker: stopped {updated:%d.%m %H:%M}"
-    elif age > WATCHER_STALE_SECONDS:
+    elif state == "no reply":
         line = (
             "mail broker: not responding, last seen "
             f"{updated:%d.%m %H:%M}"
         )
-    elif state in ("starting", "connected", "waiting"):
+    elif state == "running":
         line = (
             "mail broker: running, checked "
             f"{updated:%H:%M}"
         )
     else:
         line = f"mail broker: {state}, {updated:%H:%M}"
-    if status.get("last_order"):
-        line += f", last order {status['last_order']}"
+    if info["last_order"]:
+        line += f", last order {info['last_order']}"
     print_wrapped(line)
-
-    error = status.get("last_error") or {}
-    try:
-        error_time = (
-            datetime.fromisoformat(error["time"])
-            if error.get("time")
-            else None
-        )
-    except ValueError:
-        error_time = None
-    recent_error = (
-        error_time
-        and (datetime.now() - error_time).days
-        < WATCHER_ERROR_DAYS
-    )
-    if recent_error:
+    error = info["error"]
+    if error:
         print_error(
             "mail broker error "
-            f"{error_time:%d.%m %H:%M}: "
-            f"{error.get('text', '')}"
+            f"{error['time']:%d.%m %H:%M}: "
+            f"{error['text']}"
         )
-    if status.get("log") and (
-        recent_error
-        or state.startswith("crashed")
-        or age > WATCHER_STALE_SECONDS
-    ):
+    if info["log"]:
         print_wrapped(
-            f"log: {os.path.relpath(status['log'])}"
+            f"log: {os.path.relpath(info['log'])}"
         )
-
-
-def _mail_broker_task():
-    """the 'ls tasks' row of the mail broker, or None
-    if it isn't running"""
-    pid = mail_broker.running_pid()
-    if pid is None:
-        return None
-    status = mail_broker.status() or {}
-    started = updated = None
-    try:
-        started = datetime.fromisoformat(status["started"])
-        updated = datetime.fromisoformat(status["updated"])
-    except (KeyError, TypeError, ValueError):
-        pass
-    state = status.get("state", "") if updated else "-"
-    healthy = state in ("starting", "connected", "waiting")
-    if updated:
-        age = (datetime.now() - updated).total_seconds()
-        if age > WATCHER_STALE_SECONDS:
-            state, healthy = "no reply", False
-    return {
-        "id": "-",
-        "task": "mail-broker",
-        "pid": pid,
-        "started": started,
-        "state": state,
-        "healthy": healthy,
-    }
 
 
 def _not_in_demo():
@@ -242,5 +184,5 @@ class MailBrokerCommands(Commands):
         return [["force"]] if action == "run" else []
 
     def tasks(self):
-        task = _mail_broker_task()
+        task = mail_broker.task()
         return [task] if task else []

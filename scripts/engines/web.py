@@ -26,6 +26,12 @@
 #       the log file of the process
 #   log_tail(count=5)
 #       its last lines, for 'ls web'
+#   task()
+#       its task row, None if it isn't running
+#
+# a task row (the 'ls tasks' row, the web's task
+# list) is {"id", "task", "pid", "started", "state",
+# "healthy"}, started a datetime or None
 
 import logging
 import os
@@ -108,6 +114,30 @@ def log_tail(count=5):
     """the last count lines of its log (not the
     rotated ones), [] if there is none"""
     return process.log_tail(log_path(), count)
+
+
+def task():
+    """the task row of the web server, None if it
+    isn't running"""
+    pid = running_pid()
+    if not pid:
+        return None
+    heartbeat = status() or {}
+    try:
+        started = datetime.fromisoformat(
+            heartbeat["started"]
+        )
+    except (KeyError, TypeError, ValueError):
+        started = None
+    state = heartbeat.get("state") or "-"
+    return {
+        "id": "-",
+        "task": "web",
+        "pid": pid,
+        "started": started,
+        "state": state,
+        "healthy": state in ("starting", "serving"),
+    }
 
 
 def _now():

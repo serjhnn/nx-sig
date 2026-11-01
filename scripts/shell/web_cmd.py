@@ -8,7 +8,6 @@
 # 'ls tasks'. print_web_status() is the 'web:' line of
 # 'status'
 
-from datetime import datetime
 
 import config
 from engines import web
@@ -105,30 +104,8 @@ class WebCommands(Commands):
             print_wrapped("the web server isn't running")
 
     def tasks(self):
-        task = _web_task()
+        task = web.task()
         return [task] if task else []
-
-
-def _web_task():
-    """the 'ls tasks' row of the web server, or None
-    if it isn't running"""
-    pid = web.running_pid()
-    if not pid:
-        return None
-    status = web.status() or {}
-    try:
-        started = datetime.fromisoformat(status["started"])
-    except (KeyError, TypeError, ValueError):
-        started = None
-    state = status.get("state") or "-"
-    return {
-        "id": "-",
-        "task": "web",
-        "pid": pid,
-        "started": started,
-        "state": state,
-        "healthy": state in ("starting", "serving"),
-    }
 
 
 def _reach():

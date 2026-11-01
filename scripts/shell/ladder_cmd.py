@@ -11,7 +11,6 @@
 # of commands.py; its tasks() are the ladders' rows in
 # 'ls tasks'
 
-from datetime import datetime
 
 from notifiers import notifier
 import tasks_owner
@@ -209,8 +208,7 @@ class LadderCommands(Commands):
         return []
 
     def tasks(self):
-        tasks = [_ladder_task(l) for l in ladder.get_all()]
-        return [t for t in tasks if t]
+        return ladder.tasks()
 
     def _save(self, args):
         """check and save a new ladder from its stock,
@@ -274,35 +272,6 @@ class LadderCommands(Commands):
             if running is None
             or bool(ladder.running_pid(l["Id"])) == running
         ]
-
-
-def _ladder_task(saved):
-    """the 'ls tasks' row of a ladder, or None if it
-    isn't running"""
-    pid = ladder.running_pid(saved["Id"])
-    if not pid:
-        return None
-    status = ladder.status(saved["Id"]) or {}
-    started = updated = None
-    try:
-        started = datetime.fromisoformat(status["started"])
-        updated = datetime.fromisoformat(status["updated"])
-    except (KeyError, TypeError, ValueError):
-        pass
-    state = status.get("state") or "-"
-    healthy = state in ("starting", "waiting")
-    if updated:
-        age = (datetime.now() - updated).total_seconds()
-        if age > ladder.STALE_SECONDS:
-            state, healthy = "no reply", False
-    return {
-        "id": saved["Id"],
-        "task": f"ladder {saved['Stock']}",
-        "pid": pid,
-        "started": started,
-        "state": state,
-        "healthy": healthy,
-    }
 
 
 def _print_ladders(ladders):

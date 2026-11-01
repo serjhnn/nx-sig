@@ -95,11 +95,18 @@ opened from another device.
    shell tests pass as they were. `status` now
    works out the gain like `xtop` (count * (price
    - avg)), so the two can't differ by a cent.
-3. **The status in an engine**: one function with
-   what `status` shows (the positions, the mail
-   broker's and the web server's state, the running
-   ladders and alerts) and the last trades, for the
-   shell and the web.
+3. ~~**The status in an engine**~~ (done):
+   `engines/overview.py`, `status(prices)` with the
+   positions and their total, the running tasks, the
+   mail broker's state, the device that runs the
+   background tasks and the last trades;
+   `tasks()` and `last_trades()`. The task rows of
+   'ls tasks' moved from the shell into their
+   engines (`ladder.tasks()`, `alerts.task()`,
+   `mail_broker.task()`, `web.task()`), and the mail
+   broker's line in 'status' into
+   `mail_broker.summary()`. The shell prints the
+   same as before.
 4. **The price cache in the web service**: a thread
    with `prices.get_latest_prices()`, running only
    while a page is watched. A missing key or a

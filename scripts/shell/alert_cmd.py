@@ -270,7 +270,7 @@ class AlertCommands(Commands):
         return []
 
     def tasks(self):
-        task = _alerts_task()
+        task = alerts.task()
         return [task] if task else []
 
     def _start(self, force=False):
@@ -416,33 +416,6 @@ def _time(status, key):
         return datetime.fromisoformat(status[key])
     except (KeyError, TypeError, ValueError):
         return None
-
-
-def _alerts_task():
-    """the 'ls tasks' row of the alerts process, or
-    None if it isn't running"""
-    pid = alerts.running_pid()
-    if not pid:
-        return None
-    status = alerts.status() or {}
-    started, updated = (
-        _time(status, "started"),
-        _time(status, "updated"),
-    )
-    state = status.get("state") or "-"
-    healthy = state in ("starting", "waiting")
-    if updated:
-        age = (datetime.now() - updated).total_seconds()
-        if age > alerts.STALE_SECONDS:
-            state, healthy = "no reply", False
-    return {
-        "id": "-",
-        "task": "alerts",
-        "pid": pid,
-        "started": started,
-        "state": state,
-        "healthy": healthy,
-    }
 
 
 def _print_alerts(saved):

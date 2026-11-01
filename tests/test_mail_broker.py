@@ -9,6 +9,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from unittest import mock
 
 import paths  # noqa: F401, scripts/ on sys.path
@@ -159,6 +160,133 @@ class MailBrokerTest(unittest.TestCase):
                 ending=(mail_broker.TASK, None)
             )
         )
+
+
+class SummaryTest(unittest.TestCase):
+    """mail_broker.summary() and task(): what 'status',
+    'ls tasks' and the web page show"""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        for target, name, value in (
+            (storage, "DB_DIR", tmp.name),
+            (config, "DEMO", False),
+        ):
+            p = mock.patch.object(target, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+        self.now = datetime.now().replace(microsecond=0)
+
+    def beat(self, ago=0, **values):
+        updated = self.now - timedelta(seconds=ago)
+        heartbeat = {
+            "pid": 7,
+            "started": self.now.isoformat(),
+            "updated": updated.isoformat(),
+            "log": "/x/mtsig.log",
+        }
+        heartbeat.update(values)
+        storage.watcher_status_set(heartbeat)
+
+    def test_demo(self):
+        with mock.patch.object(config, "DEMO", True):
+            self.assertEqual(
+                mail_broker.summary()["state"], "demo"
+            )
+
+    def test_not_started_and_unknown(self):
+        self.assertEqual(
+            mail_broker.summary()["state"], "not started"
+        )
+        storage.watcher_status_set({"updated": "x"})
+        self.assertEqual(
+            mail_broker.summary()["state"], "unknown"
+        )
+
+    def test_states(self):
+        stale = mail_broker.STALE_SECONDS + 1
+        for raw, ago, state in (
+            ("connected", 0, "running"),
+            ("waiting", 0, "running"),
+            ("stopped", stale, "stopped"),
+            ("connected", stale, "no reply"),
+            ("crashed: no key", 0, "crashed: no key"),
+        ):
+            self.beat(ago, state=raw)
+            info = mail_broker.summary()
+            self.assertEqual(info["state"], state, raw)
+            self.assertEqual(
+                info["updated"],
+                self.now - timedelta(seconds=ago),
+            )
+            # the log only when it is worth a look: a
+            # crash or an old heartbeat
+            worth = ago or raw.startswith("crashed")
+            self.assertEqual(
+                info["log"],
+                "/x/mtsig.log" if worth else None,
+                raw,
+            )
+
+    def test_last_order_and_error(self):
+        old = self.now - timedelta(
+            days=mail_broker.ERROR_DAYS
+        )
+        self.beat(
+            state="waiting",
+            last_order="BUY 10 SOXL",
+            last_error={
+                "time": old.isoformat(),
+                "text": "old",
+            },
+        )
+        info = mail_broker.summary()
+        self.assertEqual(info["last_order"], "BUY 10 SOXL")
+        self.assertIsNone(info["error"])
+        self.assertIsNone(info["log"])
+        self.beat(
+            state="waiting",
+            last_error={
+                "time": self.now.isoformat(),
+                "text": "can't parse",
+            },
+        )
+        info = mail_broker.summary()
+        self.assertEqual(
+            info["error"],
+            {"time": self.now, "text": "can't parse"},
+        )
+        self.assertEqual(info["log"], "/x/mtsig.log")
+
+    def test_task(self):
+        with mock.patch.object(
+            mail_broker, "running_pid", lambda: None
+        ):
+            self.assertIsNone(mail_broker.task())
+        self.beat(state="connected")
+        with mock.patch.object(
+            mail_broker, "running_pid", lambda: 7
+        ):
+            row = mail_broker.task()
+            self.assertEqual(
+                row,
+                {
+                    "id": "-",
+                    "task": "mail-broker",
+                    "pid": 7,
+                    "started": self.now,
+                    "state": "connected",
+                    "healthy": True,
+                },
+            )
+            self.beat(
+                mail_broker.STALE_SECONDS + 1,
+                state="connected",
+            )
+            row = mail_broker.task()
+            self.assertEqual(row["state"], "no reply")
+            self.assertFalse(row["healthy"])
 
 
 class FindPythonTest(unittest.TestCase):

@@ -41,6 +41,12 @@
 #       write the heartbeat that 'ls tasks' shows
 #   log_path(ladder_id)
 #       the log file of its process
+#   tasks()
+#       the task rows of the running ladders
+#
+# a task row (the 'ls tasks' row, the web's task
+# list) is {"id", "task", "pid", "started", "state",
+# "healthy"}, started a datetime or None
 #
 # the process is TASK, a process.BackgroundTask
 
@@ -184,6 +190,45 @@ def remove(ladder_id):
         except OSError:
             pass
     return was_running
+
+
+def tasks():
+    """the task rows of the running ladders"""
+    rows = [_task(saved) for saved in get_all()]
+    return [r for r in rows if r]
+
+
+def _task(saved):
+    """the task row of a ladder, or None if it isn't
+    running"""
+    pid = running_pid(saved["Id"])
+    if not pid:
+        return None
+    heartbeat = status(saved["Id"]) or {}
+    started = updated = None
+    try:
+        started = datetime.fromisoformat(
+            heartbeat["started"]
+        )
+        updated = datetime.fromisoformat(
+            heartbeat["updated"]
+        )
+    except (KeyError, TypeError, ValueError):
+        pass
+    state = heartbeat.get("state") or "-"
+    healthy = state in ("starting", "waiting")
+    if updated:
+        age = (datetime.now() - updated).total_seconds()
+        if age > STALE_SECONDS:
+            state, healthy = "no reply", False
+    return {
+        "id": saved["Id"],
+        "task": f"ladder {saved['Stock']}",
+        "pid": pid,
+        "started": started,
+        "state": state,
+        "healthy": healthy,
+    }
 
 
 def _out_path(ladder_id):

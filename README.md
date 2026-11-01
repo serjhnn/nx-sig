@@ -727,6 +727,7 @@ nx-sig/
     ├── engines/          the logic of each kind of data, used by the shell
     │   ├── trades.py         trades and their totals (count, average price)
     │   ├── positions.py      the held stocks and their gain at given prices
+    │   ├── overview.py       what 'status' shows: positions, tasks, last trades
     │   ├── statement.py      reads the trades out of a bank statement csv
     │   ├── prices.py         market prices from Alpaca (one-off and polling),
     │   │                     in the demo the made-up ones
@@ -798,6 +799,7 @@ python tests/test_order_parser.py  # order email parsing
 python tests/test_statement.py     # bank statement parsing
 python tests/test_trades.py        # trades engine, statement import
 python tests/test_positions.py     # held stocks, their gain and total
+python tests/test_overview.py      # status: tasks, last trades, all of it
 python tests/test_ladder.py        # ladder levels
 python tests/test_alerts.py        # alert levels and crossings
 python tests/test_mail_broker.py   # the mail broker's process, its Python
