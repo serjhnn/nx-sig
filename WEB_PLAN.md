@@ -320,11 +320,16 @@ ladder <id> force`) stays in the shell.
    ladder_cmd.py`. `ls ladders` and `rm ladder`
    print the same (compared in every state, with
    and without color).
-2. **`/api/ladders`**: the rows with each stock's
-   price from the price cache, the distance to the
-   next level (amount and %) and the next few
-   levels for the picture (the engine's level
-   math); only on `127.0.0.1`, with `read_only`.
+2. ~~**`/api/ladders`**~~ (done): each saved
+   ladder (id, stock, direction, step, from, last,
+   created, state, next) with its stock's price,
+   `away` (how far the price still has to move to
+   the next level: price - next down, next - price
+   up; 0 or less once passed while stopped) and
+   `away_pct` (% of the price), and the next three
+   levels (`ladder.levels()`, new: a down ladder's
+   stop above 0, none when done); `names` for the
+   add form. Only on `127.0.0.1`, with `read_only`.
 3. **The page `/ladders`, read-only**: a card per
    ladder (stock, "down 1 from 35", the last level
    sent, the next one, the price and its distance,

@@ -24,7 +24,7 @@ import config
 import process
 import storage
 import tasks_owner
-from engines import overview, trades, web
+from engines import ladder, overview, trades, web
 from services import web_service
 from web import api, files, price_cache
 from storage import Stock, TradeType
@@ -921,6 +921,134 @@ class ApiTradesTest(ApiMixin, unittest.TestCase):
             response, body = self.request("/api/trades")
         self.assertEqual(response.status, 500)
         self.assertIn("web log", json.loads(body)["error"])
+        self.log.exception.assert_called()
+
+
+class ApiLaddersTest(ApiMixin, unittest.TestCase):
+    """/api/ladders"""
+
+    def get(self, cache=None, host="127.0.0.1"):
+        self.serve(host)
+        self.server.prices = cache or FakeCache()
+        response, body = self.request(
+            "/api/ladders", logged=host != "127.0.0.1"
+        )
+        return response, json.loads(body)
+
+    def setUp(self):
+        super().setUp()
+        self.running = {}
+        p = mock.patch.object(
+            ladder, "running_pid", self.running.get
+        )
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_empty(self):
+        response, data = self.get()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            data,
+            {
+                "updated": None,
+                "error": None,
+                "interval": 5,
+                "demo": False,
+                "read_only": True,
+                "names": [s.name for s in Stock],
+                "ladders": [],
+            },
+        )
+
+    def test_ladders(self):
+        down = ladder.create("SOXL", "down", 1, 35)
+        ladder.create("TSMX", "up", 2.5, 40)
+        self.running[down] = 4242
+        _, data = self.get(
+            FakeCache({"SOXL": 34.5, "TSMX": 41.0})
+        )
+        first, second = data["ladders"]
+        self.assertEqual(
+            first,
+            {
+                "id": down,
+                "stock": "SOXL",
+                "direction": "down",
+                "step": 1.0,
+                "from": 35.0,
+                "last": 35.0,
+                "created": first["created"],
+                "state": "running",
+                "next": 34.0,
+                "levels": [34.0, 33.0, 32.0],
+                "price": 34.5,
+                "away": 0.5,
+                "away_pct": 0.5 / 34.5 * 100,
+            },
+        )
+        self.assertRegex(
+            first["created"], r"^\d\d\.\d\d\.\d{4} "
+        )
+        self.assertEqual(second["state"], "stopped")
+        self.assertEqual(second["next"], 42.5)
+        self.assertEqual(
+            second["levels"], [42.5, 45.0, 47.5]
+        )
+        # up: the next level is 1.5 above the price
+        self.assertEqual(second["away"], 1.5)
+
+    def test_passed_and_no_price(self):
+        down = ladder.create("SOXL", "down", 1, 35)
+        ladder.create("TSMX", "up", 2.5, 40)
+        # passed while it doesn't run
+        _, data = self.get(FakeCache({"SOXL": 33.0}))
+        soxl, tsmx = data["ladders"]
+        self.assertEqual(soxl["id"], down)
+        self.assertEqual(soxl["away"], -1.0)
+        for key in ("price", "away", "away_pct"):
+            self.assertIsNone(tsmx[key], key)
+        self.assertEqual(tsmx["next"], 42.5)
+
+    def test_done_and_crashed(self):
+        done = ladder.create("SOXL", "down", 10, 30)
+        crashed = ladder.create("NVDL", "down", 1, 30)
+        ladder.set_last(done, 10)
+        ladder.save_status(done, 1, None, "done")
+        ladder.save_status(crashed, 2, None, "crashed")
+        _, data = self.get(
+            FakeCache({"SOXL": 8.0, "NVDL": 29.5})
+        )
+        first, second = data["ladders"]
+        self.assertEqual(first["state"], "done")
+        self.assertIsNone(first["next"])
+        self.assertEqual(first["levels"], [])
+        self.assertIsNone(first["away"])
+        self.assertEqual(first["price"], 8.0)
+        self.assertEqual(second["state"], "crashed")
+        self.assertEqual(second["away"], 0.5)
+
+    def test_near_zero(self):
+        ladder.create("SOXL", "down", 10, 25)
+        _, data = self.get()
+        self.assertEqual(
+            data["ladders"][0]["levels"], [15.0, 5.0]
+        )
+
+    def test_only_on_localhost(self):
+        ladder.create("SOXL", "down", 1, 35)
+        response, data = self.get(host="0.0.0.0")
+        self.assertEqual(response.status, 403)
+        self.assertEqual(list(data), ["error"])
+
+    def test_failure(self):
+        def broken():
+            raise OSError("disk")
+
+        with mock.patch.object(ladder, "rows", broken):
+            self.serve()
+            self.server.prices = FakeCache()
+            response, body = self.request("/api/ladders")
+        self.assertEqual(response.status, 500)
         self.log.exception.assert_called()
 
 

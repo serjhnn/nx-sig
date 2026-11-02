@@ -11,6 +11,7 @@ from engines import ladder as engine
 from engines.ladder import (
     LadderError,
     create,
+    levels,
     next_level,
     passed_level,
 )
@@ -34,6 +35,28 @@ class LevelsTest(unittest.TestCase):
         )
         self.assertEqual(
             next_level(ladder("up", 2.5, 80)), 82.5
+        )
+
+    def test_levels(self):
+        self.assertEqual(
+            levels(ladder("down", 10, 100), 3),
+            [90, 80, 70],
+        )
+        self.assertEqual(
+            levels(ladder("up", 0.1, 0.3), 3),
+            [0.4, 0.5, 0.6],
+        )
+        # a down ladder ends above 0
+        self.assertEqual(
+            levels(ladder("down", 10, 25), 4), [15, 5]
+        )
+        self.assertEqual(
+            levels(ladder("down", 10, 5), 3), []
+        )
+        # the first is next_level()
+        down = ladder("down", 0.5, 22.25)
+        self.assertEqual(
+            levels(down, 1), [next_level(down)]
         )
 
     def test_down_not_reached(self):

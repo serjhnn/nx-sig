@@ -11,6 +11,8 @@
 #   /api/trades/<s>    the trades of stock s,
 #                      stock_trades(); 404 for a stock
 #                      not in the config
+#   /api/ladders       the saved ladders with the
+#                      price, ladders()
 # and the changes (POST, see below):
 #   /api/trades/add    add a trade, add_trade()
 #   /api/trades/delete delete a trade, delete_trade()
@@ -46,6 +48,7 @@
 #   status(cache)
 #   trades(cache)
 #   stock_trades(cache, name)
+#   ladders(cache)
 #       the data of the paths above
 #   add_trade(data)
 #   delete_trade(data)
@@ -57,7 +60,7 @@ import logging
 import math
 
 import config
-from engines import overview, positions
+from engines import ladder, overview, positions
 from engines import trades as trades_engine
 from storage import Stock, TradeType
 
@@ -81,6 +84,8 @@ TOKEN_ERROR = "the page is out of date, reload it"
 TOKEN_HEADER = "X-NX-Token"
 # the largest body of a change, in bytes
 MAX_BODY = 10_000
+# the levels of a ladder for the page's picture
+LADDER_LEVELS = 3
 log = logging.getLogger("web")
 
 
@@ -294,6 +299,70 @@ def stock_trades(cache, name):
     return data
 
 
+def ladders(cache):
+    """the data of /api/ladders: what every answer has
+    (see prices()) and
+
+    {"ladders": [one dict per saved ladder, in id
+                 order: "id", "stock", "direction",
+                 "step", "from", "last" (the last
+                 level sent, from at first), "created",
+                 "state", "next" (see ladder.row()),
+                 "levels": the next LADDER_LEVELS
+                           levels (fewer for a down
+                           ladder near 0, none when
+                           done),
+                 "price": its stock's, None without,
+                 "away": how far the price still has
+                         to move to the next level
+                         (down: price - next, up: next
+                         - price; 0 or less once
+                         passed), None without a price
+                         or a next level,
+                 "away_pct": away in % of the price],
+     "names": the names of every stock of the config,
+              for the add form}"""
+    found_prices, data = prices(cache)
+    data["names"] = [stock.name for stock in Stock]
+    data["ladders"] = [
+        _ladder(row, found_prices.get(row["Stock"]))
+        for row in ladder.rows()
+    ]
+    return data
+
+
+def _ladder(row, price):
+    """a row of ladder.rows() at price, ready for
+    json (see ladders())"""
+    away = away_pct = None
+    if price is not None and row["next"] is not None:
+        if row["Direction"] == "down":
+            away = price - row["next"]
+        else:
+            away = row["next"] - price
+        if price:
+            away_pct = away / price * 100
+    return {
+        "id": row["Id"],
+        "stock": row["Stock"],
+        "direction": row["Direction"],
+        "step": row["Step"],
+        "from": row["From"],
+        "last": row["Last"],
+        "created": row["Created"],
+        "state": row["state"],
+        "next": row["next"],
+        "levels": (
+            []
+            if row["state"] == "done"
+            else ladder.levels(row, LADDER_LEVELS)
+        ),
+        "price": price,
+        "away": away,
+        "away_pct": away_pct,
+    }
+
+
 def add_trade(data):
     """POST /api/trades/add: record a trade like 'add
     trade', with the engine's checks.
@@ -461,7 +530,11 @@ def _with(answer, name):
 
 
 # {path: function(cache) giving its data}
-PATHS = {"/api/status": status, "/api/trades": trades}
+PATHS = {
+    "/api/status": status,
+    "/api/trades": trades,
+    "/api/ladders": ladders,
+}
 # {path prefix: function(cache, the rest of the path)}
 PREFIXES = {"/api/trades/": stock_trades}
 # {path: function(data) of a change, see change()}

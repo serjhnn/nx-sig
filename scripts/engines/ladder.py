@@ -34,7 +34,8 @@
 #       pid of its process, or None
 #   get(ladder_id), get_all(), status(ladder_id)
 #       the saved ladders and the heartbeat of one
-#   next_level(ladder), passed_level(ladder, price)
+#   next_level(ladder), passed_level(ladder, price),
+#   levels(ladder, count)
 #       the level math
 #   save_status(ladder_id, pid, started, state,
 #               price=None)
@@ -115,6 +116,22 @@ def next_level(ladder):
     """the level the ladder notifies next"""
     sign = -1 if ladder["Direction"] == "down" else 1
     return round(ladder["Last"] + sign * ladder["Step"], 6)
+
+
+def levels(ladder, count):
+    """the next count levels the ladder notifies, in
+    order; a down ladder's stop above 0, so there may
+    be fewer (none when it is done)"""
+    sign = -1 if ladder["Direction"] == "down" else 1
+    found = []
+    for k in range(1, count + 1):
+        level = round(
+            ladder["Last"] + sign * k * ladder["Step"], 6
+        )
+        if level <= 0:
+            break
+        found.append(level)
+    return found
 
 
 def passed_level(ladder, price):
