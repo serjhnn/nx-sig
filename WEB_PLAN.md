@@ -16,8 +16,9 @@ they were then: `assets/web/` is now `web/`, and
 the price cache and `/api/status` moved from
 `web_service.py` into `scripts/web/`). The trades
 page, the ladders page and the alerts page are
-done too (see their sections); what comes next is
-under "Later".
+done too (see their sections). Next come the
+basetrades page and the chart page (see their
+sections), then what is under "Later".
 
 ## The style (style C)
 
@@ -507,9 +508,136 @@ the shell.
    tests), `TODO.md` and the module map;
    `COMMANDS.md` didn't change.
 
+## The menu on a phone
+
+With six pages the bottom tabs on a phone keep
+four: Status, Trades, Ladders and More. More opens
+a list with Alerts, Basetrades and Chart (and the
+pages that come later). The side menu from 720px
+wide lists every page. A page under More marks
+More as the current tab.
+
+## The basetrades page
+
+`/basetrades`: the basetrades like `ls basetrades
+al`, each with the stock's price, its change % from
+the buying price and the levels of the basetrade
+alerts; adding one (with a price and count, from
+the trades, or all from the trades) and deleting
+one, like `add basetrade` and `rm basetrade`. The
+same `read_only` option and checks of a change as
+the other pages.
+
+1. **`/api/basetrades`**: each basetrade (stock,
+   price, count) with its stock's cached price and
+   `change_pct` (none without a price), and the
+   levels of the basetrade alerts for it (price,
+   reached); for each held stock without a
+   basetrade the one from the trades
+   (`basetrades.from_trades()`, none when there is
+   no buy since the last sell), to fill the form;
+   `names` for the form. Only on `127.0.0.1`.
+2. **The page `/basetrades`, read-only**:
+   `web/basetrades.html` and
+   `web/js/basetrades.js`, a card per basetrade
+   (stock, count, buying price, the price and its
+   change % with a sign, green or red) and a line
+   with the buying price, the alert levels as
+   ticks and the price as a dot, like the rungs of
+   a ladder card. One column on a phone, two from
+   720px. The More tab (see "The menu on a
+   phone") with its link.
+3. **The changes**: POST `/api/basetrades/add`
+   (stock with price and count, or stock and
+   `from_trades`, or `all`) and
+   `/api/basetrades/delete` (a stock) behind the
+   checks of a change, with `basetrades.save()`,
+   `from_trades()`, `delete()` and the shell's
+   texts; bad input 400, an unknown stock or
+   basetrade 404. The loop of `add basetrade all`
+   moves from `shell/base_trade_cmd.py` into the
+   engine (`basetrades.all_from_trades()`), so the
+   shell and the page share it and the shell
+   prints the same.
+4. **The forms**: "Add basetrade" (stock, "from
+   the trades" or price and count, filled in with
+   the one from the trades until typed in), "All
+   from the trades" (after asking), Delete on each
+   card (after asking). Hidden while `read_only` is
+   on.
+5. **Tests**, with each step: `/api/basetrades`
+   (no basetrades, no price, alerts reached or
+   not, a stock without buys since the last sell),
+   the changes (each kind, bad input, unknown
+   stock, read-only), the page's ids and the
+   fields `basetrades.js` reads (`test_web.py`),
+   `all_from_trades()` (`test_basetrades.py`), the
+   shell's output unchanged (`test_shell.py`).
+   Checked in a browser at 360, 390 and 1200px,
+   dark and light, read-only and not.
+6. **Docs**, with each step: README (the page, its
+   changes, `/api/basetrades`, the tests),
+   `TODO.md` and the module map.
+
+## The chart page
+
+`/chart?stock=<stock>`: the price of a stock over a
+period like `chart <stock> period <n> <unit>`, as a
+line with the average buy price and the trades,
+drawn in the browser (SVG, no library). Read-only,
+so `read_only` doesn't change it.
+
+1. **The chart in the engines**: `scripts/chart.py`
+   moves to `engines/chart.py`. Getting the data
+   becomes its own function, `chart.data(stock,
+   days, points)`: the bars of the coarsest
+   timeframe that still gives about `points`
+   prices, the average buy price (none when no
+   stock is held) and the trades (time, B or S,
+   price). `stock_chart()` draws from it; the
+   shell's `chart` prints the same (the shell
+   tests).
+2. **`/api/chart/<stock>?days=<n>`**: the points
+   (time, price; at most about 200, more are
+   averaged), the timeframe, the average buy
+   price, the trades and the stock's cached price;
+   `names` for the stock picker. `api.find()` gets
+   the request's query (today it is cut off);
+   `days` from 1 to `chart.MAX_DAYS`, 5 by default,
+   else 400. The bars are kept for a minute per
+   stock, days and timeframe, so a reload or
+   another tab doesn't fetch them again. A missing
+   key or a network error gives the engine's text
+   (503), like the price cache. Works in the demo
+   with its made-up bars. Only on `127.0.0.1`.
+3. **The page `/chart`, read-only**:
+   `web/chart.html` and `web/js/chart.js`: a stock
+   picker and the periods 5d, 1m, 3m, 1y (kept in
+   the address, `?stock=TSMX&days=30`); the price
+   as a line, the average buy price as a dashed
+   line with its value, the trades as B / S marks,
+   a few price and date labels; a tap or hover
+   shows the date and price of the nearest point.
+   The last point follows the cached price (the
+   page polls like the others, the bars only on
+   load and on a change of stock or period). It
+   fits the screen's width (redrawn on resize). In
+   the More list; the stock names on the main,
+   trades and basetrades pages link to it.
+4. **Tests**, with each step: `chart.data()` with
+   fake bars (`test_chart.py`); `/api/chart` (bad
+   stock 404, bad days 400, no bars, the cache, a
+   fetch error); the page's ids and the fields
+   `chart.js` reads (`test_web.py`). Checked in a
+   browser at 360, 390 and 1200px, dark and light,
+   in the demo.
+5. **Docs**, with each step: README (the page,
+   `/api/chart`, the layout: `engines/chart.py`),
+   `gen_deps.py` and the module map, `TODO.md`.
+
 ## Later
 
-- The other pages: chart, basetrades, rules; with
+- The other pages: rules; with
   `web/frame.html`, `app.js` (`nx.poll`,
   `nx.send`, `nx.tell`) and the forms and cards of
   the trades, ladders and alerts pages.
