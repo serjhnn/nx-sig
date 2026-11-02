@@ -535,6 +535,55 @@ td.key {
   text-align: right;
 }
 
+/* ---------- the stock chips (trades page) ---------- */
+
+.stack {
+  display: grid;
+  gap: 14px;
+}
+/* one row that scrolls sideways on a phone, wraps
+   on a wide screen */
+.stocks {
+  display: flex;
+  gap: 8px;
+  padding: 2px 12px 12px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+.stock {
+  flex: none;
+  scroll-snap-align: start;
+  display: grid;
+  gap: 3px;
+  min-width: 112px;
+  padding: 8px 10px;
+  text-align: left;
+  font: 12px var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.stock b {
+  font: 600 14px var(--mono);
+  color: var(--fg);
+}
+.stock .chip {
+  justify-self: start;
+}
+.stock[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+@media (min-width: 720px) {
+  .stocks {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
 /* ---------- buttons and forms (later pages) ---------- */
 
 .btn {

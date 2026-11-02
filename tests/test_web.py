@@ -34,10 +34,13 @@ APP_PATH = os.path.join(files.JS_DIR, "app.js")
 SCRIPT_PATH = os.path.join(files.JS_DIR, "main.js")
 
 
-def scripts():
-    """the text of app.js and main.js"""
+TRADES_SCRIPT = os.path.join(files.JS_DIR, "trades.js")
+
+
+def scripts(page=SCRIPT_PATH):
+    """the text of app.js and a page's script"""
     text = ""
-    for path in (APP_PATH, SCRIPT_PATH):
+    for path in (APP_PATH, page):
         with open(path) as f:
             text += f.read()
     return text
@@ -199,12 +202,47 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         for name in ids:
             self.assertIn(f'id="{name}"', page)
 
+    def test_trades_page(self):
+        response, body = self.request("/trades")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            response.getheader("Content-Type"),
+            "text/html; charset=utf-8",
+        )
+        self.assertEqual(
+            body, files.page(files.TRADES_PATH)
+        )
+        self.assertIn(b'<nav class="nav"', body)
+        self.assertLess(
+            body.index(b'src="/js/app.js"'),
+            body.index(b'src="/js/trades.js"'),
+        )
+        response, body = self.request("/js/trades.js")
+        self.assertEqual(response.status, 200)
+        with open(TRADES_SCRIPT, "rb") as f:
+            script = f.read()
+        self.assertEqual(body, script)
+        self.assertIn(b'nx.poll("/api/trades"', script)
+        self.assertIn(b'fetch("/api/trades/"', script)
+
+    def test_trades_page_ids(self):
+        ids = set(
+            re.findall(
+                r'\$\("([\w-]+)"\)', scripts(TRADES_SCRIPT)
+            )
+        )
+        page = files.page(files.TRADES_PATH).decode()
+        self.assertGreater(len(ids), 10)
+        for name in ids:
+            self.assertIn(f'id="{name}"', page)
+
     def test_menu(self):
         # every page the menu links to is there, and
         # the frame isn't served by itself
         with open(files.FRAME_PATH) as f:
             links = re.findall(r'href="([^"]+)"', f.read())
         self.assertIn("/", links)
+        self.assertIn("/trades", links)
         for path in links:
             response, _ = self.request(path)
             self.assertEqual(response.status, 200, path)
@@ -779,6 +817,39 @@ class ApiTradesTest(ApiMixin, unittest.TestCase):
                 "text/html;charset=utf-8",
                 path,
             )
+
+    def test_fields_of_the_page(self):
+        # every field trades.js reads is in the JSON
+        self.add()
+        cache = FakeCache({"SOXL": 30.0})
+        _, data = self.get("/api/trades", cache)
+        _, detail = self.get("/api/trades/SOXL", cache)
+        row = detail["stock"]
+        trade = detail["trades"][0]
+        fields = {
+            "data": dict(data, **detail),
+            "lastData": data,
+            "detail": detail,
+            "data.stock": row,
+            "detail.stock": row,
+            "s": row,
+            "had": row,
+            "s.last": trade,
+            "had.last": trade,
+            "t": trade,
+        }
+        used = re.findall(
+            r"\b((?:data|lastData|detail|s|had|t)"
+            r"(?:\.(?:stock|last))?)"
+            r"\.([a-z_]+)\b(?![A-Za-z(])",
+            scripts(TRADES_SCRIPT),
+        )
+        self.assertGreater(len(used), 20)
+        array = {"length", "slice", "reduce", "filter"}
+        for name, field in set(used):
+            if field in array:
+                continue
+            self.assertIn(field, fields[name], name)
 
     def test_read_only_off(self):
         config.DATA["web"] = {"read_only": False}

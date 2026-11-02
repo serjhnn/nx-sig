@@ -9,6 +9,7 @@
 #                 (a page gets web/frame.html, the top
 #                 bar and the menu, at its line
 #                 <!-- frame -->)
+#   /trades       web/trades.html, the trades page
 #   /logo         a page with the logo, as wide as the
 #                 screen
 #   /logo.svg     assets/logo.svg
@@ -34,6 +35,7 @@ LOGO_PATH = os.path.join(
 )
 STYLE_PATH = os.path.join(WEB_DIR, "style.css")
 INDEX_PATH = os.path.join(WEB_DIR, "index.html")
+TRADES_PATH = os.path.join(WEB_DIR, "trades.html")
 FRAME_PATH = os.path.join(WEB_DIR, "frame.html")
 FRAME_MARK = b"<!-- frame -->"
 JS_DIR = os.path.join(WEB_DIR, "js")
@@ -42,6 +44,7 @@ HTML = "text/html; charset=utf-8"
 # the files of a path: {path: (file, content type)}
 PATHS = {
     "/": (INDEX_PATH, HTML),
+    "/trades": (TRADES_PATH, HTML),
     "/logo.svg": (LOGO_PATH, "image/svg+xml"),
     "/style.css": (STYLE_PATH, "text/css; charset=utf-8"),
 }

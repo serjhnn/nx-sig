@@ -561,11 +561,18 @@ other packages than the shell's). Open the address in a browser on the same devi
   last values and says what went wrong (no prices, a missing key, the
   server stopped). The button at the top switches dark and light (the
   system's by default, kept in the browser). On a phone the menu is at the
-  bottom, on a wider screen at the side; its other pages (trades,
-  ladders, ...) are greyed out until they exist.
-- It serves only `/` (`web/index.html`), `/logo` (a page with the
-  logo), `/logo.svg`, `/style.css` (the style every page shares,
-  `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
+  bottom, on a wider screen at the side; its pages that don't exist yet
+  (ladders, alerts, ...) are greyed out.
+- The trades page (`/trades`): the stocks that have trades as chips (the
+  count held at its average, the gain %), and the chosen stock's gain and
+  its trades, newest first, with the ids of `rm trade`. The chosen stock
+  is in the address (`/trades#SOXL`); without one it is the first stock
+  held. Its prices update like the main page's; a stock's trades are
+  asked for again only when it has a new one. It only shows the trades
+  for now: adding and deleting them comes next.
+- It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
+  `/logo` (a page with the logo), `/logo.svg`, `/style.css` (the style
+  every page shares, `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
   they use (`/fonts/`, IBM Plex, bundled so nothing comes from the
   internet), `/api/status` and `/api/trades`; it changes nothing, any
   other path is `404`. The browser files are in `web/`, the server's parts in
@@ -582,7 +589,7 @@ other packages than the shell's). Open the address in a browser on the same devi
 - `/api/trades` is the stocks that have trades as JSON (how many, the
   last one, the count held, the average, the price, gain and gain %),
   `/api/trades/<stock>` one stock with its trades (`404` for a stock not
-  in the config); for the trades page, which comes next. Like
+  in the config); the trades page uses them. Like
   `/api/status` they answer only on `127.0.0.1`, are logged only when
   they fail, and say whether `read_only` is on.
 - The server fetches the prices every config `web` `interval` seconds
@@ -753,9 +760,10 @@ nx-sig/
 │                         (scripts/gen_map_shots.py)
 ├── assets/modules.html  the module map (generated), also online:
 │                         serjhnn.github.io/nx-sig/assets/modules.html
-├── web/                  the web pages: index.html, frame.html (the top
-│                         bar and menu of every page), style.css,
-│                         js/ (app.js shared, main.js), fonts/ (IBM Plex)
+├── web/                  the web pages: index.html, trades.html,
+│                         frame.html (the top bar and menu of every
+│                         page), style.css, js/ (app.js shared, main.js,
+│                         trades.js), fonts/ (IBM Plex)
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
 │                         (test_shell.py: every shell command)
 └── scripts/

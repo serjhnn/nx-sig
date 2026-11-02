@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+ content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trades · nX-sig</title>
+<link rel="icon" href="/logo.svg">
+<link rel="stylesheet" href="/style.css">
+<script>
+  // the saved theme before the page draws, no flash
+  try {
+    var t = localStorage.getItem("nx-theme");
+    if (t === "dark" || t === "light") {
+      document.documentElement.dataset.theme = t;
+    }
+  } catch (e) {}
+</script>
+</head>
+<body>
+<div class="app">
+  <!-- frame -->
+
+  <main class="main">
+    <div class="notice" id="notice" role="status" hidden>
+      <span class="dot warn"></span>
+      <div><b id="notice-title"></b> <span id="notice-text"></span></div>
+    </div>
+
+    <section class="panel" aria-label="Stocks with trades">
+      <div class="panel-h"><h2>Stocks</h2>
+        <span class="sub" id="stocks-sub"></span></div>
+      <div class="stocks" id="stocks" role="group"
+        aria-label="Choose a stock"></div>
+      <p class="empty" id="no-stocks" hidden>no trades yet, see
+        'help add trade' in the shell</p>
+    </section>
+
+    <div class="stack" id="chosen" hidden>
+      <section class="panel total" aria-label="The stock's gain or loss">
+        <span class="label" id="stock-name">-</span>
+        <div class="big">
+          <span id="stock-gain">-</span>
+          <span class="chip idle" id="stock-pct">-</span>
+        </div>
+        <span class="sub" id="stock-sub">-</span>
+      </section>
+
+      <section class="panel">
+        <div class="panel-h"><h2>Trades</h2>
+          <span class="sub" id="trades-sub"></span></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Id</th>
+                <th scope="col">Date</th>
+                <th scope="col">Type</th>
+                <th scope="col">Qty</th>
+                <th scope="col">Price</th>
+                <th scope="col" class="wide-only">Value</th>
+              </tr>
+            </thead>
+            <tbody id="trades"></tbody>
+          </table>
+        </div>
+        <p class="empty" id="no-trades" hidden>no trades</p>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script src="/js/trades.js"></script>
+</body>
+</html>

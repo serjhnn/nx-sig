@@ -226,10 +226,21 @@ its own pages.
    `read_only`, default `true`, already read here;
    it is enforced in step 5). Only on `127.0.0.1`,
    only failures logged.
-4. **The page `/trades`**: the stock chips (count,
-   average, gain), the chosen stock's trades,
-   newest first; on a phone the chips scroll
-   sideways and the table fits 360px.
+4. ~~**The page `/trades`**~~ (done):
+   `web/trades.html` and `web/js/trades.js`. The
+   stocks as chips (held at average, gain %; the
+   chosen one marked), the chosen stock's gain and
+   its trades newest first (id, date and time,
+   buy/sell, count, price; on a wide screen also
+   the value). The chosen stock is in the address
+   (`/trades#SOXL`), else the first one held. The
+   chips update every interval (`/api/trades`); a
+   stock's trades are asked again
+   (`/api/trades/<stock>`) only when its number of
+   trades or its last one changed. The Trades link
+   in the menu works. Checked in a browser at 360,
+   390 and 1200px, dark and light: nothing wider
+   than the screen, no errors.
 5. **Config `read_only` and the protection**:
    `config.web_read_only()`; POST only for
    changes, JSON body, `Origin` check, the token;
