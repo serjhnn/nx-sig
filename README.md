@@ -634,7 +634,7 @@ other packages than the shell's). Open the address in a browser on the same devi
   trades ("All from trades", after asking which it replaces) and deletes
   one (after asking), like `add basetrade <stock>`, `add basetrade all`
   and `rm basetrade`, with the same checks and texts.
-- The charts page (`/chart`): a stock's price over 5 days, 1 month, 3
+- The charts page (`/charts`): a stock's price over 5 days, 1 month, 3
   months or 1 year, like `chart <stock> period <n>`, as a line with the
   average buy price dashed and the trades as B / S; the price, its change
   over the period and the bars' size above it. A tap or hover shows the
@@ -647,15 +647,15 @@ other packages than the shell's). Open the address in a browser on the same devi
   and period and, while there are several, a close button. One column on
   a phone, two on a wide screen.
 - The charts are in the address, a stock and days pair per chart
-  (`/chart?stock=TSMX&days=30`, or `?stock=TSMX&days=30&stock=SOXL&days=5`
-  for two), so a reload or a bookmark shows the same charts. `/chart`
-  without a stock (the menu's link) shows the last charts, kept in the
-  browser (localStorage), so going to another page and back keeps them;
-  without a known stock it shows a chart per stock of the config, in its
-  order, 5 days each.
+  (`/charts?stock=TSMX&days=30`, or
+  `?stock=TSMX&days=30&stock=SOXL&days=5` for two), so a reload or a
+  bookmark shows the same charts. `/charts` without a stock (the menu's
+  link) shows the last charts, kept in the browser (localStorage), so
+  going to another page and back keeps them; without a known stock it
+  shows a chart per stock of the config, in its order, 5 days each.
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
   `/ladders` (`web/ladders.html`), `/alerts` (`web/alerts.html`), `/basetrades`
-  (`web/basetrades.html`), `/chart` (`web/chart.html`), `/logo`
+  (`web/basetrades.html`), `/charts` (`web/charts.html`), `/logo`
   (a page with the logo),
   `/logo.svg`, `/style.css` (the style every page shares,
   `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
@@ -891,10 +891,10 @@ nx-sig/
 │                         serjhnn.github.io/nx-sig/assets/modules.html
 ├── web/                  the web pages: index.html, trades.html,
 │                         ladders.html, alerts.html, basetrades.html,
-│                         chart.html, frame.html (the top bar and menu
+│                         charts.html, frame.html (the top bar and menu
 │                         of every page), style.css, js/ (app.js
 │                         shared, main.js, trades.js, ladders.js,
-│                         alerts.js, basetrades.js, chart.js), fonts/
+│                         alerts.js, basetrades.js, charts.js), fonts/
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
 │                         (test_shell.py: every shell command)
 └── scripts/

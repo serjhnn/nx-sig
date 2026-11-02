@@ -110,7 +110,7 @@
 
   function drawChosen(s) {
     $("stock-name").textContent = s.stock;
-    $("stock-name").href = "/chart?stock=" +
+    $("stock-name").href = "/charts?stock=" +
       encodeURIComponent(s.stock);
     var gain = $("stock-gain");
     put(gain, "chosen:gain", s.gain === null

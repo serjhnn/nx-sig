@@ -51,7 +51,7 @@ ALERTS_SCRIPT = os.path.join(files.JS_DIR, "alerts.js")
 BASETRADES_SCRIPT = os.path.join(
     files.JS_DIR, "basetrades.js"
 )
-CHART_SCRIPT = os.path.join(files.JS_DIR, "chart.js")
+CHART_SCRIPT = os.path.join(files.JS_DIR, "charts.js")
 
 
 def scripts(page=SCRIPT_PATH):
@@ -359,17 +359,17 @@ class WebServerTest(ServerMixin, unittest.TestCase):
             self.assertIn(f'id="{name}"', page.decode())
 
     def test_chart_page(self):
-        response, body = self.request("/chart")
+        response, body = self.request("/charts")
         self.assertEqual(response.status, 200)
         page = files.page(
-            files.CHART_PATH, self.server.token
+            files.CHARTS_PATH, self.server.token
         )
         self.assertEqual(body, page)
         self.assertLess(
             body.index(b'src="/js/app.js"'),
-            body.index(b'src="/js/chart.js"'),
+            body.index(b'src="/js/charts.js"'),
         )
-        response, body = self.request("/js/chart.js")
+        response, body = self.request("/js/charts.js")
         self.assertEqual(response.status, 200)
         with open(CHART_SCRIPT, "rb") as f:
             script = f.read()
@@ -425,7 +425,7 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         self.assertIn(
             'query.getAll("days")', script.decode()
         )
-        # the menu's /chart: the last charts, else
+        # the menu's /charts: the last charts, else
         # one per stock of the config
         self.assertIn(
             "known = found.names.map(", script.decode()
@@ -455,7 +455,7 @@ class WebServerTest(ServerMixin, unittest.TestCase):
                 text = f.read()
             self.assertTrue(
                 "nx.chartLink(" in text
-                or '"/chart?stock="' in text,
+                or '"/charts?stock="' in text,
                 script,
             )
 
@@ -486,7 +486,7 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         self.assertIn("/ladders", links)
         self.assertIn("/alerts", links)
         self.assertIn("/basetrades", links)
-        self.assertIn("/chart", links)
+        self.assertIn("/charts", links)
         for path in links:
             response, _ = self.request(path)
             self.assertEqual(response.status, 200, path)
@@ -1788,7 +1788,7 @@ class ApiChartTest(ApiMixin, unittest.TestCase):
         self.assertEqual(data["trades"], [])
 
     def test_fields_of_the_page(self):
-        # every field chart.js reads is in the JSON
+        # every field charts.js reads is in the JSON
         trades.add(
             Stock.SOXL,
             TradeType.BUY,

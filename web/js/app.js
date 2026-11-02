@@ -109,7 +109,7 @@
   // a link to the chart page of stock name
   function chartLink(name) {
     var link = el("a", "to-chart", name);
-    link.href = "/chart?stock=" + encodeURIComponent(name);
+    link.href = "/charts?stock=" + encodeURIComponent(name);
     return link;
   }
 

@@ -328,11 +328,11 @@ for your own use first. In this order:
   `read_only` off and more sample data.
 - ~~**Several charts in a window**~~ (done, see
   [WEB_PLAN.md](WEB_PLAN.md) "Several charts"):
-  up to 4 charts on `/chart`, each with its own
+  a chart per stock on `/charts`, each with its own
   stock and period ("Add chart", a close button),
   two columns on a wide screen, all of them in
   the address so a reload keeps them; `Chart` in
-  `web/js/chart.js`.
+  `web/js/charts.js`.
 - ~~**Web alerts page**~~ (done, see
   [WEB_PLAN.md](WEB_PLAN.md) "The alerts page"):
   `/alerts`, the alerts process and a card per

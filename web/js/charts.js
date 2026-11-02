@@ -1,4 +1,5 @@
-// nX-sig web: the chart page, served as /js/chart.js
+// nX-sig web: the charts page, served as
+// /js/charts.js
 // after /js/app.js
 //
 // the price of a stock over a period, like 'chart
@@ -11,7 +12,7 @@
 // and the cached price as the last point. A tap or
 // hover shows the date and price of the nearest
 // point. The stocks and periods are in the address
-// (/chart?stock=TSMX&days=30&stock=SOXL&days=5, a
+// (/charts?stock=TSMX&days=30&stock=SOXL&days=5, a
 // pair per chart); an address without a stock (the
 // menu's link) shows the last charts, kept in
 // localStorage; without a known stock a chart per
@@ -39,7 +40,7 @@
   var PAD = { left: 4, right: 52, top: 12, bottom: 24 };
   // about how wide a date label is, with a gap
   var DATE_ROOM = 72;
-  // the last charts, for /chart without a stock
+  // the last charts, for /charts without a stock
   // (the menu's link); "nx-charts" was the key while
   // the default was one chart
   var SAVED_KEY = "nx-charts-all";
@@ -482,7 +483,7 @@
       return "stock=" + encodeURIComponent(one.stock) +
         "&days=" + one.days;
     }).join("&");
-    history.replaceState(null, "", "/chart?" + query);
+    history.replaceState(null, "", "/charts?" + query);
     try {
       localStorage.setItem(SAVED_KEY, query);
     } catch (e) {}
