@@ -14,6 +14,11 @@
 // (/chart?stock=TSMX&days=30); without a stock it is
 // the first one held (/api/trades), else the first
 // of the config. Redrawn when the width changes.
+//
+// each chart is a Chart, made from the page's
+// #chart-tpl: its own stock, period, data, tip and
+// polling, its parts found by data-part; the page
+// keeps them in charts, in the order shown.
 
 (function () {
   "use strict";
@@ -27,12 +32,8 @@
   var PAD = { left: 4, right: 52, top: 12, bottom: 24 };
   // about how wide a date label is, with a gap
   var DATE_ROOM = 72;
-  var stock = null; // the stock shown
-  var days = 5; // the period shown
-  var lastData = null; // the last /api/chart
-  var refresh = null; // asks /api/chart right away
-  var shown = null; // the drawn chart, for the tip
-  var tipAt = null; // the point the tip shows
+  var charts = []; // the charts shown, a Chart each
+  var count = 0; // the charts made, for unique names
 
   function make(tag, attrs, text) {
     var node = document.createElementNS(SVG, tag);
@@ -60,7 +61,7 @@
 
   // a date under the chart: "12.10", "10.26" (month
   // and year) for a long period, "14:30" within a day
-  function dateLabel(d, span) {
+  function dateLabel(d, span, days) {
     if (days > 180) {
       return pad2(d.getMonth() + 1) + "." +
         String(d.getFullYear()).slice(-2);
@@ -72,12 +73,12 @@
   }
 
   // the tip's date: with the time unless daily bars
-  function tipDate(p) {
+  function tipDate(p, timeframe) {
     var text = dayMonth(p.t) + "." +
       String(p.t.getFullYear()).slice(-2);
     if (p.live) return text + " " + pad2(p.t.getHours()) +
       ":" + pad2(p.t.getMinutes()) + " now";
-    if (lastData.timeframe === "1Day") return text;
+    if (timeframe === "1Day") return text;
     return text + " " + pad2(p.t.getHours()) + ":" +
       pad2(p.t.getMinutes());
   }
@@ -108,33 +109,102 @@
     return best;
   }
 
+  // ---------- a chart ----------
+
+  // a chart of stock over days, a copy of #chart-tpl
+  // put into #charts
+  function Chart(stock, days) {
+    count += 1;
+    this.id = count;
+    this.stock = stock;
+    this.days = days;
+    this.lastData = null; // the last /api/chart
+    this.refresh = null; // asks /api/chart right away
+    this.shown = null; // the drawn chart, for the tip
+    this.tipAt = null; // the point the tip shows
+    this.width = null; // the plot's width drawn at
+    this.root = document.importNode(
+      $("chart-tpl").content, true
+    ).querySelector(".chart");
+    this.link();
+    $("charts").appendChild(this.root);
+  }
+
+  // the part of the chart named name (data-part)
+  Chart.prototype.part = function (name) {
+    return this.root.querySelector(
+      '[data-part="' + name + '"]'
+    );
+  };
+
+  // the period inputs of this chart
+  Chart.prototype.periods = function () {
+    return this.part("periods").querySelectorAll("input");
+  };
+
+  // names unique to this chart (the labels, the
+  // radio group) and the events of its controls
+  Chart.prototype.link = function () {
+    var self = this;
+    var name = "c" + this.id;
+    this.part("stock").id = name + "-stock";
+    this.part("stock-label").htmlFor = name + "-stock";
+    this.part("period-label").id = name + "-period";
+    this.part("periods").setAttribute(
+      "aria-labelledby", name + "-period"
+    );
+    this.part("stock").addEventListener("change", function () {
+      self.stock = self.part("stock").value;
+      self.choose();
+    });
+    Array.prototype.forEach.call(this.periods(), function (input) {
+      input.name = name + "-days";
+      input.addEventListener("change", function () {
+        self.days = Number(input.value);
+        self.choose();
+      });
+    });
+    var plot = this.part("plot");
+    function at(event) {
+      self.pointAt(event);
+    }
+    plot.addEventListener("pointermove", at);
+    plot.addEventListener("pointerdown", at);
+    plot.addEventListener("pointerleave", function (event) {
+      // on a phone the tip stays until the next tap
+      if (event.pointerType === "mouse") self.hideTip();
+    });
+  };
+
   // ---------- the summary above the chart ----------
 
-  function summary(data, points) {
-    $("c-name").textContent = data.stock;
+  Chart.prototype.summary = function (data, points) {
+    this.part("name").textContent = data.stock;
     var first = points[0];
     var last = points[points.length - 1];
-    nx.put($("c-price"), "price", last ? num(last.price, 2) : "-");
+    nx.put(this.part("price"), "price" + this.id,
+      last ? num(last.price, 2) : "-");
     var change = null;
     if (first && last && first.price) {
       change = (last.price - first.price) / first.price * 100;
     }
-    var chip = $("c-change");
-    nx.put(chip, "change", change === null
+    var chip = this.part("change");
+    nx.put(chip, "change" + this.id, change === null
       ? "-" : nx.signed(change, 2) + "%");
     chip.className = "chip " + (nx.trend(change) || "idle");
-    $("c-info").textContent = data.label + " bars" +
+    this.part("info").textContent = data.label + " bars" +
       (data.avg !== null ? " · avg " + num(data.avg, 2) : "");
-  }
+  };
 
   // ---------- the chart ----------
 
-  function drawChart(data, points) {
-    var box = $("plot");
+  Chart.prototype.drawChart = function (data, points) {
+    var box = this.part("plot");
     box.textContent = "";
-    shown = null;
+    this.shown = null;
     var w = box.clientWidth;
     var h = box.clientHeight;
+    this.width = w;
     var n = points.length;
     var trades = data.trades.map(function (t) {
       return { t: parse(t.time), side: t.side, price: t.price };
@@ -196,7 +266,7 @@
     var previous = null;
     for (k = 0; k < count && n > 1; k++) {
       var i = Math.round(k * (n - 1) / (count - 1));
-      var text = dateLabel(points[i].t, span);
+      var text = dateLabel(points[i].t, span, data.days);
       if (text === previous) continue;
       previous = text;
       var anchor = k === 0 ? "start" : k === count - 1 ? "end" : "middle";
@@ -259,18 +329,21 @@
     svg.appendChild(cursor);
     svg.appendChild(dot);
     box.appendChild(svg);
-    shown = {
+    this.shown = {
       points: points, x: x, y: y, cursor: cursor, dot: dot,
       step: n > 1 ? plotW / (n - 1) : plotW, w: w
     };
-    if (tipAt !== null) showTip(Math.min(tipAt, n - 1));
-  }
+    if (this.tipAt !== null) {
+      this.showTip(Math.min(this.tipAt, n - 1));
+    }
+  };
 
   // ---------- the tip ----------
 
-  function showTip(i) {
+  Chart.prototype.showTip = function (i) {
+    var shown = this.shown;
     if (!shown) return;
-    tipAt = i;
+    this.tipAt = i;
     var p = shown.points[i];
     var px = shown.x(i);
     shown.cursor.setAttribute("x1", px);
@@ -279,130 +352,127 @@
     shown.dot.setAttribute("cx", px);
     shown.dot.setAttribute("cy", shown.y(p.price));
     shown.dot.setAttribute("visibility", "visible");
-    var tip = $("tip");
-    tip.textContent = tipDate(p) + "  " + num(p.price, 2);
+    var tip = this.part("tip");
+    tip.textContent = tipDate(p, this.lastData.timeframe) +
+      "  " + num(p.price, 2);
     tip.hidden = false;
     var left = px - tip.offsetWidth / 2;
     left = Math.max(0, Math.min(left, shown.w - tip.offsetWidth));
     tip.style.left = left + "px";
-  }
+  };
 
-  function hideTip() {
-    tipAt = null;
-    $("tip").hidden = true;
-    if (!shown) return;
-    shown.cursor.setAttribute("visibility", "hidden");
-    shown.dot.setAttribute("visibility", "hidden");
-  }
+  Chart.prototype.hideTip = function () {
+    this.tipAt = null;
+    this.part("tip").hidden = true;
+    if (!this.shown) return;
+    this.shown.cursor.setAttribute("visibility", "hidden");
+    this.shown.dot.setAttribute("visibility", "hidden");
+  };
 
-  function pointAt(event) {
-    if (!shown) return;
-    var box = $("plot").getBoundingClientRect();
+  Chart.prototype.pointAt = function (event) {
+    if (!this.shown) return;
+    var box = this.part("plot").getBoundingClientRect();
     var i = Math.round((event.clientX - box.left - PAD.left) /
-      shown.step);
-    showTip(Math.max(0, Math.min(i, shown.points.length - 1)));
-  }
-
-  $("plot").addEventListener("pointermove", pointAt);
-  $("plot").addEventListener("pointerdown", pointAt);
-  $("plot").addEventListener("pointerleave", function (event) {
-    // on a phone the tip stays until the next tap
-    if (event.pointerType === "mouse") hideTip();
-  });
+      this.shown.step);
+    this.showTip(
+      Math.max(0, Math.min(i, this.shown.points.length - 1))
+    );
+  };
 
   // ---------- drawing ----------
 
-  function fillPicker(names) {
-    var select = $("c-stock");
+  Chart.prototype.fillPicker = function (names) {
+    var select = this.part("stock");
     if (select.options.length) return;
     names.forEach(function (name) {
       var option = el("option", "", name);
       option.value = name;
       select.appendChild(option);
     });
-    select.value = stock;
-  }
+    select.value = this.stock;
+  };
 
-  function draw(data) {
+  Chart.prototype.draw = function (data) {
     // an answer for the stock or period shown before
-    if (data.stock !== stock || data.days !== days) return;
-    lastData = data;
-    fillPicker(data.names);
+    if (data.stock !== this.stock || data.days !== this.days) {
+      return;
+    }
+    var self = this;
+    this.lastData = data;
+    this.fillPicker(data.names);
     var points = series(data);
-    summary(data, points);
-    $("c-empty").hidden = points.length > 0;
-    $("c-empty").textContent = "no prices for " + data.stock +
+    this.summary(data, points);
+    var empty = this.part("empty");
+    empty.hidden = points.length > 0;
+    empty.textContent = "no prices for " + data.stock +
       " in the last " + data.days + " days";
-    $("legend").hidden = !points.length;
-    $("lg-avg").hidden = data.avg === null;
+    this.part("legend").hidden = !points.length;
+    this.part("lg-avg").hidden = data.avg === null;
     ["B", "S"].forEach(function (side) {
-      $("lg-" + side.toLowerCase()).hidden =
+      self.part("lg-" + side.toLowerCase()).hidden =
         !data.trades.some(function (t) {
           return t.side === side;
         });
     });
     var last = points[points.length - 1];
-    $("lg-now").hidden = !(last && last.live);
+    this.part("lg-now").hidden = !(last && last.live);
     if (!points.length) {
-      $("plot").textContent = "";
-      shown = null;
-      hideTip();
+      this.part("plot").textContent = "";
+      this.shown = null;
+      this.hideTip();
       return;
     }
-    drawChart(data, points);
-  }
+    this.drawChart(data, points);
+  };
+
+  // redrawn when the plot's width changed
+  Chart.prototype.resize = function () {
+    var now = this.part("plot").clientWidth;
+    if (this.lastData && now !== this.width) {
+      this.draw(this.lastData);
+    }
+  };
 
   // ---------- the stock and the period ----------
 
-  function checkPeriod() {
-    Array.prototype.forEach.call(
-      document.querySelectorAll('input[name="days"]'),
-      function (input) {
-        input.checked = Number(input.value) === days;
-      }
-    );
-  }
-
   // show stock over days: the address, the controls,
   // ask right away
-  function choose() {
-    history.replaceState(null, "", "/chart?stock=" +
-      encodeURIComponent(stock) + "&days=" + days);
-    $("c-stock").value = stock;
-    checkPeriod();
-    hideTip();
-    $("c-name").textContent = stock;
-    if (refresh) {
-      refresh();
+  Chart.prototype.choose = function () {
+    var self = this;
+    saveAddress();
+    this.part("stock").value = this.stock;
+    Array.prototype.forEach.call(this.periods(), function (input) {
+      input.checked = Number(input.value) === self.days;
+    });
+    this.hideTip();
+    this.part("name").textContent = this.stock;
+    if (this.refresh) {
+      this.refresh();
     } else {
-      refresh = nx.poll(function () {
-        return "/api/chart/" + encodeURIComponent(stock) +
-          "?days=" + days;
-      }, draw);
-    }
-  }
-
-  $("c-stock").addEventListener("change", function () {
-    stock = $("c-stock").value;
-    choose();
-  });
-  Array.prototype.forEach.call(
-    document.querySelectorAll('input[name="days"]'),
-    function (input) {
-      input.addEventListener("change", function () {
-        days = Number(input.value);
-        choose();
+      this.refresh = nx.poll(function () {
+        return "/api/chart/" + encodeURIComponent(self.stock) +
+          "?days=" + self.days;
+      }, function (data) {
+        self.draw(data);
       });
     }
-  );
+  };
 
-  var width = null;
+  // ---------- the page ----------
+
+  // the charts in the address, in the order shown
+  function saveAddress() {
+    var query = charts.map(function (one) {
+      return "stock=" + encodeURIComponent(one.stock) +
+        "&days=" + one.days;
+    }).join("&");
+    history.replaceState(null, "", "/chart?" + query);
+  }
+
   window.addEventListener("resize", function () {
-    var now = $("plot").clientWidth;
-    if (lastData && now !== width) {
-      width = now;
-      draw(lastData);
-    }
+    charts.forEach(function (one) {
+      one.resize();
+    });
   });
 
   // the stock and days of the address; a stock not
@@ -411,6 +481,7 @@
   var query = new URLSearchParams(location.search);
   var asked = (query.get("stock") || "").toUpperCase();
   var askedDays = Number(query.get("days"));
+  var days = 5;
   if (Number.isInteger(askedDays) && askedDays >= 1 &&
       askedDays <= 1825) {
     days = askedDays;
@@ -419,6 +490,7 @@
     .then(nx.answer)
     .then(function (found) {
       // /api/trades: the stocks that have trades
+      var stock;
       if (found.names.indexOf(asked) >= 0) {
         stock = asked;
       } else {
@@ -427,7 +499,9 @@
         })[0];
         stock = held ? held.stock : found.names[0];
       }
-      choose();
+      var chart = new Chart(stock, days);
+      charts.push(chart);
+      chart.choose();
     })
     .catch(function (error) {
       nx.showNotice(error.status === 403

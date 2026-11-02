@@ -383,9 +383,25 @@ class WebServerTest(ServerMixin, unittest.TestCase):
                 scripts(CHART_SCRIPT),
             )
         )
-        self.assertGreater(len(ids), 8)
+        self.assertIn("chart-tpl", ids)
         for name in ids:
             self.assertIn(f'id="{name}"', page.decode())
+        # and every part of a chart, in its template
+        template = re.search(
+            r'<template id="chart-tpl">(.*?)</template>',
+            page.decode(),
+            re.S,
+        ).group(1)
+        parts = set(
+            re.findall(
+                r'\.part\("([\w-]+)"\)',
+                scripts(CHART_SCRIPT),
+            )
+        )
+        self.assertGreater(len(parts), 12)
+        for name in parts | {"lg-b", "lg-s"}:
+            self.assertIn(f'data-part="{name}"', template)
+        self.assertNotIn(' id="', template)
         # the periods
         self.assertEqual(
             re.findall(

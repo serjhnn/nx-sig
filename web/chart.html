@@ -32,16 +32,23 @@
       <div id="done-text"></div>
     </div>
 
-    <section class="panel" aria-label="The chart">
+    <div class="charts" id="charts"></div>
+  </main>
+</div>
+
+<!-- one chart; chart.js copies it for each chart
+     and finds its parts by data-part -->
+<template id="chart-tpl">
+    <section class="panel chart" aria-label="A chart">
       <div class="chart-controls">
         <div class="field">
-          <label for="c-stock">Stock</label>
-          <select id="c-stock"></select>
+          <label data-part="stock-label">Stock</label>
+          <select data-part="stock"></select>
         </div>
         <div class="field">
-          <span class="flabel" id="c-period-label">Period</span>
+          <span class="flabel" data-part="period-label">Period</span>
           <div class="seg periods" role="radiogroup"
-            aria-labelledby="c-period-label">
+            data-part="periods">
             <label><input type="radio" name="days" value="5"
               checked><span>5d</span></label>
             <label><input type="radio" name="days"
@@ -54,26 +61,25 @@
         </div>
       </div>
       <div class="chart-head">
-        <b id="c-name">-</b>
-        <span class="px" id="c-price">-</span>
-        <span class="chip idle" id="c-change">-</span>
-        <span class="muted" id="c-info"></span>
+        <b data-part="name">-</b>
+        <span class="px" data-part="price">-</span>
+        <span class="chip idle" data-part="change">-</span>
+        <span class="muted" data-part="info"></span>
       </div>
       <div class="plot-wrap">
-        <div class="plot" id="plot"></div>
-        <div class="tip" id="tip" hidden></div>
+        <div class="plot" data-part="plot"></div>
+        <div class="tip" data-part="tip" hidden></div>
       </div>
-      <p class="empty" id="c-empty" hidden></p>
-      <div class="legend" id="legend" aria-hidden="true">
+      <p class="empty" data-part="empty" hidden></p>
+      <div class="legend" data-part="legend" aria-hidden="true">
         <span><i class="lg-line"></i>price</span>
-        <span id="lg-avg"><i class="lg-avg"></i>avg buy</span>
-        <span id="lg-b"><i class="lg-b">B</i>buy</span>
-        <span id="lg-s"><i class="lg-s">S</i>sell</span>
-        <span id="lg-now"><i class="lg-now"></i>now</span>
+        <span data-part="lg-avg"><i class="lg-avg"></i>avg buy</span>
+        <span data-part="lg-b"><i class="lg-b">B</i>buy</span>
+        <span data-part="lg-s"><i class="lg-s">S</i>sell</span>
+        <span data-part="lg-now"><i class="lg-now"></i>now</span>
       </div>
     </section>
-  </main>
-</div>
+</template>
 <script src="/js/app.js"></script>
 <script src="/js/chart.js"></script>
 </body>

@@ -686,6 +686,32 @@ so `read_only` doesn't change it.
    `/api/chart`, the layout: `engines/chart.py`),
    `gen_deps.py` and the module map, `TODO.md`.
 
+## Several charts
+
+More than one chart on `/chart`, each with its
+own stock and period, in one window.
+
+1. ~~**A chart from a template**~~ (done): the
+   panel is a `<template id="chart-tpl">` in
+   `web/chart.html`, its parts named by
+   `data-part` (no ids, so it can be copied);
+   `web/js/chart.js` has a `Chart` with its own
+   stock, period, data, tip and `nx.poll`, put
+   into `#charts`. The address is written from
+   all the charts. With one chart the page is as
+   before. `test_web.py` checks the template has
+   every part `chart.js` asks for.
+2. **Adding and closing charts**: an "Add chart"
+   button (the next held stock not shown, the
+   same period), a close button on each (not on
+   the last one), at most 4; one column on a
+   phone, two on a wide screen.
+3. **The charts in the address**:
+   `?stock=TSMX&days=30&stock=SOXL&days=5`; the
+   links of the other pages stay as they are.
+4. **Tests and docs**: `test_web.py`, README,
+   this plan, `TODO.md`.
+
 ## Later
 
 - The other pages: rules; with
