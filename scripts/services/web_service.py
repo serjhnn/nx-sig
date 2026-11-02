@@ -12,7 +12,7 @@
 # anything else is 404, a method other than GET or HEAD
 # 501 (http.server).
 #
-# a successful /api/status isn't logged: a page asks
+# a successful /api/... isn't logged: a page asks
 # every few seconds.
 #
 # the server keeps the prices for the pages in a
@@ -92,7 +92,7 @@ class Handler(BaseHTTPRequestHandler):
         # a page asks every few seconds: only the
         # failures go to the log
         path = self.path.split("?", 1)[0]
-        if path == "/api/status" and code == 200:
+        if path.startswith("/api/") and code == 200:
             return
         super().log_request(code, size)
 

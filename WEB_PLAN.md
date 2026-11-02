@@ -215,10 +215,17 @@ its own pages.
    one, the count held and the average, each file
    read once. `ls trades` uses it and prints the
    same (compared with and without color).
-3. **`/api/trades`**: the stocks, or one stock's
-   trades and its total, with the price and gain
-   from the price cache; only on `127.0.0.1`, and
-   `read_only` in it so the page knows.
+3. ~~**`/api/trades`**~~ (done): `/api/trades`,
+   the stocks of `trades.by_stock()` with their
+   price, gain and gain % (`positions.row()`, the
+   main page's math), and `/api/trades/<stock>`,
+   one stock (any case) and its trades, oldest
+   first; 404 for a stock not in the config. Every
+   answer has the prices' time and error, the
+   interval, demo and `read_only` (config `web`
+   `read_only`, default `true`, already read here;
+   it is enforced in step 5). Only on `127.0.0.1`,
+   only failures logged.
 4. **The page `/trades`**: the stock chips (count,
    average, gain), the chosen stock's trades,
    newest first; on a phone the chips scroll

@@ -74,6 +74,8 @@ DEFAULT_WEB_HOST = "127.0.0.1"
 DEFAULT_WEB_PORT = 8080
 # seconds between two price requests of the web page
 DEFAULT_WEB_INTERVAL = 5
+# the web pages only show, they change no data
+DEFAULT_WEB_READ_ONLY = True
 # a trade's fee when config.json has no "fee"
 DEFAULT_FEE = 0
 # the width the shell's tables are made for
@@ -246,6 +248,15 @@ def web_interval():
     if _is_number(value) and value >= 1:
         return value
     return DEFAULT_WEB_INTERVAL
+
+
+def web_read_only():
+    """config "web" "read_only": true or false, else
+    DEFAULT_WEB_READ_ONLY"""
+    value = _section("web").get("read_only")
+    if isinstance(value, bool):
+        return value
+    return DEFAULT_WEB_READ_ONLY
 
 
 def _terminal(key, default):

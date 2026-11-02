@@ -83,6 +83,21 @@ class WebConfigTest(unittest.TestCase):
         self.assertEqual(config.web_port(), 8080)
         self.assertEqual(config.web_interval(), 5)
 
+    def test_read_only(self):
+        for value, expected in (
+            (True, True),
+            (False, False),
+            (None, True),
+            (0, True),
+            ("false", True),
+        ):
+            self.patch({"web": {"read_only": value}})
+            self.assertEqual(
+                config.web_read_only(), expected, value
+            )
+        self.patch({})
+        self.assertTrue(config.web_read_only())
+
     def test_interval(self):
         for value, expected in (
             (10, 10),
@@ -302,7 +317,10 @@ class FakeCache:
         return self.result
 
 
-class ApiStatusTest(ServerMixin, unittest.TestCase):
+class ApiMixin(ServerMixin):
+    """the data in a temp dir, not the demo, no device
+    that runs the tasks, no fee"""
+
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
@@ -329,6 +347,8 @@ class ApiStatusTest(ServerMixin, unittest.TestCase):
         )
         return response, json.loads(body)
 
+
+class ApiStatusTest(ApiMixin, unittest.TestCase):
     def test_empty(self):
         response, data = self.api()
         self.assertEqual(response.status, 200)
@@ -346,6 +366,7 @@ class ApiStatusTest(ServerMixin, unittest.TestCase):
                 "error": None,
                 "interval": 5,
                 "demo": False,
+                "read_only": True,
                 "positions": [],
                 "total": {
                     "gain": 0,
@@ -572,6 +593,221 @@ class ApiStatusTest(ServerMixin, unittest.TestCase):
         )
         self.assertEqual(response.status, 200)
         self.assertEqual(body, b"")
+
+
+class ApiTradesTest(ApiMixin, unittest.TestCase):
+    """/api/trades and /api/trades/<stock>"""
+
+    def get(
+        self,
+        path,
+        cache=None,
+        host="127.0.0.1",
+        logged=False,
+    ):
+        """(response, data); only the failures are
+        logged"""
+        self.serve(host)
+        self.server.prices = cache or FakeCache()
+        response, body = self.request(path, logged=logged)
+        return response, json.loads(body)
+
+    def add(self):
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            20,
+            25,
+            "02.09.2026",
+            "15:31",
+        )
+        trades.add(
+            Stock.SOXL,
+            TradeType.SELL,
+            5,
+            30,
+            "03.09.2026",
+            "16:00",
+        )
+        trades.add(
+            Stock.TSMX,
+            TradeType.BUY,
+            10,
+            40,
+            "10.09.2026",
+            "15:55",
+        )
+        trades.add(
+            Stock.TSMX,
+            TradeType.SELL,
+            10,
+            45,
+            "11.09.2026",
+            "15:55",
+        )
+
+    def test_empty(self):
+        response, data = self.get("/api/trades")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            data,
+            {
+                "updated": None,
+                "error": None,
+                "interval": 5,
+                "demo": False,
+                "read_only": True,
+                "stocks": [],
+            },
+        )
+
+    def test_stocks(self):
+        self.add()
+        updated = datetime(2026, 11, 2, 14, 30, 5)
+        cache = FakeCache(
+            {"SOXL": 30.0, "TSMX": 50.0}, updated
+        )
+        _, data = self.get("/api/trades", cache)
+        self.assertEqual(
+            data["updated"], "2026-11-02T14:30:05"
+        )
+        # config order
+        self.assertEqual(
+            [r["stock"] for r in data["stocks"]],
+            [
+                s.name
+                for s in Stock
+                if s.name in ("SOXL", "TSMX")
+            ],
+        )
+        rows = {r["stock"]: r for r in data["stocks"]}
+        soxl, tsmx = rows["SOXL"], rows["TSMX"]
+        self.assertEqual(
+            soxl,
+            {
+                "stock": "SOXL",
+                "trades": 2,
+                "last": {
+                    "id": 2,
+                    "date": "03.09.2026",
+                    "time": "16:00",
+                    "type": "SELL",
+                    "count": 5,
+                    "price": 30.0,
+                },
+                "count": 15,
+                "avg": 25.0,
+                "cost": 375.0,
+                "price": 30.0,
+                "gain": 75.0,
+                "pct": 20.0,
+            },
+        )
+        # all sold: listed, nothing held, no gain %
+        self.assertEqual(tsmx["count"], 0)
+        self.assertEqual(tsmx["gain"], 0)
+        self.assertIsNone(tsmx["pct"])
+        # the same gain as the main page
+        _, status = self.api(cache)
+        self.assertEqual(
+            {k: soxl[k] for k in status["positions"][0]},
+            dict(status["positions"][0]),
+        )
+
+    def test_no_price(self):
+        self.add()
+        _, data = self.get("/api/trades")
+        for row in data["stocks"]:
+            self.assertIsNone(row["price"])
+            self.assertIsNone(row["gain"])
+            self.assertIsNone(row["pct"])
+
+    def test_one_stock(self):
+        self.add()
+        cache = FakeCache({"SOXL": 30.0})
+        for name in ("SOXL", "soxl"):
+            response, data = self.get(
+                f"/api/trades/{name}", cache
+            )
+            self.assertEqual(response.status, 200)
+            self.assertEqual(data["stock"]["stock"], "SOXL")
+            self.assertEqual(data["stock"]["gain"], 75.0)
+            # oldest first, the ids of 'rm trade'
+            self.assertEqual(
+                [t["id"] for t in data["trades"]], [1, 2]
+            )
+            self.assertEqual(
+                data["trades"][0],
+                {
+                    "id": 1,
+                    "date": "02.09.2026",
+                    "time": "15:31",
+                    "type": "BUY",
+                    "count": 20,
+                    "price": 25.0,
+                },
+            )
+            self.assertTrue(data["read_only"])
+
+    def test_stock_without_trades(self):
+        _, data = self.get("/api/trades/NVDL")
+        self.assertEqual(data["trades"], [])
+        self.assertEqual(data["stock"]["trades"], 0)
+        self.assertIsNone(data["stock"]["last"])
+        self.assertEqual(data["stock"]["count"], 0)
+
+    def test_unknown_stock(self):
+        response, data = self.get(
+            "/api/trades/XYZ", logged=True
+        )
+        self.assertEqual(response.status, 404)
+        self.assertIn("unknown stock 'XYZ'", data["error"])
+        self.assertIn("SOXL", data["error"])
+
+    def test_not_api_paths(self):
+        self.serve()
+        for path in (
+            "/api/trades/",
+            "/api/trades/SOXL/1",
+            "/api/tradesx",
+            "/api/x",
+        ):
+            response, _ = self.request(path)
+            self.assertEqual(response.status, 404, path)
+            self.assertEqual(
+                response.getheader("Content-Type"),
+                "text/html;charset=utf-8",
+                path,
+            )
+
+    def test_read_only_off(self):
+        config.DATA["web"] = {"read_only": False}
+        _, data = self.get("/api/trades")
+        self.assertFalse(data["read_only"])
+        _, data = self.get("/api/trades/SOXL")
+        self.assertFalse(data["read_only"])
+
+    def test_only_on_localhost(self):
+        self.add()
+        for path in ("/api/trades", "/api/trades/SOXL"):
+            response, data = self.get(
+                path, host="0.0.0.0", logged=True
+            )
+            self.assertEqual(response.status, 403)
+            self.assertIn("127.0.0.1", data["error"])
+            self.assertEqual(list(data), ["error"])
+
+    def test_failure(self):
+        def broken():
+            raise OSError("disk")
+
+        with mock.patch.object(trades, "by_stock", broken):
+            self.serve()
+            self.server.prices = FakeCache()
+            response, body = self.request("/api/trades")
+        self.assertEqual(response.status, 500)
+        self.assertIn("web log", json.loads(body)["error"])
+        self.log.exception.assert_called()
 
 
 class FakeClock:

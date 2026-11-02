@@ -15,6 +15,8 @@
 #   rows(prices)
 #       one dict per held stock with its gain at
 #       prices ({stock name: price})
+#   row(stock, count, avg_price, prices)
+#       the dict of one stock (see rows())
 #   total(rows)
 #       (gain, cost, pct) of the rows that have a
 #       price
@@ -38,26 +40,34 @@ def rows(prices):
     (price - avg)) and pct (gain % of cost); price,
     gain and pct are None without a price, pct also
     without a cost"""
-    result = []
     # read again each time: the mail broker may record
     # a trade between two calls
-    for stock, count, avg_price in held():
-        row = {
-            "stock": stock,
-            "count": count,
-            "avg": avg_price,
-            "price": None,
-            "gain": None,
-            "pct": None,
-            "cost": abs(count) * avg_price,
-        }
-        if stock.name in prices:
-            row["price"] = prices[stock.name]
-            row["gain"] = count * (row["price"] - avg_price)
-            if row["cost"]:
-                row["pct"] = row["gain"] / row["cost"] * 100
-        result.append(row)
-    return result
+    return [
+        row(stock, count, avg_price, prices)
+        for stock, count, avg_price in held()
+    ]
+
+
+def row(stock, count, avg_price, prices):
+    """the dict of one stock with count at avg_price,
+    at prices (see rows())"""
+    found = {
+        "stock": stock,
+        "count": count,
+        "avg": avg_price,
+        "price": None,
+        "gain": None,
+        "pct": None,
+        "cost": abs(count) * avg_price,
+    }
+    if stock.name in prices:
+        found["price"] = prices[stock.name]
+        found["gain"] = count * (found["price"] - avg_price)
+        if found["cost"]:
+            found["pct"] = (
+                found["gain"] / found["cost"] * 100
+            )
+    return found
 
 
 def total(rows):

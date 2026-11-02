@@ -237,6 +237,7 @@ The `web` settings (optional, `"web": {"host": "127.0.0.1", "port": 8080}`):
 | `host` | the address the web server listens on (default `"127.0.0.1"`, only this device); `"0.0.0.0"` lets the other devices of the network open it too |
 | `port` | its port, `1` to `65535` (default `8080`) |
 | `interval` | seconds between two price requests while the main page is open, at least `1` (default `5`) |
+| `read_only` | `true` (default): the web pages only show the data; `false` lets the trades page add and delete trades (coming) |
 
 With `auto`, the width is read again for every command, so the output adjusts
 to the screen as it is now; it is never less than 48. On a screen wider than 48
@@ -566,8 +567,8 @@ other packages than the shell's). Open the address in a browser on the same devi
   logo), `/logo.svg`, `/style.css` (the style every page shares,
   `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
   they use (`/fonts/`, IBM Plex, bundled so nothing comes from the
-  internet) and `/api/status`; it changes nothing, any other path is
-  `404`. The browser files are in `web/`, the server's parts in
+  internet), `/api/status` and `/api/trades`; it changes nothing, any
+  other path is `404`. The browser files are in `web/`, the server's parts in
   `scripts/web/`: `files.py` sends the files (a page gets the shared
   top bar and menu of `web/frame.html`), `api.py` the JSON,
   `price_cache.py` keeps the prices.
@@ -578,6 +579,12 @@ other packages than the shell's). Open the address in a browser on the same devi
   it answers only when the server listens on `127.0.0.1`; with any other
   `host` it is `403`, and the page says "Positions not shown". A page asks
   for it every few seconds, so only its failures are logged.
+- `/api/trades` is the stocks that have trades as JSON (how many, the
+  last one, the count held, the average, the price, gain and gain %),
+  `/api/trades/<stock>` one stock with its trades (`404` for a stock not
+  in the config); for the trades page, which comes next. Like
+  `/api/status` they answer only on `127.0.0.1`, are logged only when
+  they fail, and say whether `read_only` is on.
 - The server fetches the prices every config `web` `interval` seconds
   (default `5`), but only while a page asked for them in the last 30
   seconds: with no page open it requests nothing, and however many pages
