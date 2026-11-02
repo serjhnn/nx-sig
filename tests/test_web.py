@@ -455,7 +455,7 @@ class WebServerTest(ServerMixin, unittest.TestCase):
             )
 
     def test_more(self):
-        # on a phone Chart, Basetrades and Rules are
+        # on a phone Ladders, Alerts and Rules are
         # under More, the other pages are tabs
         with open(files.FRAME_PATH) as f:
             frame = f.read()
@@ -463,12 +463,12 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         tabs, more = nav.split('<div class="more"', 1)
         self.assertEqual(
             re.findall(r"</svg>(\w+)</a>", tabs),
-            ["Home", "Trades", "Ladders", "Alerts"],
+            ["Home", "Trades", "Chart", "Basetrades"],
         )
         self.assertIn('id="more-btn"', tabs)
         self.assertEqual(
             re.findall(r"</svg>(\w+)</a>", more),
-            ["Chart", "Basetrades", "Rules"],
+            ["Ladders", "Alerts", "Rules"],
         )
 
     def test_menu(self):

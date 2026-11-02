@@ -584,8 +584,8 @@ other packages than the shell's). Open the address in a browser on the same devi
   last values and says what went wrong (no prices, a missing key, the
   server stopped). The button at the top switches dark and light (the
   system's by default, kept in the browser). On a phone the menu is at the
-  bottom (Home, Trades, Ladders, Alerts and More, which opens the list of
-  the other pages), on a wider screen at the side with every page; the
+  bottom (Home, Trades, Chart, Basetrades and More, which opens the list
+  of the other pages), on a wider screen at the side with every page; the
   pages that don't exist yet (rules) are greyed out. A stock's name on
   the main, trades and basetrades pages opens its chart.
 - The trades page (`/trades`): the stocks that have trades as chips (the
@@ -599,7 +599,7 @@ other packages than the shell's). Open the address in a browser on the same devi
   now) and deletes one (the bin of its row, after asking), like `add
   trade` and `rm trade`, with the same checks and texts. With it on (the
   default) the page only shows, and says "read-only".
-- The ladders page (`/ladders`): a card per saved ladder with its stock,
+- The ladders page (`/ladders`, under More on a phone): a card per saved ladder with its stock,
   "down 1 from 35", its state (running, stopped, done, crashed), the next
   level and how far the price still has to move to it ("price past the
   level" when a stopped ladder missed it), and a picture of the rungs:
@@ -612,7 +612,7 @@ other packages than the shell's). Open the address in a browser on the same devi
   Taking the background tasks over from another device (`run ladder <id>
   force`) stays in the shell. The result of a change shows above the
   page for a few seconds (longer when it failed).
-- The alerts page (`/alerts`): whether the alerts process runs (with its
+- The alerts page (`/alerts`, under More on a phone): whether the alerts process runs (with its
   last check, or the device that runs the background tasks), and a card
   per saved alert ("down 10%", "TSMX +100") with a table of its level per
   stock (per basetrade, or per held stock for a gain alert): the level,
@@ -623,18 +623,18 @@ other packages than the shell's). Open the address in a browser on the same devi
   or a loss, in money or in % of the average buy price) and deletes one
   (after asking), like `run alerts`, `stop alerts`, `add alert` and `rm
   alert`, with the same checks and texts.
-- The basetrades page (`/basetrades`, under More on a phone): a card per
-  basetrade, like `ls basetrades al`: the count and buying price, the
-  price and its change % from the buying price, a line with the buying
-  price and each basetrades alert's level as ticks and the price as a
-  dot, and the alerts ("down 10% · 25.88", marked when reached).
+- The basetrades page (`/basetrades`): a card per basetrade, like `ls
+  basetrades al`: the count and buying price, the price and its change %
+  from the buying price, a line with the buying price and each
+  basetrades alert's level as ticks and the price as a dot, and the
+  alerts ("down 10% · 25.88", marked when reached).
 - With `read_only` off, the basetrades page also adds a basetrade ("Add
   basetrade": a stock, from its trades or a price and count, filled in
   with its lowest buy since the last sell), sets all of them from the
   trades ("All from trades", after asking which it replaces) and deletes
   one (after asking), like `add basetrade <stock>`, `add basetrade all`
   and `rm basetrade`, with the same checks and texts.
-- The chart page (`/chart`, under More on a phone): a stock's price over
+- The chart page (`/chart`): a stock's price over
   5 days, 1 month, 3 months or 1 year, like `chart <stock> period <n>`,
   as a line with the average buy price dashed and the trades as B / S;
   the price, its change over the period and the bars' size above it. A
