@@ -1,4 +1,4 @@
-# files: the files the web server sends as they are,
+# files: the files of the web pages the server sends,
 # from the folder web/ (the pages, their style and
 # scripts, the fonts) and assets/logo.svg
 #
@@ -6,6 +6,9 @@
 #
 # the paths:
 #   /             web/index.html, the main page
+#                 (a page gets web/frame.html, the top
+#                 bar and the menu, at its line
+#                 <!-- frame -->)
 #   /logo         a page with the logo, as wide as the
 #                 screen
 #   /logo.svg     assets/logo.svg
@@ -18,6 +21,8 @@
 #   find(path)
 #       (body, content type) of path, None if it
 #       isn't one of them
+#   page(file)
+#       a page of web/ with its frame
 
 import os
 
@@ -29,6 +34,8 @@ LOGO_PATH = os.path.join(
 )
 STYLE_PATH = os.path.join(WEB_DIR, "style.css")
 INDEX_PATH = os.path.join(WEB_DIR, "index.html")
+FRAME_PATH = os.path.join(WEB_DIR, "frame.html")
+FRAME_MARK = b"<!-- frame -->"
 JS_DIR = os.path.join(WEB_DIR, "js")
 FONTS_DIR = os.path.join(WEB_DIR, "fonts")
 HTML = "text/html; charset=utf-8"
@@ -82,12 +89,22 @@ def find(path):
         return LOGO_PAGE.encode(), HTML
     if path in PATHS:
         file, kind = PATHS[path]
+        if kind == HTML:
+            return page(file), kind
         return _read(file), kind
     for prefix, found in FOLDERS.items():
         file = _in_folder(path, prefix, *found[:2])
         if file:
             return _read(file), found[2]
     return None
+
+
+def page(file):
+    """the page in file with web/frame.html at its
+    frame line"""
+    return _read(file).replace(
+        FRAME_MARK, _read(FRAME_PATH).rstrip(b"\n"), 1
+    )
 
 
 def _in_folder(path, prefix, folder, ending):

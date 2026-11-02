@@ -29,8 +29,18 @@ from services import web_service
 from web import api, files, price_cache
 from storage import Stock, TradeType
 
-# the main page's script
+# the script every page shares, the main page's
+APP_PATH = os.path.join(files.JS_DIR, "app.js")
 SCRIPT_PATH = os.path.join(files.JS_DIR, "main.js")
+
+
+def scripts():
+    """the text of app.js and main.js"""
+    text = ""
+    for path in (APP_PATH, SCRIPT_PATH):
+        with open(path) as f:
+            text += f.read()
+    return text
 
 
 class FakeChild:
@@ -135,35 +145,56 @@ class WebServerTest(ServerMixin, unittest.TestCase):
                 response.getheader("Content-Type"),
                 "text/html; charset=utf-8",
             )
-            with open(files.INDEX_PATH, "rb") as f:
-                self.assertEqual(body, f.read())
+            self.assertEqual(
+                body, files.page(files.INDEX_PATH)
+            )
             self.assertIn(b'href="/style.css"', body)
-            self.assertIn(b'src="/js/main.js"', body)
+            # the frame is in, app.js before main.js
+            self.assertNotIn(files.FRAME_MARK, body)
+            self.assertIn(b'<header class="top">', body)
+            self.assertIn(b'<nav class="nav"', body)
+            self.assertLess(
+                body.index(b'src="/js/app.js"'),
+                body.index(b'src="/js/main.js"'),
+            )
             self.assertIn(b"width=device-width", body)
 
-    def test_script(self):
-        response, body = self.request("/js/main.js")
-        self.assertEqual(response.status, 200)
-        self.assertEqual(
-            response.getheader("Content-Type"),
-            "text/javascript; charset=utf-8",
-        )
-        with open(SCRIPT_PATH, "rb") as f:
-            self.assertEqual(body, f.read())
-        # what it asks for
-        self.assertIn(b'"/api/status"', body)
+    def test_scripts(self):
+        for path in (APP_PATH, SCRIPT_PATH):
+            name = os.path.basename(path)
+            response, body = self.request(f"/js/{name}")
+            self.assertEqual(response.status, 200)
+            self.assertEqual(
+                response.getheader("Content-Type"),
+                "text/javascript; charset=utf-8",
+            )
+            with open(path, "rb") as f:
+                self.assertEqual(body, f.read())
+        # what the main page asks for
+        with open(SCRIPT_PATH) as f:
+            self.assertIn('nx.poll("/api/status"', f.read())
 
     def test_page_ids(self):
-        # every element the script looks up is there
-        with open(SCRIPT_PATH) as f:
-            ids = set(
-                re.findall(r'\$\("([\w-]+)"\)', f.read())
-            )
-        with open(files.INDEX_PATH) as f:
-            page = f.read()
+        # every element the scripts look up is there
+        ids = set(
+            re.findall(r'\$\("([\w-]+)"\)', scripts())
+        )
+        page = files.page(files.INDEX_PATH).decode()
         self.assertGreater(len(ids), 10)
         for name in ids:
             self.assertIn(f'id="{name}"', page)
+
+    def test_menu(self):
+        # every page the menu links to is there, and
+        # the frame isn't served by itself
+        with open(files.FRAME_PATH) as f:
+            links = re.findall(r'href="([^"]+)"', f.read())
+        self.assertIn("/", links)
+        for path in links:
+            response, _ = self.request(path)
+            self.assertEqual(response.status, 200, path)
+        response, _ = self.request("/frame.html")
+        self.assertEqual(response.status, 404)
 
     def test_logo_page(self):
         response, body = self.request("/logo")
@@ -487,8 +518,7 @@ class ApiStatusTest(ServerMixin, unittest.TestCase):
             # t is a task or a trade
             "t": dict(task, **trade),
         }
-        with open(SCRIPT_PATH) as f:
-            script = f.read()
+        script = scripts()
         # "name.field", not "name.fieldName" (the DOM)
         used = re.findall(
             r"\b((?:data|lastData|p|best|t|mail)"

@@ -197,10 +197,17 @@ its own pages.
    `/api/status` from `web_service.py` into
    `scripts/web/` (`files.py`, `api.py`,
    `price_cache.py`). No visible change.
-1. **Shared page parts**: the helpers every page
-   needs (numbers, theme button, notice, polling)
-   from `main.js` into `web/js/app.js`. The menu
-   link to Trades works. The main page as it is.
+1. ~~**Shared page parts**~~ (done): the helpers
+   every page needs (numbers, times, theme button,
+   notice, the prices in the top bar, polling) moved
+   from `main.js` into `web/js/app.js` (`nx.poll(url,
+   draw)` and the rest in `window.nx`); the top bar
+   and the menu into `web/frame.html`, which
+   `files.py` puts into each page at its `<!-- frame
+   -->` line, and `app.js` marks the open page in
+   the menu. The main page looks the same (compared
+   pixel by pixel). The Trades link goes live with
+   its page in step 4.
 2. **Trades in an engine**: what `ls trades` shows
    (the stocks that have trades with their count
    and average; one stock's trades with id, date,

@@ -568,7 +568,8 @@ other packages than the shell's). Open the address in a browser on the same devi
   they use (`/fonts/`, IBM Plex, bundled so nothing comes from the
   internet) and `/api/status`; it changes nothing, any other path is
   `404`. The browser files are in `web/`, the server's parts in
-  `scripts/web/`: `files.py` sends the files, `api.py` the JSON,
+  `scripts/web/`: `files.py` sends the files (a page gets the shared
+  top bar and menu of `web/frame.html`), `api.py` the JSON,
   `price_cache.py` keeps the prices.
 - `/api/status` is the main page's data as JSON: each held stock with its
   count, average, price, gain and gain %, the total, the running
@@ -745,8 +746,9 @@ nx-sig/
 │                         (scripts/gen_map_shots.py)
 ├── assets/modules.html  the module map (generated), also online:
 │                         serjhnn.github.io/nx-sig/assets/modules.html
-├── web/                  the web pages: index.html, style.css (shared),
-│                         js/ (main.js), fonts/ (IBM Plex)
+├── web/                  the web pages: index.html, frame.html (the top
+│                         bar and menu of every page), style.css,
+│                         js/ (app.js shared, main.js), fonts/ (IBM Plex)
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
 │                         (test_shell.py: every shell command)
 └── scripts/

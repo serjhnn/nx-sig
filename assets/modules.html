@@ -243,7 +243,7 @@ const MODS = {
   "services/ladder_service": ["services", "The process of one ladder, checks the price every INTERVAL seconds and notifies each level passed (engines/ladder.py starts and stops it)", ["engines/ladder", "engines/prices", "notifiers/notifier", "process"], []],
   "services/web_service": ["services", "The web server process (engines/web.py starts it)", ["config", "engines/web", "process", "web/api", "web/files", "web/price_cache"], []],
   "web/api": ["services", "The JSON the web pages ask for", ["engines/overview"], []],
-  "web/files": ["services", "The files the web server sends as they are, from the folder web/ (the pages, their style and scripts, the fonts) and assets/logo.svg", ["config"], []],
+  "web/files": ["services", "The files of the web pages the server sends, from the folder web/ (the pages, their style and scripts, the fonts) and assets/logo.svg", ["config"], []],
   "web/price_cache": ["services", "The prices of the web pages, fetched by a thread while a page watches", ["engines/prices"], []],
   "notifiers/demo_notify": ["notify", "The notify channel of the demo (./nxdemo), used instead of config.json \"notify\" (see notifier.py)", ["engines/demo"], []],
   "notifiers/notifier": ["notify", "Sends the ladder and alert messages through the channel of config.json \"notify\"", ["config"], ["notifiers/telegram_notify", "notifiers/termux_notify", "notifiers/ntfy_notify", "notifiers/demo_notify"]],

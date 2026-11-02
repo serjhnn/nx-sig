@@ -1,80 +1,20 @@
 // nX-sig web: the main page, served as /js/main.js
+// after /js/app.js
 //
-// asks /api/status every "interval" seconds (the
-// server's config "web" "interval") and changes only
-// the numbers, no reload; pauses while the tab is
-// hidden. on an error it keeps the last values and
-// says what went wrong. the theme button switches
-// dark and light, kept in localStorage.
+// draws /api/status: the total, the positions, the
+// background tasks and the last trades; app.js asks
+// for it and changes only the numbers, no reload.
 
 (function () {
   "use strict";
 
-  var THEME_KEY = "nx-theme";
-  var MINUS = "−";
-  var timer = null;
+  var $ = nx.$;
+  var el = nx.el;
+  var num = nx.num;
+  var signed = nx.signed;
+  var trend = nx.trend;
+  var dayTime = nx.dayTime;
   var last = {}; // cell key -> text, to flash changes
-  var lastData = null;
-
-  function $(id) {
-    return document.getElementById(id);
-  }
-
-  function el(tag, cls, text) {
-    var node = document.createElement(tag);
-    if (cls) node.className = cls;
-    if (text !== undefined && text !== null) {
-      node.textContent = text;
-    }
-    return node;
-  }
-
-  // ---------- numbers and times ----------
-
-  function num(value, digits) {
-    if (value === null || value === undefined) return "-";
-    return value.toFixed(digits);
-  }
-
-  function signed(value, digits) {
-    if (value === null || value === undefined) return "-";
-    var text = Math.abs(value).toFixed(digits);
-    if (Number(text) === 0) return text;
-    return (value < 0 ? MINUS : "+") + text;
-  }
-
-  function trend(value) {
-    if (value === null || value === undefined) return "";
-    if (value > 0) return "up";
-    if (value < 0) return "down";
-    return "";
-  }
-
-  function pad(n) {
-    return (n < 10 ? "0" : "") + n;
-  }
-
-  // "2026-11-02T14:30:05" -> Date (local time, as sent)
-  function parse(iso) {
-    if (!iso) return null;
-    var m = /^(\d+)-(\d+)-(\d+)T(\d+):(\d+):(\d+)/.exec(iso);
-    if (!m) return null;
-    return new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
-  }
-
-  function clock(iso) {
-    var d = parse(iso);
-    if (!d) return "-";
-    return pad(d.getHours()) + ":" + pad(d.getMinutes()) +
-      ":" + pad(d.getSeconds());
-  }
-
-  function dayTime(iso) {
-    var d = parse(iso);
-    if (!d) return "-";
-    return pad(d.getDate()) + "." + pad(d.getMonth() + 1) +
-      " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
-  }
 
   // ---------- drawing ----------
 
@@ -263,116 +203,12 @@
     $("no-trades").hidden = data.last_trades.length > 0;
   }
 
-  function setLive(state, text) {
-    $("live-dot").className = "dot " + state;
-    $("live-text").textContent = text;
-  }
-
-  function showNotice(title, text) {
-    $("notice-title").textContent = title;
-    // the server's texts start lowercase, like the
-    // shell's
-    $("notice-text").textContent =
-      text.charAt(0).toUpperCase() + text.slice(1);
-    $("notice").hidden = false;
-  }
-
   function draw(data) {
-    lastData = data;
-    $("demo").hidden = !data.demo;
     drawTotal(data);
     drawPositions(data);
     drawTasks(data);
     drawTrades(data);
-    if (data.error) {
-      setLive("warn", data.updated ? clock(data.updated) : "no prices");
-      showNotice(
-        "Prices not updated.",
-        data.error + (data.updated
-          ? ". Showing the prices from " + clock(data.updated) + "."
-          : ".")
-      );
-    } else if (data.updated) {
-      setLive("", clock(data.updated));
-      $("notice").hidden = true;
-    } else {
-      setLive("off", "waiting for prices");
-      $("notice").hidden = true;
-    }
   }
 
-  // ---------- asking the server ----------
-
-  // the server said no (403), failed (500) or
-  // can't be reached (it stopped, no network)
-  function failed(error) {
-    var title = "Can't reach the server.";
-    if (error.status === 403) {
-      title = "Positions not shown.";
-    } else if (error.status) {
-      title = "Server error.";
-    }
-    var text = String(error.message || error);
-    setLive("warn", lastData && lastData.updated
-      ? clock(lastData.updated) : "no data");
-    showNotice(title, text + "." +
-      (lastData ? " Showing the last values." : ""));
-  }
-
-  function next(seconds) {
-    clearTimeout(timer);
-    if (!document.hidden) {
-      timer = setTimeout(poll, Math.max(1, seconds) * 1000);
-    }
-  }
-
-  function poll() {
-    var interval = lastData ? lastData.interval : 5;
-    fetch("/api/status", { cache: "no-store" })
-      .then(function (response) {
-        return response.json().catch(function () {
-          return {};
-        }).then(function (body) {
-          if (!response.ok) {
-            var error = new Error(body.error ||
-              "the server answered " + response.status);
-            error.status = response.status;
-            throw error;
-          }
-          return body;
-        });
-      })
-      .then(function (data) {
-        draw(data);
-        // the first prices come a moment after the
-        // first ask: ask again soon
-        next(data.updated ? data.interval : 1);
-      })
-      .catch(function (error) {
-        failed(error);
-        next(interval);
-      });
-  }
-
-  document.addEventListener("visibilitychange", function () {
-    clearTimeout(timer);
-    if (!document.hidden) poll();
-  });
-
-  // ---------- theme ----------
-
-  $("theme").addEventListener("click", function () {
-    var root = document.documentElement;
-    var current = root.dataset.theme;
-    var dark = current
-      ? current === "dark"
-      : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    var chosen = dark ? "light" : "dark";
-    root.dataset.theme = chosen;
-    try {
-      localStorage.setItem(THEME_KEY, chosen);
-    } catch (e) {}
-  });
-
-  poll();
+  nx.poll("/api/status", draw);
 })();
