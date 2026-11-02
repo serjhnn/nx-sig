@@ -8,6 +8,14 @@
 // its level per stock with the price and how far it
 // still has to move, or "reached". A card is made
 // once and only its texts change.
+//
+// unless config "web" "read_only" is on, the process
+// bar has Run or Stop (POST /api/alerts/run, stop),
+// "Add alert" opens a form for a basetrades or a
+// gain alert (POST /api/alerts/add) and each card has
+// Delete (after asking; POST /api/alerts/delete).
+// The server checks them like the shell; its texts
+// are shown.
 
 (function () {
   "use strict";
@@ -17,6 +25,8 @@
   var num = nx.num;
   var put = nx.put;
   var cards = {}; // alert id -> its card's parts
+  var lastData = null; // the last /api/alerts
+  var refresh = null; // asks /api/alerts right away
 
   var KIND = {
     basetrades: "from each basetrade",
@@ -42,6 +52,11 @@
       text = "not here, the background tasks run on " +
         p.owner;
     }
+    $("proc-acts").hidden = !canChange();
+    // nothing to check without an alert
+    $("proc-run").hidden = p.state === "running" ||
+      !lastData.alerts.length;
+    $("proc-stop").hidden = p.state !== "running";
     $("proc-dot").className = "dot " + dot;
     $("proc-state").className = "chip " + chip;
     $("proc-state").textContent = word;
@@ -80,6 +95,14 @@
     c.foot = el("div", "ladder-foot");
     c.about = el("span");
     c.foot.appendChild(c.about);
+    c.acts = el("span", "acts");
+    c.del = el("button", "btn danger sm", "Delete");
+    c.del.type = "button";
+    c.del.addEventListener("click", function () {
+      remove(a.id, c.del);
+    });
+    c.acts.appendChild(c.del);
+    c.foot.appendChild(c.acts);
     c.box.appendChild(c.foot);
     cards[a.id] = c;
     return c;
@@ -134,10 +157,203 @@
     c.about.textContent = "#" + a.id + " · " +
       (reached ? reached + " reached · " : "") +
       "since " + nx.shortDate(a.created.split(" ")[0]);
+    c.acts.hidden = !canChange();
     return c.box;
   }
 
+  // ---------- changes ----------
+
+  function canChange() {
+    return lastData !== null && !lastData.read_only;
+  }
+
+  function busy(b, text) {
+    b.dataset.text = b.textContent;
+    b.textContent = text;
+    b.disabled = true;
+  }
+
+  function idle(b) {
+    if (b.dataset.text) b.textContent = b.dataset.text;
+    b.disabled = false;
+  }
+
+  // run or stop the process
+  function act(what, b, text) {
+    busy(b, text);
+    nx.send("/api/alerts/" + what, {})
+      .then(function (result) {
+        idle(b);
+        nx.tell(result.text);
+        refresh();
+      })
+      .catch(function (error) {
+        idle(b);
+        nx.tell("the alerts not " +
+          (what === "run" ? "started" : "stopped") + ": " +
+          (error.message || error), true);
+      });
+  }
+
+  // delete alert id, after asking, like 'rm alert'
+  function remove(id, b) {
+    var a = lastData.alerts.filter(function (one) {
+      return one.id === id;
+    })[0];
+    var question = "Delete alert " + id +
+      (a ? ": " + a.kind + " " + a.text : "") + "?";
+    if (lastData.alerts.length === 1 &&
+        lastData.process.state === "running") {
+      question += " It is the last one: the alerts " +
+        "process stops.";
+    }
+    if (!window.confirm(question)) return;
+    busy(b, "Deleting…");
+    nx.send("/api/alerts/delete", { id: id })
+      .then(function (result) {
+        nx.tell(result.text);
+        refresh();
+      })
+      .catch(function (error) {
+        idle(b);
+        nx.tell("alert " + id + " not deleted: " +
+          (error.message || error), true);
+      });
+  }
+
+  // ---------- the add form ----------
+
+  var HINT = {
+    basetrades: "A message each time the price of a " +
+      "basetrade's stock crosses this percent below " +
+      "(down) or above (up) its buying price.",
+    gain: "A message each time the gain (or loss) of a " +
+      "held stock, or of each one with all, reaches the " +
+      "amount: in money for the whole position, or in % " +
+      "of its average buy price."
+  };
+
+  function kind() {
+    return $("add-form").elements.kind.value;
+  }
+
+  // the fields of the kind chosen
+  function showKind() {
+    var gain = kind() === "gain";
+    $("f-percent-field").hidden = gain;
+    $("f-stock-field").hidden = !gain;
+    $("f-value-field").hidden = !gain;
+    $("f-unit-field").hidden = !gain;
+    $("f-dir-label").textContent =
+      gain ? "Gain or loss" : "Direction";
+    $("f-down-text").textContent = gain ? "Loss" : "Down";
+    $("f-up-text").textContent = gain ? "Gain" : "Up";
+    $("f-hint").textContent = HINT[kind()];
+  }
+
+  function openForm() {
+    var select = $("f-stock");
+    select.textContent = "";
+    ["all"].concat(lastData.names).forEach(function (name) {
+      var option = el("option", "", name);
+      option.value = name;
+      select.appendChild(option);
+    });
+    $("f-basetrades").checked = true;
+    $("f-down").checked = true;
+    $("f-percent").value = "";
+    $("f-value").value = "";
+    $("f-unit").value = "amount";
+    showKind();
+    $("f-error").hidden = true;
+    $("add").hidden = false;
+    $("add-open").setAttribute("aria-expanded", "true");
+    $("f-percent").focus();
+  }
+
+  function closeForm() {
+    $("add").hidden = true;
+    $("add-open").setAttribute("aria-expanded", "false");
+  }
+
+  function formError(text) {
+    $("f-error").textContent = nx.sentence(text);
+    $("f-error").hidden = false;
+  }
+
+  function submit(event) {
+    event.preventDefault();
+    var form = $("add-form");
+    var down = form.elements.direction.value === "down";
+    var change;
+    // an input of type number gives "" for what
+    // isn't a number
+    if (kind() === "basetrades") {
+      var percent = $("f-percent").value.trim();
+      if (!percent) {
+        formError("give the percent");
+        return;
+      }
+      change = {
+        kind: "basetrades",
+        direction: down ? "down" : "up",
+        percent: Number(percent)
+      };
+    } else {
+      var value = $("f-value").value.trim();
+      if (!value) {
+        formError("give the gain");
+        return;
+      }
+      change = {
+        kind: "gain",
+        stock: $("f-stock").value,
+        // a loss is a negative gain, as in the shell
+        value: (down ? -1 : 1) * Number(value),
+        in_percent: $("f-unit").value === "percent"
+      };
+    }
+    busy($("f-submit"), "Saving…");
+    nx.send("/api/alerts/add", change)
+      .then(function (result) {
+        idle($("f-submit"));
+        closeForm();
+        if (result.start_error) {
+          nx.tell(result.text + ", but the alerts aren't " +
+            "checked: " + result.start_error, true);
+        } else {
+          nx.tell(result.text);
+        }
+        refresh();
+      })
+      .catch(function (error) {
+        idle($("f-submit"));
+        formError(error.message || error);
+      });
+  }
+
+  $("add-open").addEventListener("click", function () {
+    if ($("add").hidden) openForm(); else closeForm();
+  });
+  $("f-cancel").addEventListener("click", closeForm);
+  $("add-form").addEventListener("submit", submit);
+  Array.prototype.forEach.call(
+    $("add-form").elements.kind,
+    function (radio) {
+      radio.addEventListener("change", showKind);
+    }
+  );
+  $("proc-run").addEventListener("click", function () {
+    act("run", $("proc-run"), "Starting…");
+  });
+  $("proc-stop").addEventListener("click", function () {
+    act("stop", $("proc-stop"), "Stopping…");
+  });
+
+  // ---------- drawing ----------
+
   function draw(data) {
+    lastData = data;
     drawProcess(data.process);
     var box = $("alerts");
     var ids = {};
@@ -156,12 +372,15 @@
     var reached = data.alerts.filter(function (a) {
       return a.levels.some(function (r) { return r.reached; });
     }).length;
-    $("alerts-sub").textContent = count
+    $("alerts-sub").textContent = (count
       ? count + (count === 1 ? " alert" : " alerts") +
         " · " + reached + " reached"
-      : "";
+      : "") + (data.read_only
+      ? (count ? " · " : "") + "read-only" : "");
     $("no-alerts").hidden = count > 0;
+    $("add-open").hidden = data.read_only;
+    if (data.read_only) closeForm();
   }
 
-  nx.poll("/api/alerts", draw);
+  refresh = nx.poll("/api/alerts", draw);
 })();

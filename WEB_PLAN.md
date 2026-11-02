@@ -471,10 +471,21 @@ the shell.
    alerts, it runs already, another device). Tested
    with a faked process, and once with the real
    alerts process in the demo.
-5. **The forms**: "Add alert" with a
-   basetrades/gain switch; Run or Stop in the
-   process bar; Delete on each card after asking.
-   Hidden while `read_only` is on.
+5. ~~**The forms**~~ (done): "Add alert" opens a
+   form with a basetrades/gain switch: basetrades
+   has down or up and a percent; gain has the stock
+   (or all), gain or loss (sent as a negative
+   value), an amount and whether it is money or %
+   of the average buy price. The process bar has
+   Run (not without an alert) or Stop; each card
+   has Delete after asking ("it is the last one:
+   the alerts process stops" when it is). The
+   results show with `nx.tell()`. Hidden while
+   `read_only` is on, the header then says
+   "read-only". Checked in a browser with the real
+   alerts process in the demo: run, add both kinds,
+   the server's error in the form, delete, stop;
+   and the read-only view.
 6. **Tests**: the state, the api with both kinds
    and reached levels, the changes (processes
    faked), the page's ids and fields; a browser

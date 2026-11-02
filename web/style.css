@@ -825,7 +825,8 @@ td.act {
   font: 11px var(--mono);
   color: var(--muted);
 }
-.ladder-foot .acts {
+.ladder-foot .acts,
+.alert .acts {
   display: flex;
   gap: 6px;
   margin-left: auto;
@@ -918,6 +919,10 @@ td.act {
 }
 .process .chip {
   margin-left: auto;
+}
+.process .acts {
+  display: flex;
+  gap: 6px;
 }
 .alerts {
   display: grid;

@@ -39,11 +39,76 @@
         <span class="sub" id="proc-text">-</span>
       </div>
       <span class="chip idle" id="proc-state">-</span>
+      <span class="acts" id="proc-acts" hidden>
+        <button class="btn primary sm" type="button"
+          id="proc-run" hidden>Run</button>
+        <button class="btn sm" type="button"
+          id="proc-stop" hidden>Stop</button>
+      </span>
+    </section>
+
+    <section class="panel" id="add" aria-label="Add an alert" hidden>
+      <div class="panel-h"><h2>Add an alert</h2></div>
+      <form class="form" id="add-form" novalidate>
+        <div class="field">
+          <span class="flabel" id="f-kind-label">For</span>
+          <div class="seg" role="radiogroup"
+            aria-labelledby="f-kind-label">
+            <label><input type="radio" name="kind"
+              value="basetrades" id="f-basetrades" checked
+              ><span>Basetrades</span></label>
+            <label><input type="radio" name="kind"
+              value="gain"><span>Gain</span></label>
+          </div>
+        </div>
+        <div class="field">
+          <span class="flabel" id="f-dir-label">Direction</span>
+          <div class="seg" role="radiogroup"
+            aria-labelledby="f-dir-label">
+            <label><input type="radio" name="direction"
+              value="down" id="f-down" checked><span
+              id="f-down-text">Down</span></label>
+            <label><input type="radio" name="direction"
+              value="up"><span id="f-up-text">Up</span></label>
+          </div>
+        </div>
+        <div class="field" id="f-percent-field">
+          <label for="f-percent">Percent</label>
+          <input id="f-percent" type="number" inputmode="decimal"
+            min="0" step="any" autocomplete="off">
+        </div>
+        <div class="field" id="f-stock-field" hidden>
+          <label for="f-stock">Stock</label>
+          <select id="f-stock"></select>
+        </div>
+        <div class="field" id="f-value-field" hidden>
+          <label for="f-value">Amount</label>
+          <input id="f-value" type="number" inputmode="decimal"
+            min="0" step="any" autocomplete="off">
+        </div>
+        <div class="field" id="f-unit-field" hidden>
+          <label for="f-unit">In</label>
+          <select id="f-unit">
+            <option value="amount">money</option>
+            <option value="percent">% of avg buy</option>
+          </select>
+        </div>
+        <p class="hint" id="f-hint"></p>
+        <p class="form-error" id="f-error" role="alert" hidden></p>
+        <div class="form-actions">
+          <button class="btn" type="button" id="f-cancel">Cancel</button>
+          <button class="btn primary" type="submit"
+            id="f-submit">Save</button>
+        </div>
+      </form>
     </section>
 
     <section class="panel" aria-label="The alerts">
       <div class="panel-h"><h2>Alerts</h2>
-        <span class="sub" id="alerts-sub"></span></div>
+        <span class="sub" id="alerts-sub"></span>
+        <button class="btn primary sm" type="button"
+          id="add-open" aria-controls="add" aria-expanded="false"
+          hidden>Add alert</button></div>
       <div class="alerts" id="alerts"></div>
       <p class="empty" id="no-alerts" hidden>no alerts yet, see
         'help add alert' in the shell</p>

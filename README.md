@@ -599,9 +599,13 @@ other packages than the shell's). Open the address in a browser on the same devi
   last check, or the device that runs the background tasks), and a card
   per saved alert ("down 10%", "TSMX +100") with a table of its level per
   stock (per basetrade, or per held stock for a gain alert): the level,
-  the price and how far it still has to move, or "reached". It only
-  shows the alerts for now: adding and deleting them and running and
-  stopping their process come next.
+  the price and how far it still has to move, or "reached".
+- With `read_only` off, the alerts page also runs and stops the alerts
+  process (the buttons of its bar), adds an alert ("Add alert":
+  basetrades, down or up and a percent; or gain, a stock or all, a gain
+  or a loss, in money or in % of the average buy price) and deletes one
+  (after asking), like `run alerts`, `stop alerts`, `add alert` and `rm
+  alert`, with the same checks and texts.
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
   `/ladders` (`web/ladders.html`), `/alerts` (`web/alerts.html`), `/logo`
   (a page with the logo),
