@@ -169,17 +169,7 @@
     loading = name;
     fetch("/api/trades/" + encodeURIComponent(name),
       { cache: "no-store" })
-      .then(function (response) {
-        return response.json().catch(function () {
-          return {};
-        }).then(function (body) {
-          if (!response.ok) {
-            throw new Error(body.error ||
-              "the server answered " + response.status);
-          }
-          return body;
-        });
-      })
+      .then(nx.answer)
       .then(function (data) {
         loading = null;
         // another stock was chosen meanwhile

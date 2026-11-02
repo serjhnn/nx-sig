@@ -137,13 +137,20 @@ class ServerMixin:
             p.start()
             self.addCleanup(p.stop)
 
-    def request(self, path, method="GET", logged=True):
+    def request(
+        self,
+        path,
+        method="GET",
+        logged=True,
+        body=None,
+        headers=None,
+    ):
         conn = http.client.HTTPConnection(
             "127.0.0.1", self.port, timeout=5
         )
         self.addCleanup(conn.close)
         self.log.reset_mock()
-        conn.request(method, path)
+        conn.request(method, path, body, headers or {})
         response = conn.getresponse()
         body = response.read()
         # the request is logged, not printed
@@ -164,12 +171,15 @@ class WebServerTest(ServerMixin, unittest.TestCase):
                 "text/html; charset=utf-8",
             )
             self.assertEqual(
-                body, files.page(files.INDEX_PATH)
+                body,
+                files.page(
+                    files.INDEX_PATH, self.server.token
+                ),
             )
             self.assertIn(b'href="/style.css"', body)
             # the frame is in, app.js before main.js
             self.assertNotIn(files.FRAME_MARK, body)
-            self.assertIn(b'<header class="top">', body)
+            self.assertIn(b'<header class="top"', body)
             self.assertIn(b'<nav class="nav"', body)
             self.assertLess(
                 body.index(b'src="/js/app.js"'),
@@ -197,7 +207,9 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         ids = set(
             re.findall(r'\$\("([\w-]+)"\)', scripts())
         )
-        page = files.page(files.INDEX_PATH).decode()
+        page = files.page(
+            files.INDEX_PATH, self.server.token
+        ).decode()
         self.assertGreater(len(ids), 10)
         for name in ids:
             self.assertIn(f'id="{name}"', page)
@@ -210,7 +222,10 @@ class WebServerTest(ServerMixin, unittest.TestCase):
             "text/html; charset=utf-8",
         )
         self.assertEqual(
-            body, files.page(files.TRADES_PATH)
+            body,
+            files.page(
+                files.TRADES_PATH, self.server.token
+            ),
         )
         self.assertIn(b'<nav class="nav"', body)
         self.assertLess(
@@ -231,7 +246,9 @@ class WebServerTest(ServerMixin, unittest.TestCase):
                 r'\$\("([\w-]+)"\)', scripts(TRADES_SCRIPT)
             )
         )
-        page = files.page(files.TRADES_PATH).decode()
+        page = files.page(
+            files.TRADES_PATH, self.server.token
+        ).decode()
         self.assertGreater(len(ids), 10)
         for name in ids:
             self.assertIn(f'id="{name}"', page)
@@ -334,9 +351,27 @@ class WebServerTest(ServerMixin, unittest.TestCase):
             self.assertEqual(response.status, 404, path)
 
     def test_other_methods(self):
-        for method in ("POST", "PUT", "DELETE"):
+        for method in ("PUT", "DELETE", "OPTIONS"):
             response, _ = self.request("/", method)
             self.assertEqual(response.status, 501, method)
+
+    def test_token(self):
+        # in every page, new for every server
+        token = self.server.token
+        self.assertGreaterEqual(len(token), 40)
+        for path in ("/", "/trades"):
+            _, body = self.request(path)
+            self.assertIn(
+                f'data-token="{token}"'.encode(), body
+            )
+            self.assertNotIn(files.TOKEN_MARK, body)
+        other = web_service.make_server("127.0.0.1", 0)
+        self.addCleanup(other.server_close)
+        self.assertNotEqual(other.token, token)
+        # not in what /api gives
+        self.server.prices = FakeCache()
+        _, body = self.request("/api/status", logged=False)
+        self.assertNotIn(token.encode(), body)
 
 
 class FakeCache:
@@ -878,6 +913,164 @@ class ApiTradesTest(ApiMixin, unittest.TestCase):
             response, body = self.request("/api/trades")
         self.assertEqual(response.status, 500)
         self.assertIn("web log", json.loads(body)["error"])
+        self.log.exception.assert_called()
+
+
+class ChangeTest(ApiMixin, unittest.TestCase):
+    """the checks of a change (a POST), with a fake
+    change at /api/test"""
+
+    def setUp(self):
+        super().setUp()
+        self.got = []
+
+        def fake(data):
+            self.got.append(data)
+            return 200, {"done": data}
+
+        p = mock.patch.dict(
+            api.CHANGES, {"/api/test": fake}
+        )
+        p.start()
+        self.addCleanup(p.stop)
+        config.DATA["web"] = {"read_only": False}
+        self.serve()
+
+    def post(self, data=None, host=None, **headers):
+        """(status, data) of a POST to /api/test; the
+        headers of the server's own page unless given
+        (None leaves one out)"""
+        host = host or f"127.0.0.1:{self.port}"
+        sent = {
+            "Host": host,
+            "Origin": f"http://{host}",
+            "Content-Type": "application/json",
+            api.TOKEN_HEADER: self.server.token,
+        }
+        for name, value in headers.items():
+            name = name.replace("_", "-")
+            if name == "token":
+                name = api.TOKEN_HEADER
+            sent[name] = value
+        sent = {
+            k: v for k, v in sent.items() if v is not None
+        }
+        body = (
+            data
+            if isinstance(data, bytes)
+            else (
+                json.dumps(
+                    {"a": 1} if data is None else data
+                )
+            ).encode()
+        )
+        response, answer = self.request(
+            headers.pop("path", "/api/test"),
+            "POST",
+            body=body,
+            headers=sent,
+        )
+        return response.status, json.loads(answer or b"{}")
+
+    def refused(self, status, error=None, **kwargs):
+        got, data = self.post(**kwargs)
+        self.assertEqual(got, status, kwargs)
+        if error:
+            self.assertEqual(data["error"], error)
+        self.assertEqual(self.got, [])
+
+    def test_from_its_page(self):
+        status, data = self.post({"x": [1, 2]})
+        self.assertEqual(status, 200)
+        self.assertEqual(data, {"done": {"x": [1, 2]}})
+        self.assertEqual(self.got, [{"x": [1, 2]}])
+        # every change is logged
+        self.log.info.assert_called()
+
+    def test_at_localhost(self):
+        status, _ = self.post(host=f"localhost:{self.port}")
+        self.assertEqual(status, 200)
+
+    def test_read_only(self):
+        config.DATA["web"] = {}
+        self.refused(403, api.READ_ONLY_ERROR)
+
+    def test_other_origin(self):
+        for origin in (
+            None,
+            "null",
+            "http://evil.example",
+            f"http://localhost:{self.port}",
+            f"https://127.0.0.1:{self.port}",
+        ):
+            self.refused(
+                403, api.ORIGIN_ERROR, Origin=origin
+            )
+
+    def test_other_host_name(self):
+        # a name of another site that points here (DNS
+        # rebinding): the browser thinks it is that site
+        evil = f"evil.example:{self.port}"
+        self.refused(403, api.HOST_ERROR, host=evil)
+        self.refused(
+            403, api.HOST_ERROR, host="127.0.0.1:1"
+        )
+        # reading isn't allowed either
+        self.server.prices = FakeCache()
+        response, body = self.request(
+            "/api/status", headers={"Host": evil}
+        )
+        self.assertEqual(response.status, 403)
+        self.assertNotIn(b"positions", body)
+
+    def test_token(self):
+        self.refused(403, api.TOKEN_ERROR, token=None)
+        self.refused(403, api.TOKEN_ERROR, token="")
+        self.refused(403, api.TOKEN_ERROR, token="x" * 43)
+        self.refused(
+            403,
+            api.TOKEN_ERROR,
+            token=self.server.token[:-1],
+        )
+
+    def test_not_json(self):
+        # a form of another site can't send JSON
+        for kind in (
+            "text/plain",
+            "application/x-www-form-urlencoded",
+            "multipart/form-data",
+            None,
+        ):
+            self.refused(415, Content_Type=kind)
+        status, _ = self.post(
+            Content_Type="application/json; charset=utf-8"
+        )
+        self.assertEqual(status, 200)
+        self.got.clear()
+        for body in (b"{", b"[1]", b"1", b"", "ä".encode()):
+            self.refused(400, data=body)
+
+    def test_too_big(self):
+        big = {"a": "x" * api.MAX_BODY}
+        self.refused(413, data=big)
+
+    def test_unknown_change(self):
+        self.refused(404, path="/api/status")
+        self.refused(404, path="/api/x")
+        self.refused(404, path="/")
+
+    def test_only_on_localhost(self):
+        self.serve("0.0.0.0")
+        self.refused(403, api.PRIVATE_ERROR)
+
+    def test_failure(self):
+        def broken(data):
+            raise OSError("disk")
+
+        api.CHANGES["/api/test"] = broken
+        status, data = self.post()
+        self.assertEqual(status, 500)
+        self.assertIn("web log", data["error"])
         self.log.exception.assert_called()
 
 

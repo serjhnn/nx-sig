@@ -592,6 +592,13 @@ other packages than the shell's). Open the address in a browser on the same devi
   in the config); the trades page uses them. Like
   `/api/status` they answer only on `127.0.0.1`, are logged only when
   they fail, and say whether `read_only` is on.
+- Every `/api/` request must name the server in its `Host` (`127.0.0.1`,
+  `localhost` or `[::1]` with its port), so a website that points
+  another name at this device can't read it. A change (a POST, coming
+  with the add and delete of the trades page) must also come from the
+  server's own pages (`Origin`), carry the token the server makes when
+  it starts and puts into its pages, and be JSON; while `read_only` is on
+  (the default) every change is `403`. Changes are always logged.
 - The server fetches the prices every config `web` `interval` seconds
   (default `5`), but only while a page asked for them in the last 30
   seconds: with no page open it requests nothing, and however many pages

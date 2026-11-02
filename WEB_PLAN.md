@@ -241,10 +241,22 @@ its own pages.
    in the menu works. Checked in a browser at 360,
    390 and 1200px, dark and light: nothing wider
    than the screen, no errors.
-5. **Config `read_only` and the protection**:
-   `config.web_read_only()`; POST only for
-   changes, JSON body, `Origin` check, the token;
-   403 while `read_only` is on.
+5. ~~**Config `read_only` and the protection**~~
+   (done): `api.change()` for a POST to a path of
+   `api.CHANGES` (none yet; step 6 adds them). It
+   checks, in order: the server listens on
+   `127.0.0.1`, the `Host` names it (also for every
+   GET of `/api/`, against DNS rebinding), the
+   `Origin` is the server's own, `read_only` is off,
+   the token (`server.token`, new at each start, in
+   the pages' top bar as `data-token`) matches,
+   `Content-Type` is JSON, the body a JSON object of
+   at most 10 KB; else 403, 415, 400 or 413. No
+   OPTIONS answer, so the browser itself stops a
+   cross-site request with the token header.
+   `nx.send(url, data)` in `app.js` sends a change.
+   Checked in a browser: the page's own change
+   works, another site's is stopped.
 6. **Add and delete**: the add form (stock, buy or
    sell, count, price, optional date and time)
    calls `trades.add()`, so the checks and error

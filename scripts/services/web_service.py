@@ -4,16 +4,20 @@
 #   python scripts/services/web_service.py run
 #       ('run web' in the shell starts it)
 #
-# it answers GET and HEAD only, with the parts in
+# it answers GET, HEAD and POST, with the parts in
 # scripts/web/:
-#   web/api.py     /api/..., the JSON of the pages
+#   web/api.py     /api/..., the JSON of the pages,
+#                  and the changes (POST), with
+#                  their checks
 #   web/files.py   the pages, their style, scripts
 #                  and fonts, the logo
-# anything else is 404, a method other than GET or HEAD
-# 501 (http.server).
+# anything else is 404, another method 501
+# (http.server). the server makes a token when it
+# starts (server.token) for the changes; its pages
+# get it.
 #
-# a successful /api/... isn't logged: a page asks
-# every few seconds.
+# a successful GET of /api/... isn't logged: a page
+# asks every few seconds. every change is logged.
 #
 # the server keeps the prices for the pages in a
 # web/price_cache.py PriceCache (server.prices).
@@ -23,6 +27,7 @@
 import json
 import logging
 import os
+import secrets
 import sys
 from datetime import datetime
 from http.server import (
@@ -58,21 +63,52 @@ class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         self._send(False)
 
+    def do_POST(self):
+        path = self.path.split("?", 1)[0]
+        try:
+            length = int(self.headers["Content-Length"])
+        except (TypeError, ValueError):
+            length = -1
+        if not 0 <= length <= api.MAX_BODY:
+            status, data = 413, {
+                "error": "the change is too big or has "
+                "no length"
+            }
+            # the body is left unread: close after
+            self.close_connection = True
+        else:
+            status, data = api.change(
+                path,
+                self.server.server_address,
+                self.headers,
+                self.rfile.read(length),
+                self.server.token,
+            )
+        body = json.dumps(data).encode()
+        self._reply(status, body, "application/json", True)
+
     def _send(self, with_body):
         path = self.path.split("?", 1)[0]
         status = 200
-        host = self.server.server_address[0]
-        answer = api.find(path, host, self.server.prices)
+        answer = api.find(
+            path,
+            self.server.server_address,
+            self.headers,
+            self.server.prices,
+        )
         if answer:
             status, data = answer
             body = json.dumps(data).encode()
             kind = "application/json"
         else:
-            found = files.find(path)
+            found = files.find(path, self.server.token)
             if found is None:
                 self.send_error(404)
                 return
             body, kind = found
+        self._reply(status, body, kind, with_body)
+
+    def _reply(self, status, body, kind, with_body):
         self.send_response(status)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", len(body))
@@ -92,7 +128,11 @@ class Handler(BaseHTTPRequestHandler):
         # a page asks every few seconds: only the
         # failures go to the log
         path = self.path.split("?", 1)[0]
-        if path.startswith("/api/") and code == 200:
+        if (
+            self.command != "POST"
+            and path.startswith("/api/")
+            and code == 200
+        ):
             return
         super().log_request(code, size)
 
@@ -105,10 +145,13 @@ class Handler(BaseHTTPRequestHandler):
 
 def make_server(host, port):
     """a server on host:port (port 0: a free one),
-    not serving yet, with its PriceCache in .prices;
+    not serving yet, with its PriceCache in .prices
+    and its token for the changes in .token;
     raises OSError if the port is taken"""
     server = ThreadingHTTPServer((host, port), Handler)
     server.prices = PriceCache(config.web_interval())
+    # for the changes, new at every start
+    server.token = secrets.token_urlsafe(32)
     return server
 
 

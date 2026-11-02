@@ -1,7 +1,9 @@
 <!-- the top bar and the menu of every page; a page
      has a "frame" comment where web/files.py puts
-     them. app.js marks the open page in the menu -->
-  <header class="top">
+     them, with the server's token for the changes in
+     data-token. app.js marks the open page in the
+     menu -->
+  <header class="top" data-token="{{token}}">
     <a class="mark" href="/">nX-sig</a>
     <span class="chip warn" id="demo" hidden>demo</span>
     <span class="live">

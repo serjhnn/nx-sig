@@ -6,6 +6,11 @@
 //   num, signed, trend          numbers as text
 //   clock, dayTime              ISO times as text
 //   showNotice(title, text), hideNotice()
+//   answer(response)            the JSON of a fetch
+//       response, or an Error with the server's text
+//   send(url, data)             POSTs data (an object)
+//       as JSON with the server's token; a promise of
+//       the answer, or an Error with the server's text
 //   poll(url, draw)             asks url every
 //       "interval" seconds (the server's config "web"
 //       "interval"), calls draw(data); pauses while
@@ -124,6 +129,36 @@
 
   // ---------- asking the server ----------
 
+  // the JSON of a response; an Error with the
+  // server's text (and .status) if it isn't ok
+  function answer(response) {
+    return response.json().catch(function () {
+      return {};
+    }).then(function (body) {
+      if (!response.ok) {
+        var error = new Error(body.error ||
+          "the server answered " + response.status);
+        error.status = response.status;
+        throw error;
+      }
+      return body;
+    });
+  }
+
+  // a change: data as JSON, with the token the
+  // server put into the page (scripts/web/api.py)
+  function send(url, data) {
+    return fetch(url, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        "X-NX-Token": document.querySelector(".top").dataset.token
+      },
+      body: JSON.stringify(data)
+    }).then(answer);
+  }
+
   // ask url every interval seconds, draw(data) each
   // answer
   function poll(url, draw) {
@@ -156,19 +191,7 @@
     function ask() {
       var interval = lastData ? lastData.interval : 5;
       fetch(url, { cache: "no-store" })
-        .then(function (response) {
-          return response.json().catch(function () {
-            return {};
-          }).then(function (body) {
-            if (!response.ok) {
-              var error = new Error(body.error ||
-                "the server answered " + response.status);
-              error.status = response.status;
-              throw error;
-            }
-            return body;
-          });
-        })
+        .then(answer)
         .then(function (data) {
           lastData = data;
           showPrices(data);
@@ -224,6 +247,8 @@
     dayTime: dayTime,
     showNotice: showNotice,
     hideNotice: hideNotice,
+    answer: answer,
+    send: send,
     poll: poll
   };
 })();

@@ -8,7 +8,8 @@
 #   /             web/index.html, the main page
 #                 (a page gets web/frame.html, the top
 #                 bar and the menu, at its line
-#                 <!-- frame -->)
+#                 <!-- frame -->, with the server's
+#                 token for the changes, see api.py)
 #   /trades       web/trades.html, the trades page
 #   /logo         a page with the logo, as wide as the
 #                 screen
@@ -19,10 +20,10 @@
 #   /fonts/<f>    a .woff2 of web/fonts/
 #
 # public functions:
-#   find(path)
+#   find(path, token)
 #       (body, content type) of path, None if it
-#       isn't one of them
-#   page(file)
+#       isn't one of them; token: the server's
+#   page(file, token)
 #       a page of web/ with its frame
 
 import os
@@ -38,6 +39,7 @@ INDEX_PATH = os.path.join(WEB_DIR, "index.html")
 TRADES_PATH = os.path.join(WEB_DIR, "trades.html")
 FRAME_PATH = os.path.join(WEB_DIR, "frame.html")
 FRAME_MARK = b"<!-- frame -->"
+TOKEN_MARK = b"{{token}}"
 JS_DIR = os.path.join(WEB_DIR, "js")
 FONTS_DIR = os.path.join(WEB_DIR, "fonts")
 HTML = "text/html; charset=utf-8"
@@ -85,15 +87,16 @@ img {
 """
 
 
-def find(path):
+def find(path, token):
     """(body, content type) of path (without its
-    ?query), None if it isn't one of the paths above"""
+    ?query), None if it isn't one of the paths above;
+    a page gets token, the server's"""
     if path == "/logo":
         return LOGO_PAGE.encode(), HTML
     if path in PATHS:
         file, kind = PATHS[path]
         if kind == HTML:
-            return page(file), kind
+            return page(file, token), kind
         return _read(file), kind
     for prefix, found in FOLDERS.items():
         file = _in_folder(path, prefix, *found[:2])
@@ -102,12 +105,12 @@ def find(path):
     return None
 
 
-def page(file):
+def page(file, token):
     """the page in file with web/frame.html at its
-    frame line"""
-    return _read(file).replace(
-        FRAME_MARK, _read(FRAME_PATH).rstrip(b"\n"), 1
-    )
+    frame line, token (the server's) in the frame"""
+    frame = _read(FRAME_PATH).rstrip(b"\n")
+    frame = frame.replace(TOKEN_MARK, token.encode())
+    return _read(file).replace(FRAME_MARK, frame, 1)
 
 
 def _in_folder(path, prefix, folder, ending):

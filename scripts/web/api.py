@@ -14,10 +14,30 @@
 # each answer also has the prices' time and error,
 # the interval and demo (see prices()).
 #
+# who may ask: a server on 127.0.0.1 can still be
+# reached by any website open in the same browser,
+# so every /api request must name this server in its
+# Host header (127.0.0.1, localhost or [::1] and the
+# port; not a name that only points here). a change
+# (a POST to a path of CHANGES) must also
+#   - come from this server's own pages: its Origin
+#     is http://<its Host>
+#   - carry the token of the server in TOKEN_HEADER;
+#     the server makes it when it starts and puts it
+#     only into its pages (web/files.py)
+#   - be a JSON object (Content-Type
+#     application/json), at most MAX_BODY bytes
+# and config "web" "read_only" must be off, else 403.
+# a POST from another site with the token header is
+# also stopped by the browser: the server answers no
+# OPTIONS (CORS preflight).
+#
 # public functions:
-#   find(path, host, cache)
-#       (http status, data) of path, None if it isn't
-#       an /api path
+#   find(path, address, headers, cache)
+#       (http status, data) of a GET of path, None if
+#       it isn't an /api path
+#   change(path, address, headers, body, token)
+#       (http status, data) of a POST of path
 #   prices(cache)
 #       the cached prices and what every answer has
 #   status(cache)
@@ -25,6 +45,8 @@
 #   stock_trades(cache, name)
 #       the data of the paths above
 
+import hmac
+import json
 import logging
 
 import config
@@ -38,6 +60,20 @@ PRIVATE_ERROR = (
     "the positions are shown only when the web server "
     "listens on 127.0.0.1 (config web host)"
 )
+HOST_ERROR = (
+    "open the page at 127.0.0.1 or localhost, not "
+    "through another name"
+)
+ORIGIN_ERROR = "a change must come from this server's pages"
+READ_ONLY_ERROR = (
+    "the web pages only show the data: config web "
+    "read_only is on"
+)
+TOKEN_ERROR = "the page is out of date, reload it"
+# the header of a change with the server's token
+TOKEN_HEADER = "X-NX-Token"
+# the largest body of a change, in bytes
+MAX_BODY = 10_000
 log = logging.getLogger("web")
 
 
@@ -45,9 +81,10 @@ class NotFound(Exception):
     """a 404 of the api; the text says why"""
 
 
-def find(path, host, cache):
-    """(http status, data) of path (without its
-    ?query) for a server on host with the price cache
+def find(path, address, headers, cache):
+    """(http status, data) of a GET of path (without
+    its ?query) with the request headers, for a server
+    on address (host, port) with the price cache
     cache; None if it isn't an api path"""
     answer = PATHS.get(path)
     if answer is None:
@@ -58,8 +95,9 @@ def find(path, host, cache):
                 break
         else:
             return None
-    if host not in PRIVATE_HOSTS:
-        return 403, {"error": PRIVATE_ERROR}
+    refused = _refused(address, headers)
+    if refused:
+        return refused
     try:
         return 200, answer(cache)
     except NotFound as e:
@@ -70,6 +108,64 @@ def find(path, host, cache):
             "error": "can't read the data, see "
             "the web log"
         }
+
+
+def change(path, address, headers, body, token):
+    """(http status, data) of a POST of path (without
+    its ?query) with the request headers and body
+    (bytes), for a server on address (host, port)
+    whose token is token; the path's function of
+    CHANGES gets the JSON object of the body and
+    gives (http status, data)"""
+    answer = CHANGES.get(path)
+    if answer is None:
+        return 404, {"error": f"no change at {path}"}
+    refused = _refused(address, headers)
+    if refused:
+        return refused
+    origin = "http://" + headers["Host"]
+    if headers.get("Origin") != origin:
+        return 403, {"error": ORIGIN_ERROR}
+    if config.web_read_only():
+        return 403, {"error": READ_ONLY_ERROR}
+    given = headers.get(TOKEN_HEADER) or ""
+    if not hmac.compare_digest(
+        given.encode(), token.encode()
+    ):
+        return 403, {"error": TOKEN_ERROR}
+    kind = headers.get("Content-Type") or ""
+    if kind.split(";")[0].strip() != "application/json":
+        return 415, {"error": "send the change as JSON"}
+    try:
+        data = json.loads(body)
+    except ValueError:
+        data = None
+    if not isinstance(data, dict):
+        return 400, {"error": "not a JSON object"}
+    try:
+        return answer(data)
+    except Exception:
+        log.exception("%s failed", path)
+        return 500, {
+            "error": "can't make the change, see "
+            "the web log"
+        }
+
+
+def _refused(address, headers):
+    """(403, data) if the api doesn't answer a request
+    with headers on a server on address, else None:
+    the server must listen on 127.0.0.1 (or ::1) and
+    the request name it in its Host"""
+    host, port = address[:2]
+    if host not in PRIVATE_HOSTS:
+        return 403, {"error": PRIVATE_ERROR}
+    names = ("127.0.0.1", "localhost", "[::1]")
+    if headers.get("Host") not in [
+        f"{name}:{port}" for name in names
+    ]:
+        return 403, {"error": HOST_ERROR}
+    return None
 
 
 def status(cache):
@@ -235,6 +331,8 @@ def _with(answer, name):
 PATHS = {"/api/status": status, "/api/trades": trades}
 # {path prefix: function(cache, the rest of the path)}
 PREFIXES = {"/api/trades/": stock_trades}
+# {path: function(data) of a change, see change()}
+CHANGES = {}
 
 
 def _iso(when):
