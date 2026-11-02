@@ -301,18 +301,20 @@ for your own use first. In this order:
   `delayed_sip` or `iex` feed, as `ls basetrades`
   does)
 - ~~**Web server with the logo**~~ (done: `run web`,
-  `stop web`, `ls web`, a page with `assets/logo.svg` at
-  config `web`, 127.0.0.1:8080 by default;
-  `engines/web.py`, `services/web_service.py`).
-  Still open:
-  - **main page**: the web `status`, the live
-    gain/loss, the tasks and the last trades,
-    updated by itself; planned in
-    [WEB_PLAN.md](WEB_PLAN.md). Steps 1 (the shared
-    style, `/style.css`), 2 (the positions in
-    `engines/positions.py`), 3 (the status in
-    `engines/overview.py`), 4 (the price cache in
-    the web server), 5 (`/api/status`) and 6 (the
-    main page) are done
+  `stop web`, `ls web`, at config `web`,
+  127.0.0.1:8080 by default; `engines/web.py`,
+  `services/web_service.py`).
+- ~~**Web main page**~~ (done, see
+  [WEB_PLAN.md](WEB_PLAN.md)): the web `status` in
+  style C (`assets/web/`), the positions with their
+  live gain/loss, the tasks and the last trades;
+  `engines/positions.py`, `engines/overview.py`,
+  the price cache and `/api/status` in the web
+  server. Still open (WEB_PLAN.md "Later"):
+  - the other pages: trades, ladders, alerts,
+    chart, basetrades, rules
+  - the gain alerts on the main page, like
+    `xtop al`
+  - a login, to open it from another device
   - maybe start it after a phone restart, with the
     ladders (Termux:Boot)

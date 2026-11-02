@@ -6,6 +6,7 @@
 import logging
 
 import unittest
+from datetime import datetime, timedelta
 from unittest import mock
 
 import paths  # noqa: F401, scripts/ on sys.path
@@ -13,6 +14,7 @@ import config
 from storage import Stock, alerts_get_all
 import storage
 from services.alert_service import _check
+from engines import alerts as alerts_engine
 from engines.alerts import (
     AlertError,
     _now,
@@ -348,6 +350,52 @@ class ProcessTest(unittest.TestCase):
                 )
             ],
         )
+
+
+class TaskTest(unittest.TestCase):
+    """alerts.task(): its 'ls tasks' row"""
+
+    def patch(self, name, value):
+        p = mock.patch.object(alerts_engine, name, value)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_not_running(self):
+        self.patch("running_pid", lambda: None)
+        self.assertIsNone(alerts_engine.task())
+
+    def test_row(self):
+        now = datetime.now().replace(microsecond=0)
+        beat = {
+            "started": now.isoformat(),
+            "updated": now.isoformat(),
+            "state": "waiting",
+        }
+        self.patch("running_pid", lambda: 21)
+        self.patch("status", lambda: beat)
+        self.assertEqual(
+            alerts_engine.task(),
+            {
+                "id": "-",
+                "task": "alerts",
+                "pid": 21,
+                "started": now,
+                "state": "waiting",
+                "healthy": True,
+            },
+        )
+        stale = alerts_engine.STALE_SECONDS + 1
+        beat["updated"] = (
+            now - timedelta(seconds=stale)
+        ).isoformat()
+        row = alerts_engine.task()
+        self.assertEqual(row["state"], "no reply")
+        self.assertFalse(row["healthy"])
+        # a heartbeat without times
+        self.patch("status", lambda: {"state": "starting"})
+        row = alerts_engine.task()
+        self.assertIsNone(row["started"])
+        self.assertTrue(row["healthy"])
 
 
 # the warnings of the failed notify

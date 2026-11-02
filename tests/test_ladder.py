@@ -3,8 +3,11 @@
 #   python tests/test_ladder.py
 
 import unittest
+from datetime import datetime, timedelta
+from unittest import mock
 
 import paths  # noqa: F401, scripts/ on sys.path
+from engines import ladder as engine
 from engines.ladder import (
     LadderError,
     create,
@@ -69,6 +72,64 @@ class LevelsTest(unittest.TestCase):
         ):
             with self.assertRaises(LadderError):
                 create(*args)
+
+
+class TaskTest(unittest.TestCase):
+    """ladder.tasks(): the 'ls tasks' rows"""
+
+    def setUp(self):
+        self.now = datetime.now().replace(microsecond=0)
+        saved = [
+            {"Id": 1, "Stock": "SOXL"},
+            {"Id": 2, "Stock": "NVDL"},
+            {"Id": 3, "Stock": "TSMX"},
+        ]
+        beats = {
+            1: self.beat(0, "waiting"),
+            2: self.beat(
+                engine.STALE_SECONDS + 1, "waiting"
+            ),
+        }
+        for name, value in (
+            ("get_all", lambda: saved),
+            # ladder 3 doesn't run
+            ("running_pid", {1: 11, 2: 12}.get),
+            ("status", beats.get),
+        ):
+            p = mock.patch.object(engine, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def beat(self, ago, state):
+        updated = self.now - timedelta(seconds=ago)
+        return {
+            "started": self.now.isoformat(),
+            "updated": updated.isoformat(),
+            "state": state,
+        }
+
+    def test_rows(self):
+        self.assertEqual(
+            engine.tasks(),
+            [
+                {
+                    "id": 1,
+                    "task": "ladder SOXL",
+                    "pid": 11,
+                    "started": self.now,
+                    "state": "waiting",
+                    "healthy": True,
+                },
+                {
+                    "id": 2,
+                    "task": "ladder NVDL",
+                    "pid": 12,
+                    "started": self.now,
+                    "state": "no reply",
+                    "healthy": False,
+                },
+            ],
+        )
 
 
 if __name__ == "__main__":

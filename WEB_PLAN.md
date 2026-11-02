@@ -11,6 +11,9 @@ on its own (see `CLAUDE.md` "Plan first").
 This replaces the xtop page plan: the main page is
 the live view, there is no separate `/xtop`.
 
+The main page is done (steps 1 to 8); what comes
+next is under "Later".
+
 ## The style (style C)
 
 `assets/web/style.css`, served as `/style.css`, is
@@ -142,11 +145,21 @@ opened from another device.
    prices, a missing key, 403, the server stopped).
    Checked in a browser at 360px, 390px and 1200px,
    dark and light. The logo page moved to `/logo`.
-7. **Tests**: the engines, the JSON with faked
-   prices, no polling while nobody watches, the
-   127.0.0.1 guard, the page.
-8. **Docs**: README (the web server section, config
-   `interval`), `TODO.md`, the generated files.
+7. ~~**Tests**~~ (done): the engines
+   (`test_positions.py`, `test_overview.py`, the
+   task rows in `test_ladder.py`, `test_alerts.py`,
+   `test_mail_broker.py`, `test_web.py`), the JSON
+   with faked prices (also in the demo), the price
+   cache with a fake clock (no fetching while nobody
+   watches), the 127.0.0.1 guard, the pages and
+   files served, every element id `main.js` looks up
+   is in `index.html`, every field it reads is in
+   the JSON. The page itself was checked in a
+   browser (not in CI).
+8. ~~**Docs**~~ (done): README (the web server
+   section, config `interval`, the layout, the
+   tests), `TODO.md`, `COMMANDS.md` and the module
+   map.
 
 ## Later
 

@@ -417,6 +417,95 @@ class ApiStatusTest(ServerMixin, unittest.TestCase):
             data["owner"], {"name": "phone", "here": True}
         )
 
+    def test_fields_of_the_page(self):
+        # every field main.js reads is in the JSON
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            20,
+            25,
+            "02.09.2026",
+            "15:31",
+        )
+        now = datetime.now().replace(microsecond=0)
+        storage.watcher_status_set(
+            {
+                "updated": now.isoformat(),
+                "state": "waiting",
+                "last_order": "BUY 20 SOXL",
+                "last_error": {
+                    "time": now.isoformat(),
+                    "text": "x",
+                },
+            }
+        )
+        row = {
+            "id": "-",
+            "task": "web",
+            "pid": 9,
+            "started": now,
+            "state": "serving",
+            "healthy": True,
+        }
+        phone = {"id": "a1", "name": "phone"}
+        with (
+            mock.patch.object(
+                overview, "tasks", lambda: [row]
+            ),
+            mock.patch.object(
+                tasks_owner, "owner", lambda: phone
+            ),
+            mock.patch.object(
+                tasks_owner, "this_device", lambda: phone
+            ),
+        ):
+            _, data = self.api(FakeCache({"SOXL": 30.0}))
+        task, trade = (
+            data["tasks"][0],
+            data["last_trades"][0],
+        )
+        fields = {
+            "data": data,
+            "lastData": data,
+            "data.total": data["total"],
+            "data.owner": data["owner"],
+            "data.mail_broker": data["mail_broker"],
+            "mail": data["mail_broker"],
+            "mail.error": data["mail_broker"]["error"],
+            "p": data["positions"][0],
+            "best": data["positions"][0],
+            # t is a task or a trade
+            "t": dict(task, **trade),
+        }
+        with open(web_service.SCRIPT_PATH) as f:
+            script = f.read()
+        # "name.field", not "name.fieldName" (the DOM)
+        used = re.findall(
+            r"\b((?:data|lastData|p|best|t|mail)"
+            r"(?:\.(?:total|owner|mail_broker|error))?)"
+            r"\.([a-z_]+)\b(?![A-Za-z(])",
+            script,
+        )
+        self.assertGreater(len(used), 30)
+        array = {"length", "some", "reduce", "for"}
+        for name, field in set(used):
+            if field in array or field in (
+                "total",
+                "owner",
+                "mail_broker",
+                "error",
+            ):
+                continue
+            self.assertIn(field, fields[name], name)
+
+    def test_demo(self):
+        with mock.patch.object(config, "DEMO", True):
+            _, data = self.api()
+        self.assertTrue(data["demo"])
+        self.assertEqual(
+            data["mail_broker"]["state"], "demo"
+        )
+
     def test_only_on_localhost(self):
         response, data = self.api(host="0.0.0.0")
         self.assertEqual(response.status, 403)
@@ -597,6 +686,27 @@ class WebProcessTest(unittest.TestCase):
         p = mock.patch.object(target, name, value)
         p.start()
         self.addCleanup(p.stop)
+
+    def test_task(self):
+        self.assertIsNone(web.task())
+        web.save_status(
+            31, "2026-11-02T09:00:00", "serving"
+        )
+        self.alive.add(31)
+        row = web.task()
+        self.assertEqual(
+            row,
+            {
+                "id": "-",
+                "task": "web",
+                "pid": 31,
+                "started": datetime(2026, 11, 2, 9, 0),
+                "state": "serving",
+                "healthy": True,
+            },
+        )
+        web.save_status(31, None, "crashed")
+        self.assertFalse(web.task()["healthy"])
 
     def test_log_tail(self):
         self.assertEqual(web.log_tail(), [])

@@ -572,13 +572,13 @@ other packages than the shell's). Open the address in a browser on the same devi
   background tasks, the mail broker, the device that runs the tasks, the
   last 5 trades, the prices' time and error. It shows your positions, so
   it answers only when the server listens on `127.0.0.1`; with any other
-  `host` it is `403`. A page asks for it every few seconds, so only its
-  failures are logged.
-- The server fetches the prices every
-  config `web` `interval` seconds (default `5`), but only while a page
-  asked for them in the last 30 seconds: with no page open it requests
-  nothing, and however many pages are open it makes one request per
-  interval. A missing key or a network error is logged once.
+  `host` it is `403`, and the page says "Positions not shown". A page asks
+  for it every few seconds, so only its failures are logged.
+- The server fetches the prices every config `web` `interval` seconds
+  (default `5`), but only while a page asked for them in the last 30
+  seconds: with no page open it requests nothing, and however many pages
+  are open it makes one request per interval. A missing key or a network
+  error is logged once.
 - `run web` starts it, `stop web` stops it; it keeps running when the shell
   is closed. `status` shows `web: running at http://127.0.0.1:8080/`, and
   `ls tasks` its row (`stop tasks all` stops it too).
@@ -824,8 +824,8 @@ python tests/test_statement.py     # bank statement parsing
 python tests/test_trades.py        # trades engine, statement import
 python tests/test_positions.py     # held stocks, their gain and total
 python tests/test_overview.py      # status: tasks, last trades, all of it
-python tests/test_ladder.py        # ladder levels
-python tests/test_alerts.py        # alert levels and crossings
+python tests/test_ladder.py        # ladder levels, task rows
+python tests/test_alerts.py        # alert levels and crossings, task row
 python tests/test_mail_broker.py   # the mail broker's process, its Python
 python tests/test_process.py       # BackgroundTask, the service loop
 python tests/test_notifier.py      # the notify channel
@@ -833,7 +833,8 @@ python tests/test_tasks_owner.py   # which device runs the tasks
 python tests/test_chart.py         # the price chart layout
 python tests/test_demo.py          # the demo data, and a run of ./nxdemo
 python tests/test_demo_prices.py   # the demo's prices and their process
-python tests/test_web.py           # the web server, its page and process
+python tests/test_web.py           # the web server: config, pages, /api/status,
+                                   # the price cache, its process
 python tests/test_shell.py         # every shell command, faked prices
 python tests/test_sync.py          # device IDs, .stignore
 python scripts/check_style.py      # code style (line width), generated files
