@@ -310,12 +310,17 @@ for your own use first. In this order:
   live gain/loss, the tasks and the last trades;
   `engines/positions.py`, `engines/overview.py`,
   the price cache and `/api/status` in the web
-  server. Still open (WEB_PLAN.md "Later"):
-  - the trades page (`/trades`): done, adding and
-    deleting with config `web` `read_only` off;
-    tests and docs to finish (WEB_PLAN.md)
+  server.
+- ~~**Web trades page**~~ (done, see
+  [WEB_PLAN.md](WEB_PLAN.md) "The trades page"):
+  `/trades`, the stocks and their trades, adding
+  and deleting with config `web` `read_only` off;
+  the browser files in `web/`, the server's parts
+  in `scripts/web/`, changes checked (Host, Origin,
+  token, JSON). Still open (WEB_PLAN.md "Later"):
   - the other pages: ladders, alerts, chart,
     basetrades, rules
+  - the bank statement import on the trades page
   - the gain alerts on the main page, like
     `xtop al`
   - a login, to open it from another device

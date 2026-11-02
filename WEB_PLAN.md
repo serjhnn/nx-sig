@@ -15,7 +15,8 @@ The main page is done (steps 1 to 8, the paths as
 they were then: `assets/web/` is now `web/`, and
 the price cache and `/api/status` moved from
 `web_service.py` into `scripts/web/`). The trades
-page is next, see "The trades page".
+page is done too (steps 0 to 8 of "The trades
+page"); what comes next is under "Later".
 
 ## The style (style C)
 
@@ -273,19 +274,36 @@ its own pages.
    a browser: adding (also for a stock without
    trades, at a date), the server's errors in the
    form, deleting, the read-only view.
-7. **Tests**: the engine function, `/api/trades`,
-   the read-only option, the protection (another
-   origin, no token, a form post are turned away),
-   the page's ids and fields; the page checked in
-   a browser at 360, 390 and 1200px, dark and
-   light.
-8. **Docs**: README (config `read_only`, the page),
-   `TODO.md`, `COMMANDS.md`, the module map.
+7. ~~**Tests**~~ (done, with each step):
+   `trades.by_stock()` (`test_trades.py`), the
+   config `read_only`, `/api/trades` and
+   `/api/trades/<stock>`, every check of a change
+   (other host names, origins, a missing or wrong
+   token, a form post, bad JSON, too big, the
+   read-only option), adding and deleting with the
+   shell's errors, the pages served with their
+   frame and token, every element id the scripts
+   look up is in the page, every field they read
+   in the JSON (`test_web.py`). The pages checked
+   in a browser at 360, 390 and 1200px, dark and
+   light, read-only and not: nothing wider than
+   the screen, no errors (not in CI).
+8. ~~**Docs**~~ (done, with each step): README
+   (the layout with `web/` and `scripts/web/`, the
+   config `read_only`, the trades page, the checks
+   of a change, the tests), `CLAUDE.md` (where the
+   web code is), `TODO.md` and the module map;
+   `COMMANDS.md` didn't change (no new shell
+   command).
 
 ## Later
 
 - The other pages: ladders, alerts, chart,
-  basetrades, rules; with the forms of the style.
+  basetrades, rules; with `web/frame.html`,
+  `app.js` (`nx.poll`, `nx.send`) and the forms of
+  the trades page.
+- On the trades page: the bank statement import
+  (`add trade from <file>`, an upload).
 - The gain alerts on the main page, like `xtop al`.
 - A login, if the page should be opened from
   another device.
