@@ -27,9 +27,58 @@
       <div><b id="notice-title"></b> <span id="notice-text"></span></div>
     </div>
 
+    <div class="notice ok" id="done" role="status" hidden>
+      <span class="dot"></span>
+      <div id="done-text"></div>
+    </div>
+
+    <section class="panel" id="add" aria-label="Add a ladder" hidden>
+      <div class="panel-h"><h2>Add a ladder</h2></div>
+      <form class="form" id="add-form" novalidate>
+        <div class="field">
+          <label for="f-stock">Stock</label>
+          <select id="f-stock"></select>
+        </div>
+        <div class="field">
+          <span class="flabel" id="f-dir-label">Direction</span>
+          <div class="seg" role="radiogroup"
+            aria-labelledby="f-dir-label">
+            <label><input type="radio" name="direction"
+              value="down" id="f-down" checked><span>Down</span></label>
+            <label><input type="radio" name="direction"
+              value="up"><span>Up</span></label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-step">Step</label>
+          <input id="f-step" type="number" inputmode="decimal"
+            min="0" step="any" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="f-from">From</label>
+          <input id="f-from" type="number" inputmode="decimal"
+            min="0" step="any" autocomplete="off">
+        </div>
+        <label class="check"><input type="checkbox" id="f-run"
+          checked> Run it now</label>
+        <p class="hint">A message each time the price moves
+          another step down (or up) from the "from" price.
+          "From" is filled in with the stock's price.</p>
+        <p class="form-error" id="f-error" role="alert" hidden></p>
+        <div class="form-actions">
+          <button class="btn" type="button" id="f-cancel">Cancel</button>
+          <button class="btn primary" type="submit"
+            id="f-submit">Save</button>
+        </div>
+      </form>
+    </section>
+
     <section class="panel" aria-label="The ladders">
       <div class="panel-h"><h2>Ladders</h2>
-        <span class="sub" id="ladders-sub"></span></div>
+        <span class="sub" id="ladders-sub"></span>
+        <button class="btn primary sm" type="button"
+          id="add-open" aria-controls="add" aria-expanded="false"
+          hidden>Add ladder</button></div>
       <div class="ladders" id="ladders"></div>
       <p class="empty" id="no-ladders" hidden>no ladders yet, see
         'help add ladder' in the shell</p>

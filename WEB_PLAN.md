@@ -361,10 +361,23 @@ ladder <id> force`) stays in the shell.
    404. Tested with faked processes, and once with
    a real ladder process started, stopped and
    deleted through the web.
-5. **The forms**: add (stock, down or up, step,
-   from with the price filled in, run now); on
-   each card run or stop, and delete after asking.
-   Hidden while `read_only` is on.
+5. ~~**The forms**~~ (done): "Add ladder" opens a
+   form (stock, a down/up switch, step, from
+   filled in with the stock's price until typed
+   in, "run it now"; `/api/ladders` gives every
+   stock's price for it); each card has Run (not
+   when running or done), Stop (when running) and
+   Delete (after asking, "stop and delete" for a
+   running one). The buttons say "Starting…" while
+   the server starts the process. Hidden while
+   `read_only` is on, the header then says
+   "read-only". The result of a change shows in its
+   own box (`nx.tell()` in `app.js`, also used by
+   the trades page now), so the next poll doesn't
+   hide it. Checked in a browser with real ladder
+   processes in the demo: add and run, stop, run,
+   stop and delete, the server's errors in the
+   form, the read-only view.
 6. **Tests**: the rows, the api, the changes
    (also another device running the tasks), the
    page's ids and fields; the processes faked as

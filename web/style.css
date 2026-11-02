@@ -706,10 +706,26 @@ td.key {
 }
 .seg input:checked + span {
   color: var(--surface);
+  background: var(--accent);
+}
+.seg input[value="buy"]:checked + span {
   background: var(--gain);
 }
 .seg input[value="sell"]:checked + span {
   background: var(--loss);
+}
+.check {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 13px var(--sans);
+  cursor: pointer;
+}
+.check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
 }
 .seg input:focus-visible + span {
   outline: 2px solid var(--accent);
@@ -800,8 +816,20 @@ td.act {
   font-weight: 600;
 }
 .ladder-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
   font: 11px var(--mono);
   color: var(--muted);
+}
+.ladder-foot .acts {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.btn.danger.sm:hover {
+  background: var(--loss-soft);
 }
 /* the rungs: ticks on a line, the price as a dot
    with its value above, the levels below */

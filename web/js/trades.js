@@ -34,7 +34,6 @@
   var chips = {}; // stock name -> its button
   var refresh = null; // asks /api/trades right away
   var scrolledTo = null; // the chip last scrolled to
-  var doneTimer = null;
   var TRASH = "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13" +
     "M9 7V4h6v3";
 
@@ -158,26 +157,10 @@
     return lastData !== null && !lastData.read_only;
   }
 
-  // a server text as a sentence
-  function sentence(text) {
-    text = String(text);
-    return text.charAt(0).toUpperCase() + text.slice(1) +
-      (/[.!?]$/.test(text) ? "" : ".");
-  }
-
-  function done(text) {
-    $("done-text").textContent = sentence(text);
-    $("done").hidden = false;
-    clearTimeout(doneTimer);
-    doneTimer = setTimeout(function () {
-      $("done").hidden = true;
-    }, 6000);
-  }
-
   // after a change: the stock's trades and the chips
   // anew, now
   function changed(text, name) {
-    done(text);
+    nx.tell(text);
     detail = null;
     if (name && name !== chosen) {
       chosen = name;
@@ -228,8 +211,8 @@
       })
       .catch(function (error) {
         button.disabled = false;
-        nx.showNotice("Not deleted.", sentence(
-          error.message || error));
+        nx.tell("not deleted: " +
+          (error.message || error), true);
       });
   }
 
@@ -263,7 +246,7 @@
   }
 
   function formError(text) {
-    $("f-error").textContent = sentence(text);
+    $("f-error").textContent = nx.sentence(text);
     $("f-error").hidden = false;
   }
 

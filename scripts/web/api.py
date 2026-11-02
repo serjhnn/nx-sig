@@ -333,9 +333,15 @@ def ladders(cache):
                          or a next level,
                  "away_pct": away in % of the price],
      "names": the names of every stock of the config,
-              for the add form}"""
+     "prices": {name: price} of the ones that have
+               one, for the add form}"""
     found_prices, data = prices(cache)
     data["names"] = [stock.name for stock in Stock]
+    data["prices"] = {
+        name: found_prices[name]
+        for name in data["names"]
+        if name in found_prices
+    }
     data["ladders"] = [
         _ladder(row, found_prices.get(row["Stock"]))
         for row in ladder.rows()

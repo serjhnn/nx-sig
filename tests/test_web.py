@@ -991,6 +991,7 @@ class ApiLaddersTest(ApiMixin, unittest.TestCase):
                 "demo": False,
                 "read_only": True,
                 "names": [s.name for s in Stock],
+                "prices": {},
                 "ladders": [],
             },
         )
@@ -1023,6 +1024,9 @@ class ApiLaddersTest(ApiMixin, unittest.TestCase):
         )
         self.assertRegex(
             first["created"], r"^\d\d\.\d\d\.\d{4} "
+        )
+        self.assertEqual(
+            data["prices"], {"SOXL": 34.5, "TSMX": 41.0}
         )
         self.assertEqual(second["state"], "stopped")
         self.assertEqual(second["next"], 42.5)

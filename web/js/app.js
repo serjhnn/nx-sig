@@ -9,6 +9,10 @@
 //   put(node, key, text)        set a node's text, flash
 //       it when the text under key changed
 //   showNotice(title, text), hideNotice()
+//   sentence(text)              a server text as a sentence
+//   tell(text, failed)          the result of a change in
+//       the page's #done box: a few seconds, longer for
+//       a failure (the notice is for the polling)
 //   answer(response)            the JSON of a fetch
 //       response, or an Error with the server's text
 //   send(url, data)             POSTs data (an object)
@@ -150,6 +154,31 @@
     }
   }
 
+  // a server text as a sentence: capital first,
+  // a full stop last
+  function sentence(text) {
+    text = String(text);
+    return text.charAt(0).toUpperCase() + text.slice(1) +
+      (/[.!?]$/.test(text) ? "" : ".");
+  }
+
+  var tellTimer = null;
+
+  // the result of a change: in its own box, so the
+  // next poll doesn't hide it
+  function tell(text, failed) {
+    var box = $("done");
+    $("done-text").textContent = sentence(text);
+    box.className = "notice " + (failed ? "warn" : "ok");
+    box.querySelector(".dot").className =
+      "dot" + (failed ? " warn" : "");
+    box.hidden = false;
+    clearTimeout(tellTimer);
+    tellTimer = setTimeout(function () {
+      box.hidden = true;
+    }, failed ? 15000 : 6000);
+  }
+
   // ---------- asking the server ----------
 
   // the JSON of a response; an Error with the
@@ -276,6 +305,8 @@
     put: put,
     showNotice: showNotice,
     hideNotice: hideNotice,
+    sentence: sentence,
+    tell: tell,
     answer: answer,
     send: send,
     poll: poll
