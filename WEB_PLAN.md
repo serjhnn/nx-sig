@@ -11,13 +11,16 @@ on its own (see `CLAUDE.md` "Plan first").
 This replaces the xtop page plan: the main page is
 the live view, there is no separate `/xtop`.
 
-The main page is done (steps 1 to 8); what comes
-next is under "Later".
+The main page is done (steps 1 to 8, the paths as
+they were then: `assets/web/` is now `web/`, and
+the price cache and `/api/status` moved from
+`web_service.py` into `scripts/web/`). The trades
+page is next, see "The trades page".
 
 ## The style (style C)
 
-`assets/web/style.css`, served as `/style.css`, is
-shared by every page:
+`web/style.css`, served as `/style.css`, is shared
+by every page:
 
 - the teal accent of the module map, a dark and a
   light theme; the system's by default, a button in
@@ -31,17 +34,24 @@ shared by every page:
 - phone first: bottom tabs on a narrow screen, a
   side menu from 720px wide
 - nothing from the internet: the fonts are in
-  `assets/web/fonts/` (SIL Open Font License), no
+  `web/fonts/` (SIL Open Font License), no
   CDN, no build step; plain HTML, CSS and a little
   JS
 
-## What is there
+## Where the code is
 
-- The web server (`engines/web.py`,
-  `services/web_service.py`) serves `/` (the logo
-  page), `/logo.svg`, `/style.css` and `/fonts/`, on
-  `127.0.0.1:8080` by default (config `web` `host`,
-  `port`).
+- `web/`: the browser files, `index.html` (one
+  HTML file per page), `style.css`, `js/` (one
+  script per page) and `fonts/`.
+- `engines/web.py` starts and stops the server,
+  `services/web_service.py` is its process: it
+  answers on `127.0.0.1:8080` by default (config
+  `web` `host`, `port`) with the parts in
+  `scripts/web/`.
+- `scripts/web/files.py` sends the files of `web/`
+  and the logo, `api.py` the JSON (`/api/...`),
+  `price_cache.py` keeps the prices. Like the shell
+  they only call engines.
 - `engines/positions.py` works out the held stocks
   and their gain for `status`, `xtop` and `ls
   stocks`; the web uses it too (the web service
@@ -161,9 +171,71 @@ opened from another device.
    tests), `TODO.md`, `COMMANDS.md` and the module
    map.
 
+## The trades page
+
+`/trades`: the stocks that have trades and the
+trades of one, like `ls trades`, and adding and
+deleting a trade, like `add trade` and `rm trade`.
+
+Read-only option: a new config `web` `read_only`
+(default `true`). While it is on the page only
+shows the trades (no forms) and the server turns
+every change away with 403; set it to `false` to
+add and delete trades on the web.
+
+Changes are protected: the server listens on
+`127.0.0.1`, so another website open in the same
+browser could send it a request. A change must be
+a POST with a JSON body, its `Origin` must be the
+server's own address, and it must carry a token
+the server makes when it starts and gives only to
+its own pages.
+
+0. **The web folder** (done): `assets/web/` moved
+   to `web/` (`main.js` to `web/js/`, served as
+   `/js/main.js`), the price cache and
+   `/api/status` from `web_service.py` into
+   `scripts/web/` (`files.py`, `api.py`,
+   `price_cache.py`). No visible change.
+1. **Shared page parts**: the helpers every page
+   needs (numbers, theme button, notice, polling)
+   from `main.js` into `web/js/app.js`. The menu
+   link to Trades works. The main page as it is.
+2. **Trades in an engine**: what `ls trades` shows
+   (the stocks that have trades with their count
+   and average; one stock's trades with id, date,
+   buy/sell, count, price) as a function the shell
+   and the web use; `ls trades` prints the same.
+3. **`/api/trades`**: the stocks, or one stock's
+   trades and its total, with the price and gain
+   from the price cache; only on `127.0.0.1`, and
+   `read_only` in it so the page knows.
+4. **The page `/trades`**: the stock chips (count,
+   average, gain), the chosen stock's trades,
+   newest first; on a phone the chips scroll
+   sideways and the table fits 360px.
+5. **Config `read_only` and the protection**:
+   `config.web_read_only()`; POST only for
+   changes, JSON body, `Origin` check, the token;
+   403 while `read_only` is on.
+6. **Add and delete**: the add form (stock, buy or
+   sell, count, price, optional date and time)
+   calls `trades.add()`, so the checks and error
+   texts are the shell's; delete asks first, like
+   `rm trade`. Hidden while `read_only` is on. The
+   bank statement import stays in the shell.
+7. **Tests**: the engine function, `/api/trades`,
+   the read-only option, the protection (another
+   origin, no token, a form post are turned away),
+   the page's ids and fields; the page checked in
+   a browser at 360, 390 and 1200px, dark and
+   light.
+8. **Docs**: README (config `read_only`, the page),
+   `TODO.md`, `COMMANDS.md`, the module map.
+
 ## Later
 
-- The other pages: trades, ladders, alerts, chart,
+- The other pages: ladders, alerts, chart,
   basetrades, rules; with the forms of the style.
 - The gain alerts on the main page, like `xtop al`.
 - A login, if the page should be opened from

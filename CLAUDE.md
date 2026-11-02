@@ -30,6 +30,10 @@ and the output must fit a phone screen.
   `from engines import trades`.
 - `scripts/services/<engine>_service.py` is the
   background process an engine starts and stops.
+- `scripts/web/` holds the web server's parts
+  (`files.py`, `api.py`, `price_cache.py`); like
+  the shell it only calls engines. The browser
+  files (HTML, CSS, JS, fonts) are in `web/`.
 - `scripts/notifiers/` holds the notify channels.
   `notifier.py` sends through the one config
   `"notify"` chooses (`telegram`, `termux`, `ntfy`,

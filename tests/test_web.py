@@ -1,6 +1,6 @@
 # tests of the web server: config "web",
-# scripts/engines/web.py and
-# scripts/services/web_service.py
+# scripts/engines/web.py,
+# scripts/services/web_service.py and scripts/web/
 #
 #   python tests/test_web.py
 #
@@ -26,7 +26,11 @@ import storage
 import tasks_owner
 from engines import overview, trades, web
 from services import web_service
+from web import api, files, price_cache
 from storage import Stock, TradeType
+
+# the main page's script
+SCRIPT_PATH = os.path.join(files.JS_DIR, "main.js")
 
 
 class FakeChild:
@@ -100,9 +104,10 @@ class ServerMixin:
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
         self.log = mock.Mock()
-        p = mock.patch.object(web_service, "log", self.log)
-        p.start()
-        self.addCleanup(p.stop)
+        for module in (web_service, api):
+            p = mock.patch.object(module, "log", self.log)
+            p.start()
+            self.addCleanup(p.stop)
 
     def request(self, path, method="GET", logged=True):
         conn = http.client.HTTPConnection(
@@ -130,31 +135,31 @@ class WebServerTest(ServerMixin, unittest.TestCase):
                 response.getheader("Content-Type"),
                 "text/html; charset=utf-8",
             )
-            with open(web_service.INDEX_PATH, "rb") as f:
+            with open(files.INDEX_PATH, "rb") as f:
                 self.assertEqual(body, f.read())
             self.assertIn(b'href="/style.css"', body)
-            self.assertIn(b'src="/main.js"', body)
+            self.assertIn(b'src="/js/main.js"', body)
             self.assertIn(b"width=device-width", body)
 
     def test_script(self):
-        response, body = self.request("/main.js")
+        response, body = self.request("/js/main.js")
         self.assertEqual(response.status, 200)
         self.assertEqual(
             response.getheader("Content-Type"),
             "text/javascript; charset=utf-8",
         )
-        with open(web_service.SCRIPT_PATH, "rb") as f:
+        with open(SCRIPT_PATH, "rb") as f:
             self.assertEqual(body, f.read())
         # what it asks for
         self.assertIn(b'"/api/status"', body)
 
     def test_page_ids(self):
         # every element the script looks up is there
-        with open(web_service.SCRIPT_PATH) as f:
+        with open(SCRIPT_PATH) as f:
             ids = set(
                 re.findall(r'\$\("([\w-]+)"\)', f.read())
             )
-        with open(web_service.INDEX_PATH) as f:
+        with open(files.INDEX_PATH) as f:
             page = f.read()
         self.assertGreater(len(ids), 10)
         for name in ids:
@@ -178,7 +183,7 @@ class WebServerTest(ServerMixin, unittest.TestCase):
             response.getheader("Content-Type"),
             "image/svg+xml",
         )
-        with open(web_service.LOGO_PATH, "rb") as f:
+        with open(files.LOGO_PATH, "rb") as f:
             self.assertEqual(body, f.read())
         self.assertEqual(
             int(response.getheader("Content-Length")),
@@ -192,16 +197,16 @@ class WebServerTest(ServerMixin, unittest.TestCase):
             response.getheader("Content-Type"),
             "text/css; charset=utf-8",
         )
-        with open(web_service.STYLE_PATH, "rb") as f:
+        with open(files.STYLE_PATH, "rb") as f:
             self.assertEqual(body, f.read())
 
     def test_fonts(self):
         # every font the style uses is served
-        with open(web_service.STYLE_PATH) as f:
+        with open(files.STYLE_PATH) as f:
             style = f.read()
         names = [
             n
-            for n in os.listdir(web_service.FONTS_DIR)
+            for n in os.listdir(files.FONTS_DIR)
             if n.endswith(".woff2")
         ]
         self.assertEqual(len(names), 4)
@@ -235,6 +240,11 @@ class WebServerTest(ServerMixin, unittest.TestCase):
             "/fonts/../style.css",
             "/fonts/../../../config.json",
             "/web/style.css",
+            "/main.js",
+            "/js/",
+            "/js/x.js",
+            "/js/../style.css",
+            "/js/main.js/",
         ):
             response, _ = self.request(path)
             self.assertEqual(response.status, 404, path)
@@ -477,7 +487,7 @@ class ApiStatusTest(ServerMixin, unittest.TestCase):
             # t is a task or a trade
             "t": dict(task, **trade),
         }
-        with open(web_service.SCRIPT_PATH) as f:
+        with open(SCRIPT_PATH) as f:
             script = f.read()
         # "name.field", not "name.fieldName" (the DOM)
         used = re.findall(
@@ -547,7 +557,7 @@ class PriceCacheTest(unittest.TestCase):
         self.calls = 0
         self.result = {"SOXL": 30.0}
         self.clock = FakeClock()
-        self.cache = web_service.PriceCache(
+        self.cache = price_cache.PriceCache(
             0.01,
             fetch=self.fetch,
             watch=30,
@@ -555,7 +565,7 @@ class PriceCacheTest(unittest.TestCase):
         )
         self.addCleanup(self.cache.stop)
         self.log = mock.Mock()
-        p = mock.patch.object(web_service, "log", self.log)
+        p = mock.patch.object(price_cache, "log", self.log)
         p.start()
         self.addCleanup(p.stop)
 
@@ -655,7 +665,7 @@ class PriceCacheTest(unittest.TestCase):
         server = web_service.make_server("127.0.0.1", 0)
         self.addCleanup(server.server_close)
         self.assertIsInstance(
-            server.prices, web_service.PriceCache
+            server.prices, price_cache.PriceCache
         )
         self.assertEqual(
             server.prices.interval, config.web_interval()

@@ -306,7 +306,7 @@ for your own use first. In this order:
   `services/web_service.py`).
 - ~~**Web main page**~~ (done, see
   [WEB_PLAN.md](WEB_PLAN.md)): the web `status` in
-  style C (`assets/web/`), the positions with their
+  style C (`web/`, `scripts/web/`), the positions with their
   live gain/loss, the tasks and the last trades;
   `engines/positions.py`, `engines/overview.py`,
   the price cache and `/api/status` in the web

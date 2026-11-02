@@ -10,9 +10,9 @@
 # BEGIN and END are written, the rest is edited by
 # hand. it reads the code with ast, nothing is run:
 #   modules    the .py files of scripts/, its
-#              engines/, services/, notifiers/,
-#              shell/ and mtsig/, and of
-#              tests/ (group tests)
+#              engines/, services/, web/ (group
+#              services), notifiers/, shell/ and
+#              mtsig/, and of tests/ (group tests)
 #   imports    every import, but not the ones under
 #              if __name__ == "__main__"
 #   loaded     the modules loaded by name (importlib):
@@ -42,6 +42,7 @@ FOLDERS = (
     "",
     "engines",
     "services",
+    "web",
     "notifiers",
     "shell",
     "mtsig",
@@ -211,7 +212,8 @@ def _group(key):
         return "tasks"
     if key in ENGINES or key.startswith("engines/"):
         return "engine"
-    if key.startswith("services/"):
+    # web/ holds the parts of the web service
+    if key.startswith(("services/", "web/")):
         return "services"
     if key.startswith("notifiers/"):
         return "notify"

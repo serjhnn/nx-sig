@@ -562,11 +562,14 @@ other packages than the shell's). Open the address in a browser on the same devi
   system's by default, kept in the browser). On a phone the menu is at the
   bottom, on a wider screen at the side; its other pages (trades,
   ladders, ...) are greyed out until they exist.
-- It serves only `/` (`assets/web/index.html` and `/main.js`), `/logo`
-  (a page with the logo), `/logo.svg`, `/style.css` (the style every
-  page shares, `assets/web/style.css`), the fonts it uses (`/fonts/`, IBM
-  Plex, bundled so nothing comes from the internet) and `/api/status`; it
-  changes nothing, any other path is `404`.
+- It serves only `/` (`web/index.html`), `/logo` (a page with the
+  logo), `/logo.svg`, `/style.css` (the style every page shares,
+  `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
+  they use (`/fonts/`, IBM Plex, bundled so nothing comes from the
+  internet) and `/api/status`; it changes nothing, any other path is
+  `404`. The browser files are in `web/`, the server's parts in
+  `scripts/web/`: `files.py` sends the files, `api.py` the JSON,
+  `price_cache.py` keeps the prices.
 - `/api/status` is the main page's data as JSON: each held stock with its
   count, average, price, gain and gain %, the total, the running
   background tasks, the mail broker, the device that runs the tasks, the
@@ -736,14 +739,14 @@ nx-sig/
 ├── CLAUDE.md             notes for Claude Code sessions
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg       the logo (README, the web page)
-├── assets/web/           the web page (index.html, main.js), its style
-│                         (style.css) and fonts
 ├── assets/demo-*.svg     the demo pictures of this README
 │                         (scripts/gen_shots.py)
 ├── assets/map-*.png      the module map pictures of this README
 │                         (scripts/gen_map_shots.py)
 ├── assets/modules.html  the module map (generated), also online:
 │                         serjhnn.github.io/nx-sig/assets/modules.html
+├── web/                  the web pages: index.html, style.css (shared),
+│                         js/ (main.js), fonts/ (IBM Plex)
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
 │                         (test_shell.py: every shell command)
 └── scripts/
@@ -767,7 +770,11 @@ nx-sig/
     │   ├── ladder_service.py one ladder's process: price, notify
     │   ├── alert_service.py  the alerts process, one for all alerts
     │   ├── demo_prices_service.py the demo's prices process
-    │   └── web_service.py    the web server: the main page, /api/status
+    │   └── web_service.py    the web server process, answers with web/
+    ├── web/              the web server's parts, call engines like the shell
+    │   ├── files.py          the pages, style, scripts, fonts, the logo
+    │   ├── api.py            the JSON of the pages (/api/status)
+    │   └── price_cache.py    the prices, fetched while a page watches
     ├── notifiers/        the notify channels (config "notify")
     │   ├── notifier.py       sends through the chosen channel
     │   ├── telegram_notify.py message through a Telegram bot

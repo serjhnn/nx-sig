@@ -1,4 +1,4 @@
-// nX-sig web: the main page, served as /main.js
+// nX-sig web: the main page, served as /js/main.js
 //
 // asks /api/status every "interval" seconds (the
 // server's config "web" "interval") and changes only
