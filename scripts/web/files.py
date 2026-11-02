@@ -13,6 +13,8 @@
 #   /trades       web/trades.html, the trades page
 #   /ladders      web/ladders.html, the ladders page
 #   /alerts       web/alerts.html, the alerts page
+#   /basetrades   web/basetrades.html, the
+#                 basetrades page
 #   /logo         a page with the logo, as wide as the
 #                 screen
 #   /logo.svg     assets/logo.svg
@@ -41,6 +43,7 @@ INDEX_PATH = os.path.join(WEB_DIR, "index.html")
 TRADES_PATH = os.path.join(WEB_DIR, "trades.html")
 LADDERS_PATH = os.path.join(WEB_DIR, "ladders.html")
 ALERTS_PATH = os.path.join(WEB_DIR, "alerts.html")
+BASETRADES_PATH = os.path.join(WEB_DIR, "basetrades.html")
 FRAME_PATH = os.path.join(WEB_DIR, "frame.html")
 FRAME_MARK = b"<!-- frame -->"
 TOKEN_MARK = b"{{token}}"
@@ -53,6 +56,7 @@ PATHS = {
     "/trades": (TRADES_PATH, HTML),
     "/ladders": (LADDERS_PATH, HTML),
     "/alerts": (ALERTS_PATH, HTML),
+    "/basetrades": (BASETRADES_PATH, HTML),
     "/logo.svg": (LOGO_PATH, "image/svg+xml"),
     "/style.css": (STYLE_PATH, "text/css; charset=utf-8"),
 }

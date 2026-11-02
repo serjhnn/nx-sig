@@ -2,7 +2,7 @@
      has a "frame" comment where web/files.py puts
      them, with the server's token for the changes in
      data-token. app.js marks the open page in the
-     menu -->
+     menu and opens More -->
   <header class="top" data-token="{{token}}">
     <a class="mark" href="/">nX-sig</a>
     <span class="chip warn" id="demo" hidden>demo</span>
@@ -41,19 +41,30 @@
         stroke-width="2" stroke-linejoin="round">
         <path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>
       </svg>Alerts</a>
+    <!-- on a phone the pages below are under More,
+         a list that opens above the tabs; from
+         720px wide they are in the side menu -->
+    <button class="more-btn" type="button" id="more-btn"
+      aria-controls="more" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round">
+        <path d="M5 12h.01M12 12h.01M19 12h.01"/>
+      </svg>More</button>
+    <div class="more" id="more">
     <a class="later" aria-disabled="true" title="not there yet">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 20h18M5 16l4-5 4 3 6-8"/>
       </svg>Chart</a>
-    <a class="later wide-only" aria-disabled="true" title="not there yet">
+    <a href="/basetrades">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="2" stroke-linecap="round">
         <path d="M4 18h16M7 18V10M12 18V6M17 18v-5"/>
       </svg>Basetrades</a>
-    <a class="later wide-only" aria-disabled="true" title="not there yet">
+    <a class="later" aria-disabled="true" title="not there yet">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
         stroke-width="2" stroke-linecap="round">
         <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>
       </svg>Rules</a>
+    </div>
   </nav>

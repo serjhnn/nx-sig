@@ -25,8 +25,9 @@
 //       last data and says what went wrong; the top
 //       bar shows the prices' time and error. gives a
 //       function that asks again right away
-// it also marks the open page in the menu and runs
-// the theme button (dark or light, kept in
+// it also marks the open page in the menu, opens
+// and closes More (the other pages, on a phone) and
+// runs the theme button (dark or light, kept in
 // localStorage).
 
 (function () {
@@ -276,9 +277,32 @@
     function (link) {
       if (link.getAttribute("href") === location.pathname) {
         link.setAttribute("aria-current", "page");
+        // a page under More: More is the current tab
+        if (link.closest(".more")) {
+          $("more-btn").classList.add("current");
+        }
       }
     }
   );
+
+  // More opens and closes the list of the other
+  // pages (on a phone); a tap outside or Escape
+  // closes it
+  function openMore(open) {
+    document.querySelector(".nav").classList.toggle("open", open);
+    $("more-btn").setAttribute("aria-expanded", String(open));
+  }
+
+  $("more-btn").addEventListener("click", function (event) {
+    event.stopPropagation();
+    openMore($("more-btn").getAttribute("aria-expanded") !== "true");
+  });
+  document.addEventListener("click", function (event) {
+    if (!event.target.closest(".more")) openMore(false);
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") openMore(false);
+  });
 
   $("theme").addEventListener("click", function () {
     var root = document.documentElement;

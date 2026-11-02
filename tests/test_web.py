@@ -44,6 +44,9 @@ SCRIPT_PATH = os.path.join(files.JS_DIR, "main.js")
 TRADES_SCRIPT = os.path.join(files.JS_DIR, "trades.js")
 LADDERS_SCRIPT = os.path.join(files.JS_DIR, "ladders.js")
 ALERTS_SCRIPT = os.path.join(files.JS_DIR, "alerts.js")
+BASETRADES_SCRIPT = os.path.join(
+    files.JS_DIR, "basetrades.js"
+)
 
 
 def scripts(page=SCRIPT_PATH):
@@ -322,6 +325,51 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         for name in ids:
             self.assertIn(f'id="{name}"', page.decode())
 
+    def test_basetrades_page(self):
+        response, body = self.request("/basetrades")
+        self.assertEqual(response.status, 200)
+        page = files.page(
+            files.BASETRADES_PATH, self.server.token
+        )
+        self.assertEqual(body, page)
+        self.assertLess(
+            body.index(b'src="/js/app.js"'),
+            body.index(b'src="/js/basetrades.js"'),
+        )
+        response, body = self.request("/js/basetrades.js")
+        self.assertEqual(response.status, 200)
+        with open(BASETRADES_SCRIPT, "rb") as f:
+            script = f.read()
+        self.assertEqual(body, script)
+        self.assertIn(b'nx.poll("/api/basetrades"', script)
+        # every element the scripts look up is there
+        ids = set(
+            re.findall(
+                r'\$\("([\w-]+)"\)',
+                scripts(BASETRADES_SCRIPT),
+            )
+        )
+        self.assertGreater(len(ids), 5)
+        for name in ids:
+            self.assertIn(f'id="{name}"', page.decode())
+
+    def test_more(self):
+        # on a phone Chart, Basetrades and Rules are
+        # under More, the other pages are tabs
+        with open(files.FRAME_PATH) as f:
+            frame = f.read()
+        nav = frame[frame.index('<nav class="nav"') :]
+        tabs, more = nav.split('<div class="more"', 1)
+        self.assertEqual(
+            re.findall(r"</svg>(\w+)</a>", tabs),
+            ["Home", "Trades", "Ladders", "Alerts"],
+        )
+        self.assertIn('id="more-btn"', tabs)
+        self.assertEqual(
+            re.findall(r"</svg>(\w+)</a>", more),
+            ["Chart", "Basetrades", "Rules"],
+        )
+
     def test_menu(self):
         # every page the menu links to is there, and
         # the frame isn't served by itself
@@ -331,6 +379,7 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         self.assertIn("/trades", links)
         self.assertIn("/ladders", links)
         self.assertIn("/alerts", links)
+        self.assertIn("/basetrades", links)
         for path in links:
             response, _ = self.request(path)
             self.assertEqual(response.status, 200, path)
@@ -1439,6 +1488,29 @@ class ApiBasetradesTest(ApiMixin, unittest.TestCase):
                 "price",
             },
         )
+
+    def test_fields_of_the_page(self):
+        # every field basetrades.js reads is in the
+        # JSON
+        basetrades.save(Stock.SOXL, 30, 10)
+        alerts_engine.create("basetrades", "down", 10)
+        _, data = self.get(FakeCache({"SOXL": 28.0}))
+        row = data["basetrades"][0]
+        fields = {
+            "data": data,
+            "b": row,
+            "a": row["alerts"][0],
+        }
+        used = re.findall(
+            r"\b(data|b|a)\.([a-z_]+)\b(?![A-Za-z(])",
+            scripts(BASETRADES_SCRIPT),
+        )
+        self.assertGreater(len(used), 10)
+        array = {"length", "forEach", "map"}
+        for name, field in set(used):
+            if field in array:
+                continue
+            self.assertIn(field, fields[name], name)
 
     def test_only_on_localhost(self):
         basetrades.save(Stock.SOXL, 30, 10)

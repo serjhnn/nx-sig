@@ -569,8 +569,9 @@ other packages than the shell's). Open the address in a browser on the same devi
   last values and says what went wrong (no prices, a missing key, the
   server stopped). The button at the top switches dark and light (the
   system's by default, kept in the browser). On a phone the menu is at the
-  bottom, on a wider screen at the side; its pages that don't exist yet
-  (ladders, alerts, ...) are greyed out.
+  bottom (Home, Trades, Ladders, Alerts and More, which opens the list of
+  the other pages), on a wider screen at the side with every page; the
+  pages that don't exist yet (chart, rules) are greyed out.
 - The trades page (`/trades`): the stocks that have trades as chips (the
   count held at its average, the gain %), and the chosen stock's gain and
   its trades, newest first, with the ids of `rm trade`. The chosen stock
@@ -606,8 +607,14 @@ other packages than the shell's). Open the address in a browser on the same devi
   or a loss, in money or in % of the average buy price) and deletes one
   (after asking), like `run alerts`, `stop alerts`, `add alert` and `rm
   alert`, with the same checks and texts.
+- The basetrades page (`/basetrades`, under More on a phone): a card per
+  basetrade, like `ls basetrades al`: the count and buying price, the
+  price and its change % from the buying price, a line with the buying
+  price and each basetrades alert's level as ticks and the price as a
+  dot, and the alerts ("down 10% · 25.88", marked when reached).
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
-  `/ladders` (`web/ladders.html`), `/alerts` (`web/alerts.html`), `/logo`
+  `/ladders` (`web/ladders.html`), `/alerts` (`web/alerts.html`), `/basetrades`
+  (`web/basetrades.html`), `/logo`
   (a page with the logo),
   `/logo.svg`, `/style.css` (the style every page shares,
   `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
@@ -646,7 +653,7 @@ other packages than the shell's). Open the address in a browser on the same devi
   the buying price and count, the stock's price and its change %, each
   basetrades alert's level and whether it was reached) and, for each
   stock that has one, the lowest buy since the last sell (as `add
-  basetrade <stock>`); the basetrades page will use it. The same rules
+  basetrade <stock>`); the basetrades page uses it. The same rules
   as above.
 - Every `/api/` request must name the server in its `Host` (`127.0.0.1`,
   `localhost` or `[::1]` with its port), so a website that points another
@@ -830,10 +837,11 @@ nx-sig/
 ├── assets/modules.html  the module map (generated), also online:
 │                         serjhnn.github.io/nx-sig/assets/modules.html
 ├── web/                  the web pages: index.html, trades.html,
-│                         ladders.html, alerts.html, frame.html (the top
-│                         bar and menu of every page), style.css, js/
-│                         (app.js shared, main.js, trades.js, ladders.js,
-│                         alerts.js), fonts/
+│                         ladders.html, alerts.html, basetrades.html,
+│                         frame.html (the top bar and menu of every
+│                         page), style.css, js/ (app.js shared,
+│                         main.js, trades.js, ladders.js, alerts.js,
+│                         basetrades.js), fonts/
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
 │                         (test_shell.py: every shell command)
 └── scripts/

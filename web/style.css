@@ -254,8 +254,60 @@ a {
   opacity: 0.45;
   pointer-events: none;
 }
-.nav .wide-only {
+/* More: a tab on a phone that opens the list of
+   the other pages above the tabs */
+.nav {
+  position: relative;
+}
+.more-btn {
+  flex: 1;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 2px 10px;
+  border: 0;
+  background: none;
+  font: 500 11px var(--sans);
+  color: var(--muted);
+  cursor: pointer;
+}
+.more-btn svg {
+  width: 20px;
+  height: 20px;
+}
+.more-btn.current {
+  color: var(--accent);
+}
+.more {
   display: none;
+  position: absolute;
+  right: 8px;
+  bottom: calc(100% + 6px);
+  z-index: 10;
+  min-width: 190px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.25);
+}
+.nav.open .more {
+  display: flex;
+}
+.nav .more a {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.nav .more a[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--fg);
 }
 .row2 {
   display: grid;
@@ -293,8 +345,17 @@ a {
     background: var(--accent-soft);
     color: var(--fg);
   }
-  .nav .wide-only {
-    display: flex;
+  /* every page in the side menu, no More */
+  .more-btn {
+    display: none;
+  }
+  .more,
+  .nav.open .more {
+    display: contents;
+  }
+  .nav .more a {
+    padding: 8px 10px;
+    font-size: 13px;
   }
   .main {
     padding: 18px;
@@ -899,6 +960,27 @@ td.act {
   font: 600 11px var(--mono);
   color: var(--price);
   white-space: nowrap;
+}
+
+/* ---------- the basetrade cards (basetrades page,
+   the ladder card's frame and line) ---------- */
+
+.rungs .tick.reached {
+  background: var(--warn);
+}
+.rungs .tick.reached span {
+  color: var(--warn);
+}
+.bt-alerts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 4px;
+  font: 12px var(--mono);
+}
+.bt-alerts .chip {
+  font-size: 11px;
+  padding: 1px 6px;
 }
 
 /* ---------- the alerts page ---------- */

@@ -541,16 +541,25 @@ the other pages.
    basetrade too (the form can replace it); `names`
    for the form. `api.basetrade_rows()`, only on
    `127.0.0.1`.
-2. **The page `/basetrades`, read-only**:
-   `web/basetrades.html` and
+2. ~~**The page `/basetrades`, read-only**~~
+   (done): `web/basetrades.html` and
    `web/js/basetrades.js`, a card per basetrade
-   (stock, count, buying price, the price and its
-   change % with a sign, green or red) and a line
-   with the buying price, the alert levels as
-   ticks and the price as a dot, like the rungs of
-   a ladder card. One column on a phone, two from
-   720px. The More tab (see "The menu on a
-   phone") with its link.
+   (stock, "30 @ 28.75", the change % as a chip,
+   the price green or red, the cost) and a line
+   with the buying price (accent), the alert
+   levels as ticks (gold once reached) and the
+   price as a dot, like the rungs of a ladder
+   card; below it each alert as a chip ("down 10%
+   · 25.88", "· reached"). One column on a phone,
+   two from 720px. The More tab (see "The menu on
+   a phone"): a button in `web/frame.html`, the
+   list opened and closed by `app.js` (a tap
+   outside or Escape closes it). Checked in a
+   browser in the demo at 360, 390 and 1200px,
+   dark and light, the More list open: nothing
+   wider than the screen, no label outside its
+   card, no errors; the other pages' tabs as
+   before.
 3. **The changes**: POST `/api/basetrades/add`
    (stock with price and count, or stock and
    `from_trades`, or `all`) and
