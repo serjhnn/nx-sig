@@ -596,15 +596,17 @@ other packages than the shell's). Open the address in a browser on the same devi
   force`) stays in the shell. The result of a change shows above the
   page for a few seconds (longer when it failed).
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
-  `/ladders` (`web/ladders.html`), `/logo` (a page with the logo), `/logo.svg`, `/style.css` (the style
-  every page shares, `web/style.css`), the pages' scripts (`/js/`,
-  `web/js/`), the fonts they use (`/fonts/`, IBM Plex, bundled so nothing
-  comes from the internet), `/api/status`, `/api/trades` and
-  `/api/ladders`; it changes data only through the changes of the trades
-  and ladders pages (see below), any other path is `404`. The browser files are in `web/`,
-  the server's parts in `scripts/web/`: `files.py` sends the files (a
-  page gets the shared top bar and menu of `web/frame.html`), `api.py`
-  the JSON and the changes, `price_cache.py` keeps the prices.
+  `/ladders` (`web/ladders.html`), `/logo` (a page with the logo),
+  `/logo.svg`, `/style.css` (the style every page shares,
+  `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
+  they use (`/fonts/`, IBM Plex, bundled so nothing comes from the
+  internet), `/api/status`, `/api/trades`, `/api/ladders` and
+  `/api/alerts`; it changes data only through the changes of the trades
+  and ladders pages (see below), any other path is `404`. The browser
+  files are in `web/`, the server's parts in `scripts/web/`: `files.py`
+  sends the files (a page gets the shared top bar and menu of
+  `web/frame.html`), `api.py` the JSON and the changes, `price_cache.py`
+  keeps the prices.
 - `/api/status` is the main page's data as JSON: each held stock with its
   count, average, price, gain and gain %, the total, the running
   background tasks, the mail broker, the device that runs the tasks, the
@@ -622,6 +624,12 @@ other packages than the shell's). Open the address in a browser on the same devi
   state, the next level), with the stock's price, how far it still has to
   move to the next level (amount and %) and the next three levels; the
   ladders page uses it. The same rules as above.
+- `/api/alerts` is the saved alerts as JSON (as `ls alerts`: the kind and
+  "down 10%", "TSMX +100"), each with its level per stock (as `ls
+  basetrades al` and `xtop al`: per basetrade, or per held stock for a
+  gain alert) with the price, how far it still has to move in % and
+  whether it was reached, and whether the alerts process runs; for the
+  alerts page, which comes next. The same rules as above.
 - Every `/api/` request must name the server in its `Host` (`127.0.0.1`,
   `localhost` or `[::1]` with its port), so a website that points another
   name at this device can't read it. A change (a POST: `/api/trades/add`,
@@ -889,7 +897,8 @@ python tests/test_trades.py        # trades engine, by_stock, statement import
 python tests/test_positions.py     # held stocks, their gain and total
 python tests/test_overview.py      # status: tasks, last trades, all of it
 python tests/test_ladder.py        # ladder levels, rows (ls ladders), task rows
-python tests/test_alerts.py        # alert levels and crossings, task row
+python tests/test_alerts.py        # alert levels and crossings, task row,
+                                   # the process state (ls alerts)
 python tests/test_mail_broker.py   # the mail broker's process, its Python
 python tests/test_process.py       # BackgroundTask, the service loop
 python tests/test_notifier.py      # the notify channel
@@ -898,10 +907,10 @@ python tests/test_chart.py         # the price chart layout
 python tests/test_demo.py          # the demo data, and a run of ./nxdemo
 python tests/test_demo_prices.py   # the demo's prices and their process
 python tests/test_web.py           # the web server: config, pages, /api/status,
-                                   # /api/trades, /api/ladders, the pages and
-                                   # the fields their scripts read, the changes
-                                   # of trades and ladders, the checks of a change,
-                                   # the price cache, its process
+                                   # /api/trades, /api/ladders, /api/alerts, the
+                                   # pages and the fields their scripts read, the
+                                   # changes of trades and ladders, the checks of
+                                   # a change, the price cache, its process
 python tests/test_shell.py         # every shell command, faked prices
 python tests/test_sync.py          # device IDs, .stignore
 python scripts/check_style.py      # code style (line width), generated files

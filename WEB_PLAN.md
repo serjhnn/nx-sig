@@ -426,12 +426,19 @@ the shell.
    `shell/alert_cmd.py`. `ls alerts` prints the
    same (compared in every state, with and without
    color).
-2. **`/api/alerts`**: the process state, each alert
-   (kind, the shell's text, created) with its level
-   per stock (`basetrade_levels()`,
-   `gain_levels()`): the price, the distance in %,
-   reached or not; the stock names for the form.
-   Only on `127.0.0.1`, with `read_only`.
+2. ~~**`/api/alerts`**~~ (done): the process state
+   (`process_state()`, its last check as ISO), each
+   alert (id, kind, the shell's text, direction,
+   percent or amount, the stock of a gain alert,
+   created) with its levels per stock
+   (`basetrade_levels()` per basetrade,
+   `gain_levels()` per held stock; none for a gain
+   alert of a stock not held): the level, the
+   price, `away_pct` (how far the price still has
+   to move, in % of it; 0 or less once reached)
+   and `reached` (the engine's `past()`); the stock
+   names for the form. Only on `127.0.0.1`, with
+   `read_only`.
 3. **The page `/alerts`, read-only**: a bar with the
    process state and its last check, a card per
    alert with its stocks (level, price, distance, a

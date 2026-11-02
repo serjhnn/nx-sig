@@ -24,7 +24,14 @@ import config
 import process
 import storage
 import tasks_owner
-from engines import ladder, overview, trades, web
+from engines import alerts as alerts_engine
+from engines import (
+    basetrades,
+    ladder,
+    overview,
+    trades,
+    web,
+)
 from services import web_service
 from web import api, files, price_cache
 from storage import Stock, TradeType
@@ -1108,6 +1115,169 @@ class ApiLaddersTest(ApiMixin, unittest.TestCase):
             self.serve()
             self.server.prices = FakeCache()
             response, body = self.request("/api/ladders")
+        self.assertEqual(response.status, 500)
+        self.log.exception.assert_called()
+
+
+class ApiAlertsTest(ApiMixin, unittest.TestCase):
+    """/api/alerts"""
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(
+            alerts_engine, "running_pid", lambda: None
+        )
+        p.start()
+        self.addCleanup(p.stop)
+
+    def get(self, cache=None, host="127.0.0.1"):
+        self.serve(host)
+        self.server.prices = cache or FakeCache()
+        response, body = self.request(
+            "/api/alerts", logged=host != "127.0.0.1"
+        )
+        return response, json.loads(body)
+
+    def test_empty(self):
+        response, data = self.get()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            data,
+            {
+                "updated": None,
+                "error": None,
+                "interval": 5,
+                "demo": False,
+                "read_only": True,
+                "process": {
+                    "state": "stopped",
+                    "pid": None,
+                    "updated": None,
+                    "owner": None,
+                },
+                "alerts": [],
+                "names": [s.name for s in Stock],
+            },
+        )
+
+    def test_basetrades_alert(self):
+        basetrades.save(Stock.SOXL, 30, 10)
+        basetrades.save(Stock.TSMX, 40, 5)
+        alert_id = alerts_engine.create(
+            "basetrades", "down", 10
+        )
+        _, data = self.get(
+            FakeCache({"SOXL": 28.0, "TSMX": 35.0})
+        )
+        (alert,) = data["alerts"]
+        self.assertEqual(
+            {
+                k: v
+                for k, v in alert.items()
+                if k != "levels"
+            },
+            {
+                "id": alert_id,
+                "kind": "basetrades",
+                "text": "down 10%",
+                "direction": "down",
+                "percent": 10.0,
+                "amount": None,
+                "stock": None,
+                "created": alert["created"],
+            },
+        )
+        levels = {r["stock"]: r for r in alert["levels"]}
+        self.assertEqual(
+            levels["SOXL"],
+            {
+                "stock": "SOXL",
+                "level": 27.0,
+                "price": 28.0,
+                "away_pct": 1 / 28 * 100,
+                "reached": False,
+            },
+        )
+        # past its level: reached, away 0 or less
+        self.assertTrue(levels["TSMX"]["reached"])
+        self.assertEqual(levels["TSMX"]["level"], 36.0)
+        self.assertLess(levels["TSMX"]["away_pct"], 0)
+
+    def test_gain_alerts(self):
+        trades.add(Stock.TSMX, TradeType.BUY, 10, 40)
+        trades.add(Stock.SOXL, TradeType.BUY, 5, 20)
+        one = alerts_engine.create_gain("TSMX", 100)
+        every = alerts_engine.create_gain(
+            "all", 10, percent=True
+        )
+        # not held: no level
+        none = alerts_engine.create_gain("NVDL", -50)
+        _, data = self.get(FakeCache({"TSMX": 45.0}))
+        found = {a["id"]: a for a in data["alerts"]}
+        self.assertEqual(found[one]["text"], "TSMX +100")
+        self.assertEqual(found[one]["stock"], "TSMX")
+        self.assertEqual(found[one]["amount"], 100.0)
+        self.assertIsNone(found[one]["percent"])
+        self.assertEqual(
+            found[one]["levels"],
+            [
+                {
+                    "stock": "TSMX",
+                    "level": 50.0,
+                    "price": 45.0,
+                    "away_pct": 5 / 45 * 100,
+                    "reached": False,
+                }
+            ],
+        )
+        self.assertEqual(found[every]["text"], "all +10%")
+        levels = {
+            r["stock"]: r for r in found[every]["levels"]
+        }
+        self.assertEqual(set(levels), {"TSMX", "SOXL"})
+        self.assertEqual(levels["SOXL"]["level"], 22.0)
+        # no price
+        self.assertIsNone(levels["SOXL"]["price"])
+        self.assertIsNone(levels["SOXL"]["away_pct"])
+        self.assertFalse(levels["SOXL"]["reached"])
+        self.assertEqual(found[none]["levels"], [])
+        self.assertEqual(found[none]["direction"], "down")
+
+    def test_process_running(self):
+        with mock.patch.object(
+            alerts_engine, "running_pid", lambda: 21
+        ), mock.patch.object(
+            alerts_engine,
+            "status",
+            lambda: {"updated": "2026-11-02T10:44:05"},
+        ):
+            _, data = self.get()
+        self.assertEqual(
+            data["process"],
+            {
+                "state": "running",
+                "pid": 21,
+                "updated": "2026-11-02T10:44:05",
+                "owner": None,
+            },
+        )
+
+    def test_only_on_localhost(self):
+        alerts_engine.create("basetrades", "down", 10)
+        response, data = self.get(host="0.0.0.0")
+        self.assertEqual(response.status, 403)
+        self.assertEqual(list(data), ["error"])
+
+    def test_failure(self):
+        def broken():
+            raise OSError("disk")
+
+        with mock.patch.object(
+            alerts_engine, "alerts_get_all", broken
+        ):
+            self.serve()
+            self.server.prices = FakeCache()
+            response, body = self.request("/api/alerts")
         self.assertEqual(response.status, 500)
         self.log.exception.assert_called()
 

@@ -13,6 +13,9 @@
 #                      not in the config
 #   /api/ladders       the saved ladders with the
 #                      price, ladders()
+#   /api/alerts        the saved alerts with their
+#                      level per stock and the
+#                      process, alerts()
 # and the changes (POST, see below):
 #   /api/trades/add    add a trade, add_trade()
 #   /api/trades/delete delete a trade, delete_trade()
@@ -56,6 +59,7 @@
 #   trades(cache)
 #   stock_trades(cache, name)
 #   ladders(cache)
+#   alerts(cache)
 #       the data of the paths above
 #   add_trade(data)
 #   delete_trade(data)
@@ -71,7 +75,8 @@ import logging
 import math
 
 import config
-from engines import ladder, overview, positions
+from engines import alerts as alerts_engine
+from engines import basetrades, ladder, overview, positions
 from engines import trades as trades_engine
 from notifiers import notifier
 from storage import Stock, TradeType
@@ -347,6 +352,88 @@ def ladders(cache):
         for row in ladder.rows()
     ]
     return data
+
+
+def alerts(cache):
+    """the data of /api/alerts: what every answer has
+    (see prices()) and
+
+    {"process": {"state": "running", "elsewhere" or
+                 "stopped", "pid", "updated": its last
+                 check, "owner": the other device}
+                (alerts.process_state()),
+     "alerts": [one dict per saved alert, in id order:
+                "id", "kind": "basetrades" or "gain",
+                "text": as 'ls alerts' ("down 10%",
+                        "TSMX +100", "all +10%"),
+                "direction", "percent", "amount"
+                (one of the two for a gain alert),
+                "stock": a name or "all" for a gain
+                         alert, else None,
+                "created",
+                "levels": [{"stock", "level", "price",
+                            "away_pct": how far the
+                            price still has to move to
+                            the level, in % of the
+                            price (0 or less once
+                            reached), "reached"}]: a
+                          basetrades alert's per
+                          basetrade, a gain alert's
+                          per held stock],
+     "names": the names of every stock of the config,
+              for the add form}"""
+    found_prices, data = prices(cache)
+    levels = {}
+    for alert, stocks in alerts_engine.basetrade_levels(
+        basetrades.get_all(), found_prices
+    ) + alerts_engine.gain_levels(found_prices):
+        levels[alert["Id"]] = stocks
+    state = alerts_engine.process_state()
+    data["process"] = dict(
+        state, updated=_iso(state["updated"])
+    )
+    data["alerts"] = [
+        _alert(
+            alert, levels.get(alert["Id"], []), found_prices
+        )
+        for alert in alerts_engine.alerts_get_all()
+    ]
+    data["names"] = [stock.name for stock in Stock]
+    return data
+
+
+def _alert(alert, stocks, found_prices):
+    """a saved alert with its levels, stocks [(stock,
+    level, reached)], ready for json (see alerts())"""
+    down = alert["Direction"] == "down"
+    rows = []
+    for name, at, reached in stocks:
+        price = found_prices.get(name)
+        away_pct = None
+        if price:
+            away = price - at if down else at - price
+            away_pct = away / price * 100
+        rows.append(
+            {
+                "stock": name,
+                "level": at,
+                "price": price,
+                "away_pct": away_pct,
+                "reached": bool(reached),
+            }
+        )
+    gain = alert["For"] == "gain"
+    return {
+        "id": alert["Id"],
+        "kind": alert["For"],
+        "text": alerts_engine.describe(alert),
+        "direction": alert["Direction"],
+        "percent": alert["Percent"],
+        "amount": alert.get("Amount"),
+        "stock": alert.get("Stock") if gain else None,
+        "created": alert["Created"],
+        "levels": rows,
+    }
 
 
 def _ladder(row, price):
@@ -705,6 +792,7 @@ PATHS = {
     "/api/status": status,
     "/api/trades": trades,
     "/api/ladders": ladders,
+    "/api/alerts": alerts,
 }
 # {path prefix: function(cache, the rest of the path)}
 PREFIXES = {"/api/trades/": stock_trades}
