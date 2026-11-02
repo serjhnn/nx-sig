@@ -12,7 +12,9 @@
 // hover shows the date and price of the nearest
 // point. The stocks and periods are in the address
 // (/chart?stock=TSMX&days=30&stock=SOXL&days=5, a
-// pair per chart); without a known stock it is
+// pair per chart); an address without a stock (the
+// menu's link) shows the last charts, kept in
+// localStorage; without a known stock it is
 // the first one held (/api/trades), else the first
 // of the config. Redrawn when the width changes.
 //
@@ -37,6 +39,9 @@
   // about how wide a date label is, with a gap
   var DATE_ROOM = 72;
   var MAX_CHARTS = 4;
+  // the last charts, for /chart without a stock
+  // (the menu's link)
+  var SAVED_KEY = "nx-charts";
   var charts = []; // the charts shown, a Chart each
   var stocks = null; // /api/trades: names and stocks
   var count = 0; // the charts made, for unique names
@@ -477,6 +482,21 @@
         "&days=" + one.days;
     }).join("&");
     history.replaceState(null, "", "/chart?" + query);
+    try {
+      localStorage.setItem(SAVED_KEY, query);
+    } catch (e) {}
+  }
+
+  // the charts asked: the address's, or the last
+  // charts when it names no stock
+  function askedQuery() {
+    var query = new URLSearchParams(location.search);
+    if (query.getAll("stock").length) return query;
+    try {
+      var saved = localStorage.getItem(SAVED_KEY);
+      if (saved) return new URLSearchParams(saved);
+    } catch (e) {}
+    return query;
   }
 
   function resizeAll() {
@@ -561,13 +581,13 @@
     return fine ? days : 5;
   }
 
-  // the charts of the address with a stock of the
-  // config, a stock and days each, in pairs
+  // the charts asked (askedQuery) with a stock of
+  // the config, a stock and days each, in pairs
   // (?stock=TSMX&days=30&stock=SOXL&days=5), at most
   // MAX_CHARTS; none: the first stock held, else the
   // first of the config, with the first days
   function start(found) {
-    var query = new URLSearchParams(location.search);
+    var query = askedQuery();
     var all = query.getAll("days");
     var known = query.getAll("stock").map(function (name, i) {
       return { stock: name.toUpperCase(), days: toDays(all[i]) };

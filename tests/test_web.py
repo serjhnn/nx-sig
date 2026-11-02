@@ -424,6 +424,11 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         self.assertIn(
             'query.getAll("days")', script.decode()
         )
+        # the menu's /chart: the last charts
+        self.assertIn(
+            'var SAVED_KEY = "nx-charts";',
+            script.decode(),
+        )
         # the periods
         self.assertEqual(
             re.findall(

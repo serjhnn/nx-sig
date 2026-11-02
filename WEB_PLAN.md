@@ -727,6 +727,11 @@ own stock and period, in one window.
    demo: two charts, the old one-chart link, no
    stock, a bad stock, bad days, more than 4, a
    reload after adding.
+   An address without a stock (the menu's link)
+   shows the last charts, kept in localStorage
+   (`nx-charts`), so going to another page and
+   back keeps them; a link with a stock opens
+   that one.
 4. ~~**Tests and docs**~~ (done, with each step):
    `test_web.py` checks the template's parts, the
    add and close buttons, the limit, `stop()` of

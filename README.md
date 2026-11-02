@@ -632,8 +632,10 @@ other packages than the shell's). Open the address in a browser on the same devi
   button. One column on a phone, two on a wide screen.
 - The charts are in the address, a stock and days pair per chart
   (`/chart?stock=TSMX&days=30`, or `?stock=TSMX&days=30&stock=SOXL&days=5`
-  for two), so a reload or a bookmark shows the same charts; without a
-  known stock it shows the first one held.
+  for two), so a reload or a bookmark shows the same charts. `/chart`
+  without a stock (the menu's link) shows the last charts, kept in the
+  browser (localStorage), so going to another page and back keeps them;
+  without a known stock it shows the first one held.
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
   `/ladders` (`web/ladders.html`), `/alerts` (`web/alerts.html`), `/basetrades`
   (`web/basetrades.html`), `/chart` (`web/chart.html`), `/logo`
