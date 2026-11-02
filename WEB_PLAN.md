@@ -16,7 +16,8 @@ they were then: `assets/web/` is now `web/`, and
 the price cache and `/api/status` moved from
 `web_service.py` into `scripts/web/`). The trades
 page is done too (steps 0 to 8 of "The trades
-page"); what comes next is under "Later".
+page"). The ladders page is next, see "The ladders
+page".
 
 ## The style (style C)
 
@@ -295,6 +296,56 @@ its own pages.
    web code is), `TODO.md` and the module map;
    `COMMANDS.md` didn't change (no new shell
    command).
+
+## The ladders page
+
+`/ladders`: the saved ladders like `ls ladders`,
+with the price and how far it is from the next
+level, and adding, running, stopping and deleting
+them like `add`, `run`, `stop` and `rm ladder`.
+The same `read_only` option and checks of a change
+as the trades page.
+
+Running a ladder from the page starts its process
+from the web server (`ladder.start()`). When
+another device runs the background tasks, the page
+shows the engine's text; taking them over (`run
+ladder <id> force`) stays in the shell.
+
+1. ~~**Ladder rows in the engine**~~ (done):
+   `ladder.rows()` and `ladder.row(saved)`, each
+   saved ladder with its state (running, stopped,
+   done, crashed), its pid and its next level
+   (none when done), moved from `shell/
+   ladder_cmd.py`. `ls ladders` and `rm ladder`
+   print the same (compared in every state, with
+   and without color).
+2. **`/api/ladders`**: the rows with each stock's
+   price from the price cache, the distance to the
+   next level (amount and %) and the next few
+   levels for the picture (the engine's level
+   math); only on `127.0.0.1`, with `read_only`.
+3. **The page `/ladders`, read-only**: a card per
+   ladder (stock, "down 1 from 35", the last level
+   sent, the next one, the price and its distance,
+   the state as a chip) with a small picture of the
+   rungs and the price between them; phone first,
+   the Ladders link in the menu works.
+4. **The changes**: POST `/api/ladders/add`,
+   `/run`, `/stop`, `/delete` behind the checks of
+   a change, with `ladder.create()`, `start()`,
+   `stop()`, `remove()` and the shell's texts.
+5. **The forms**: add (stock, down or up, step,
+   from with the price filled in, run now); on
+   each card run or stop, and delete after asking.
+   Hidden while `read_only` is on.
+6. **Tests**: the rows, the api, the changes
+   (also another device running the tasks), the
+   page's ids and fields; the processes faked as
+   in `test_ladder.py`. The page checked in a
+   browser at 360, 390 and 1200px, dark and light,
+   read-only and not.
+7. **Docs**: README, `TODO.md`, the module map.
 
 ## Later
 

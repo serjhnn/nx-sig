@@ -58,7 +58,7 @@ class LadderCommands(Commands):
         if arg.split():
             print_wrapped("usage: ls ladders")
             return
-        ladders = ladder.get_all()
+        ladders = ladder.rows()
         if not ladders:
             print_wrapped(
                 "no ladders yet, see 'help add ladder'"
@@ -163,7 +163,7 @@ class LadderCommands(Commands):
                 "see 'ls ladders'"
             )
             return
-        _print_ladders([saved])
+        _print_ladders([ladder.row(saved)])
         running = ladder.running_pid(ladder_id)
         question = (
             f"stop and delete ladder {ladder_id}? [y/N] "
@@ -275,9 +275,9 @@ class LadderCommands(Commands):
 
 
 def _print_ladders(ladders):
-    """the ls ladders table: Id, Stock, Ladder
-    (direction and step), From, Next (the next alert),
-    State"""
+    """the ls ladders table of ladders (rows of
+    ladder.rows()): Id, Stock, Ladder (direction and
+    step), From, Next (the next alert), State"""
     color = supports_color()
     sep = space_separator(6, 2)
     header = sep.join(
@@ -299,23 +299,12 @@ def _print_ladders(ladders):
     else:
         lines = [header, separator]
     for saved in ladders:
-        running = ladder.running_pid(saved["Id"])
-        if running:
-            state = "running"
-        else:
-            status = ladder.status(saved["Id"]) or {}
-            # done: a down ladder that has no levels left
-            state = (
-                status["state"]
-                if status.get("state")
-                in ("done", "crashed")
-                else "stopped"
-            )
+        state = saved["state"]
         steps = f"{saved['Direction']} {saved['Step']:g}"
         next_level = (
             "-"
-            if state == "done"
-            else f"{ladder.next_level(saved):.2f}"
+            if saved["next"] is None
+            else f"{saved['next']:.2f}"
         )
         cols = [
             f"{saved['Id']:>2}",

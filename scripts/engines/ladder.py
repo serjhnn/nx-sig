@@ -43,6 +43,9 @@
 #       the log file of its process
 #   tasks()
 #       the task rows of the running ladders
+#   rows(), row(ladder)
+#       the saved ladders with their state and next
+#       level, for 'ls ladders' and the web
 #
 # a task row (the 'ls tasks' row, the web's task
 # list) is {"id", "task", "pid", "started", "state",
@@ -190,6 +193,36 @@ def remove(ladder_id):
         except OSError:
             pass
     return was_running
+
+
+def rows():
+    """row() of every saved ladder, in Id order"""
+    return [row(saved) for saved in get_all()]
+
+
+def row(saved):
+    """the saved ladder (Id, Stock, Direction, Step,
+    From, Last, Created) and
+
+    "state": "running", "done" (a down ladder with no
+             level left), "crashed" or "stopped",
+    "pid": its process, None unless running,
+    "next": the level it notifies next, None when
+            done"""
+    pid = running_pid(saved["Id"])
+    if pid:
+        state = "running"
+    else:
+        heartbeat = status(saved["Id"]) or {}
+        state = heartbeat.get("state")
+        if state not in ("done", "crashed"):
+            state = "stopped"
+    return dict(
+        saved,
+        state=state,
+        pid=pid,
+        next=None if state == "done" else next_level(saved),
+    )
 
 
 def tasks():

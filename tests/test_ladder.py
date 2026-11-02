@@ -132,5 +132,70 @@ class TaskTest(unittest.TestCase):
         )
 
 
+class RowsTest(unittest.TestCase):
+    """ladder.rows(): the 'ls ladders' rows"""
+
+    def setUp(self):
+        def saved(i, direction, step, last):
+            return {
+                "Id": i,
+                "Stock": "SOXL",
+                "Direction": direction,
+                "Step": step,
+                "From": 35.0,
+                "Last": last,
+                "Created": "20.10.2026 15:30",
+            }
+
+        self.saved = [
+            saved(1, "down", 1.0, 35.0),
+            saved(2, "up", 2.5, 35.0),
+            saved(3, "down", 10.0, 5.0),
+            saved(4, "down", 0.5, 30.0),
+            saved(5, "down", 1.0, 33.0),
+        ]
+        beats = {
+            # its process ended without a stop
+            2: {"state": "waiting"},
+            3: {"state": "done"},
+            4: {"state": "crashed"},
+        }
+        for name, value in (
+            ("get_all", lambda: self.saved),
+            ("running_pid", {1: 11}.get),
+            ("status", beats.get),
+        ):
+            p = mock.patch.object(engine, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_rows(self):
+        rows = engine.rows()
+        self.assertEqual(
+            [(r["Id"], r["state"], r["pid"]) for r in rows],
+            [
+                (1, "running", 11),
+                (2, "stopped", None),
+                (3, "done", None),
+                (4, "crashed", None),
+                (5, "stopped", None),
+            ],
+        )
+        self.assertEqual(
+            [r["next"] for r in rows],
+            [34.0, 37.5, None, 29.5, 32.0],
+        )
+        # the saved fields stay
+        for row, saved in zip(rows, self.saved):
+            self.assertEqual(
+                {k: row[k] for k in saved}, saved
+            )
+
+    def test_one_row(self):
+        self.assertEqual(
+            engine.row(self.saved[0]), engine.rows()[0]
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
