@@ -16,8 +16,9 @@ they were then: `assets/web/` is now `web/`, and
 the price cache and `/api/status` moved from
 `web_service.py` into `scripts/web/`). The trades
 page, the ladders page and the alerts page are
-done too, and so are the basetrades page and the
-chart page (see their sections); what comes next
+done too, and so are the basetrades page, the
+chart page and several charts in a window (see
+their sections); what comes next
 is under "Later".
 
 ## The style (style C)
@@ -726,8 +727,11 @@ own stock and period, in one window.
    demo: two charts, the old one-chart link, no
    stock, a bad stock, bad days, more than 4, a
    reload after adding.
-4. **Tests and docs**: `test_web.py`, README,
-   this plan, `TODO.md`.
+4. ~~**Tests and docs**~~ (done, with each step):
+   `test_web.py` checks the template's parts, the
+   add and close buttons, the limit, `stop()` of
+   `nx.poll` and the address pairs; README (the
+   chart page), this plan, `TODO.md`.
 
 ## Later
 

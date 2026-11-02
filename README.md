@@ -624,15 +624,16 @@ other packages than the shell's). Open the address in a browser on the same devi
   as a line with the average buy price dashed and the trades as B / S;
   the price, its change over the period and the bars' size above it. A
   tap or hover shows the date and price of the nearest point; the
-  cached price is the last point ("now"). The stocks and periods are in
-  the address, a pair per chart (`/chart?stock=TSMX&days=30`, or
-  `?stock=TSMX&days=30&stock=SOXL&days=5` for two charts), so a reload
-  or a bookmark shows the same charts; without a known stock it shows
-  the first one held. It asks for new values like the other pages (the
-  bars at most once a minute). "Add chart" adds another chart below
-  (the next held stock not shown, the same period), up to 4, each with
-  its own stock and period and a close button; two columns on a wide
-  screen.
+  cached price is the last point ("now"). It asks for new values like
+  the other pages (the bars at most once a minute).
+- Several charts in one window: "Add chart" adds a chart of the next
+  held stock not shown, with the period of the last chart, up to 4; each
+  has its own stock and period and, while there are several, a close
+  button. One column on a phone, two on a wide screen.
+- The charts are in the address, a stock and days pair per chart
+  (`/chart?stock=TSMX&days=30`, or `?stock=TSMX&days=30&stock=SOXL&days=5`
+  for two), so a reload or a bookmark shows the same charts; without a
+  known stock it shows the first one held.
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
   `/ladders` (`web/ladders.html`), `/alerts` (`web/alerts.html`), `/basetrades`
   (`web/basetrades.html`), `/chart` (`web/chart.html`), `/logo`

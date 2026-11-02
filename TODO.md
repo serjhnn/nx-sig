@@ -326,14 +326,13 @@ for your own use first. In this order:
   `read_only` off (taking the background tasks
   over stays in the shell). The demo has
   `read_only` off and more sample data.
-- **Several charts in a window** (see
+- ~~**Several charts in a window**~~ (done, see
   [WEB_PLAN.md](WEB_PLAN.md) "Several charts"):
-  more than one chart on `/chart`, each with its
-  own stock and period. Done: the chart is made
-  from a template (`Chart` in `web/js/chart.js`);
-  "Add chart" and closing, up to 4, two columns
-  on a wide screen; the charts in the address, so
-  a reload keeps them. Open: the last docs step.
+  up to 4 charts on `/chart`, each with its own
+  stock and period ("Add chart", a close button),
+  two columns on a wide screen, all of them in
+  the address so a reload keeps them; `Chart` in
+  `web/js/chart.js`.
 - ~~**Web alerts page**~~ (done, see
   [WEB_PLAN.md](WEB_PLAN.md) "The alerts page"):
   `/alerts`, the alerts process and a card per
