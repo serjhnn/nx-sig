@@ -127,15 +127,21 @@ opened from another device.
    `127.0.0.1` (or `::1`), 500 with a short error
    (the details in the log) if the data can't be
    read. Only the failures are logged.
-6. **The main page `/`**: the top bar (the name in
-   the logo colors, the live dot and update time,
-   the theme button), the total gain/loss, the
-   positions table, the running tasks and the last
-   trades; the menu with Home, and Trades, Ladders,
-   Alerts, Chart greyed out until they exist. It
-   updates every few seconds, pauses while the tab
-   is hidden, keeps the last values on an error and
-   shows it. The logo moves to `/logo`.
+6. ~~**The main page `/`**~~ (done,
+   `assets/web/index.html` and `main.js`): the top
+   bar (the name in the logo colors, a demo chip,
+   the live dot and update time, the theme button),
+   the total gain/loss, the positions table, the
+   background tasks and the last trades; the menu
+   with Home, and Trades, Ladders, Alerts, Chart
+   (on a wide screen also Basetrades, Rules) greyed
+   out until they exist. It asks every `interval`
+   seconds, flashes the numbers that changed,
+   pauses while the tab is hidden, keeps the last
+   values on an error and says what went wrong (no
+   prices, a missing key, 403, the server stopped).
+   Checked in a browser at 360px, 390px and 1200px,
+   dark and light. The logo page moved to `/logo`.
 7. **Tests**: the engines, the JSON with faked
    prices, no polling while nobody watches, the
    127.0.0.1 guard, the page.

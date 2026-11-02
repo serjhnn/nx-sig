@@ -60,8 +60,9 @@ as narrow as 48 characters (see `terminal` `width` below).
   notifications, e.g. at 90, 80, 70, ... when a stock falls from 100
 - **Alerts**: a message each time a basetrade's stock or a held
   stock's gain crosses a level, e.g. 10% below the buying price
-- **A web page** with the nX-sig logo (`run web`), on this device only by
-  default
+- **A web page** (`run web`): the positions with their live gain/loss,
+  the background tasks and the last trades, on a phone or a PC, dark or
+  light; on this device only by default
 - **Notifications** through Telegram, Termux:API or [ntfy](https://ntfy.sh) (config `notify`)
 - **A demo** (`./nxdemo`) with sample data and made-up prices, to try it all
   without any account, see [Try the demo](#try-the-demo)
@@ -307,7 +308,7 @@ every background task on this device.
 | `basetrade` | `ls`, `add`, `rm` | `add basetrade MRVU price 100 count 10`, `add basetrade SOXL` or `all` (from the trades, see below) |
 | `alert` | `ls`, `add`, `rm`, `run`, `stop` | `add alert basetrades down 10 percent` |
 | `mail-broker` | `ls`, `run`, `stop` | `run mail-broker`, `ls mail-broker`: its state, last order and error, last log lines |
-| `web` | `ls`, `run`, `stop` | `run web`: the web page with the logo, `ls web`: its address, state and last log lines, see below |
+| `web` | `ls`, `run`, `stop` | `run web`: the web page, `ls web`: its address, state and last log lines, see below |
 | `tasks` | `ls`, `stop` | `ls tasks`: running background tasks, `stop tasks all` stops them |
 
 And the commands of their own: `status` (positions with gain/loss, the
@@ -547,14 +548,25 @@ web server started (pid 948), open
   http://127.0.0.1:8080/
 ```
 
-A small web page with the nX-sig logo, as wide as the screen, served by
+A web page with what `status` shows, updated by itself, served by
 `scripts/services/web_service.py` with Python's own `http.server` (no
 other packages than the shell's). Open the address in a browser on the same device.
 
-- It serves only `/` (the page), `/logo.svg`, `/style.css` (the style
-  every page shares, `assets/web/style.css`), the fonts it uses
-  (`/fonts/`, IBM Plex, bundled so nothing comes from the internet) and
-  `/api/status`; it changes nothing, any other path is `404`.
+- The main page (`/`): the total gain/loss, the positions (count,
+  average, price, gain, gain %), the background tasks and the device
+  that runs them, the last 5 trades. It asks for new values every
+  `interval` seconds and changes only the numbers (a changed one flashes
+  briefly); it pauses while the tab is hidden. On an error it keeps the
+  last values and says what went wrong (no prices, a missing key, the
+  server stopped). The button at the top switches dark and light (the
+  system's by default, kept in the browser). On a phone the menu is at the
+  bottom, on a wider screen at the side; its other pages (trades,
+  ladders, ...) are greyed out until they exist.
+- It serves only `/` (`assets/web/index.html` and `/main.js`), `/logo`
+  (a page with the logo), `/logo.svg`, `/style.css` (the style every
+  page shares, `assets/web/style.css`), the fonts it uses (`/fonts/`, IBM
+  Plex, bundled so nothing comes from the internet) and `/api/status`; it
+  changes nothing, any other path is `404`.
 - `/api/status` is the main page's data as JSON: each held stock with its
   count, average, price, gain and gain %, the total, the running
   background tasks, the mail broker, the device that runs the tasks, the
@@ -562,8 +574,7 @@ other packages than the shell's). Open the address in a browser on the same devi
   it answers only when the server listens on `127.0.0.1`; with any other
   `host` it is `403`. A page asks for it every few seconds, so only its
   failures are logged.
-- The main page with the live gain/loss comes next, planned in
-  [WEB_PLAN.md](WEB_PLAN.md). For it, the server fetches the prices every
+- The server fetches the prices every
   config `web` `interval` seconds (default `5`), but only while a page
   asked for them in the last 30 seconds: with no page open it requests
   nothing, and however many pages are open it makes one request per
@@ -725,7 +736,8 @@ nx-sig/
 ├── CLAUDE.md             notes for Claude Code sessions
 ├── COMMANDS.md           every shell command (generated)
 ├── assets/logo.svg       the logo (README, the web page)
-├── assets/web/           the web pages' style (style.css) and fonts
+├── assets/web/           the web page (index.html, main.js), its style
+│                         (style.css) and fonts
 ├── assets/demo-*.svg     the demo pictures of this README
 │                         (scripts/gen_shots.py)
 ├── assets/map-*.png      the module map pictures of this README
@@ -755,7 +767,7 @@ nx-sig/
     │   ├── ladder_service.py one ladder's process: price, notify
     │   ├── alert_service.py  the alerts process, one for all alerts
     │   ├── demo_prices_service.py the demo's prices process
-    │   └── web_service.py    the web server: the logo page
+    │   └── web_service.py    the web server: the main page, /api/status
     ├── notifiers/        the notify channels (config "notify")
     │   ├── notifier.py       sends through the chosen channel
     │   ├── telegram_notify.py message through a Telegram bot

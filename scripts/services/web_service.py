@@ -6,7 +6,10 @@
 #
 # it serves only these paths, read-only, and touches
 # no data:
-#   /             a page with the logo, as wide as the
+#   /             the main page, assets/web/index.html
+#                 and /main.js: the positions, tasks
+#                 and last trades, updated by itself
+#   /logo         a page with the logo, as wide as the
 #                 screen
 #   /logo.svg     assets/logo.svg
 #   /style.css    assets/web/style.css, the style
@@ -62,13 +65,16 @@ LOGO_PATH = os.path.join(
 )
 WEB_DIR = os.path.join(config.ROOT_DIR, "assets", "web")
 STYLE_PATH = os.path.join(WEB_DIR, "style.css")
+INDEX_PATH = os.path.join(WEB_DIR, "index.html")
+SCRIPT_PATH = os.path.join(WEB_DIR, "main.js")
 FONTS_DIR = os.path.join(WEB_DIR, "fonts")
 # the addresses /api/status answers on
 PRIVATE_HOSTS = ("127.0.0.1", "::1")
 # the prices are fetched while a page asked for them
 # this recently
 WATCH_SECONDS = 30
-PAGE = """<!doctype html>
+# /logo: the logo, a link to the main page
+LOGO_PAGE = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -89,7 +95,7 @@ img {
 </style>
 </head>
 <body>
-<img src="/logo.svg" alt="nX-sig">
+<a href="/"><img src="/logo.svg" alt="nX-sig"></a>
 </body>
 </html>
 """
@@ -115,7 +121,13 @@ class Handler(BaseHTTPRequestHandler):
             body = json.dumps(data).encode()
             kind = "application/json"
         elif path == "/":
-            body = PAGE.encode()
+            body = _read(INDEX_PATH)
+            kind = "text/html; charset=utf-8"
+        elif path == "/main.js":
+            body = _read(SCRIPT_PATH)
+            kind = "text/javascript; charset=utf-8"
+        elif path == "/logo":
+            body = LOGO_PAGE.encode()
             kind = "text/html; charset=utf-8"
         elif path == "/logo.svg":
             body = _read(LOGO_PATH)

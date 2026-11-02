@@ -312,7 +312,7 @@ for your own use first. In this order:
     style, `/style.css`), 2 (the positions in
     `engines/positions.py`), 3 (the status in
     `engines/overview.py`), 4 (the price cache in
-    the web server) and 5 (`/api/status`) are
-    done
+    the web server), 5 (`/api/status`) and 6 (the
+    main page) are done
   - maybe start it after a phone restart, with the
     ladders (Termux:Boot)

@@ -11,6 +11,7 @@
 import http.client
 import json
 import os
+import re
 import socket
 import tempfile
 import threading
@@ -121,7 +122,7 @@ class WebServerTest(ServerMixin, unittest.TestCase):
     def setUp(self):
         self.serve()
 
-    def test_page(self):
+    def test_main_page(self):
         for path in ("/", "/?from=phone"):
             response, body = self.request(path)
             self.assertEqual(response.status, 200)
@@ -129,9 +130,46 @@ class WebServerTest(ServerMixin, unittest.TestCase):
                 response.getheader("Content-Type"),
                 "text/html; charset=utf-8",
             )
-            self.assertIn(b'<img src="/logo.svg"', body)
+            with open(web_service.INDEX_PATH, "rb") as f:
+                self.assertEqual(body, f.read())
             self.assertIn(b'href="/style.css"', body)
+            self.assertIn(b'src="/main.js"', body)
             self.assertIn(b"width=device-width", body)
+
+    def test_script(self):
+        response, body = self.request("/main.js")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            response.getheader("Content-Type"),
+            "text/javascript; charset=utf-8",
+        )
+        with open(web_service.SCRIPT_PATH, "rb") as f:
+            self.assertEqual(body, f.read())
+        # what it asks for
+        self.assertIn(b'"/api/status"', body)
+
+    def test_page_ids(self):
+        # every element the script looks up is there
+        with open(web_service.SCRIPT_PATH) as f:
+            ids = set(
+                re.findall(r'\$\("([\w-]+)"\)', f.read())
+            )
+        with open(web_service.INDEX_PATH) as f:
+            page = f.read()
+        self.assertGreater(len(ids), 10)
+        for name in ids:
+            self.assertIn(f'id="{name}"', page)
+
+    def test_logo_page(self):
+        response, body = self.request("/logo")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            response.getheader("Content-Type"),
+            "text/html; charset=utf-8",
+        )
+        self.assertIn(b'<img src="/logo.svg"', body)
+        self.assertIn(b'href="/style.css"', body)
+        self.assertIn(b'<a href="/">', body)
 
     def test_logo(self):
         response, body = self.request("/logo.svg")

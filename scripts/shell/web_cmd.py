@@ -71,9 +71,11 @@ class WebCommands(Commands):
     def run(self, arg):
         """
         run web
-            start the web server that shows the
-            nX-sig logo, at config "web" "host" and
-            "port" (http://127.0.0.1:8080/ by
+            start the web server: a page with the
+            positions and their live gain/loss, the
+            background tasks and the last trades, at
+            config "web" "host" and "port"
+            (http://127.0.0.1:8080/ by
             default, only this device); it keeps
             running when the shell is closed
         """

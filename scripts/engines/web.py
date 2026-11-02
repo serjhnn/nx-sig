@@ -1,5 +1,6 @@
-# web: the web server engine, a small page with the
-# nX-sig logo, served by one background process,
+# web: the web server engine, the main page (the
+# positions with their live gain/loss, the tasks, the
+# last trades), served by one background process,
 # services/web_service.py
 #
 #   python tests/test_web.py     the tests
