@@ -330,9 +330,10 @@ for your own use first. In this order:
   [WEB_PLAN.md](WEB_PLAN.md) "Several charts"):
   more than one chart on `/chart`, each with its
   own stock and period. Done: the chart is made
-  from a template (`Chart` in `web/js/chart.js`).
-  Open: adding and closing charts, the charts in
-  the address, the docs.
+  from a template (`Chart` in `web/js/chart.js`);
+  "Add chart" and closing, up to 4, two columns
+  on a wide screen. Open: the charts in the
+  address (a reload shows only the first).
 - ~~**Web alerts page**~~ (done, see
   [WEB_PLAN.md](WEB_PLAN.md) "The alerts page"):
   `/alerts`, the alerts process and a card per

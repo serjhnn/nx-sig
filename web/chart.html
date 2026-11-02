@@ -33,6 +33,10 @@
     </div>
 
     <div class="charts" id="charts"></div>
+    <div class="charts-foot" id="charts-foot" hidden>
+      <button class="btn sm" type="button" id="add-chart">Add chart</button>
+      <span class="muted" id="add-why"></span>
+    </div>
   </main>
 </div>
 
@@ -65,6 +69,14 @@
         <span class="px" data-part="price">-</span>
         <span class="chip idle" data-part="change">-</span>
         <span class="muted" data-part="info"></span>
+        <button class="icon-btn close" type="button"
+          data-part="close" aria-label="Close the chart"
+          title="Close" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round">
+            <path d="M6 6l12 12M18 6L6 18"/>
+          </svg>
+        </button>
       </div>
       <div class="plot-wrap">
         <div class="plot" data-part="plot"></div>

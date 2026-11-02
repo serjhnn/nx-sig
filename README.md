@@ -627,7 +627,10 @@ other packages than the shell's). Open the address in a browser on the same devi
   cached price is the last point ("now"). The stock and period are in
   the address (`/chart?stock=TSMX&days=30`); without a stock it shows
   the first one held. It asks for new values like the other pages (the
-  bars at most once a minute).
+  bars at most once a minute). "Add chart" adds another chart below
+  (the next held stock not shown, the same period), up to 4, each with
+  its own stock and period and a close button; two columns on a wide
+  screen.
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
   `/ladders` (`web/ladders.html`), `/alerts` (`web/alerts.html`), `/basetrades`
   (`web/basetrades.html`), `/chart` (`web/chart.html`), `/logo`

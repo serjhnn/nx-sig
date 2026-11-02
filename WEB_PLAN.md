@@ -701,11 +701,19 @@ own stock and period, in one window.
    all the charts. With one chart the page is as
    before. `test_web.py` checks the template has
    every part `chart.js` asks for.
-2. **Adding and closing charts**: an "Add chart"
-   button (the next held stock not shown, the
-   same period), a close button on each (not on
-   the last one), at most 4; one column on a
-   phone, two on a wide screen.
+2. ~~**Adding and closing charts**~~ (done): an
+   "Add chart" button (the next held stock not
+   shown, else the next of the config, with the
+   period of the last chart), at most
+   `MAX_CHARTS` (4); when it is off it says why.
+   A close button on each chart while there are
+   several; a closed chart stops asking (`nx.poll`
+   gives `stop()` now). One column on a phone,
+   two from 1100px when there are several (the
+   plots lower, 280px); each chart is redrawn
+   when its width changes. Checked in the demo at
+   390 and 1280px: 4 charts, periods per chart,
+   closing, nothing wider than the screen.
 3. **The charts in the address**:
    `?stock=TSMX&days=30&stock=SOXL&days=5`; the
    links of the other pages stay as they are.

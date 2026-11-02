@@ -402,6 +402,20 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         for name in parts | {"lg-b", "lg-s"}:
             self.assertIn(f'data-part="{name}"', template)
         self.assertNotIn(' id="', template)
+        # several charts: added up to a limit, a
+        # closed one stops asking
+        self.assertIn('id="add-chart"', page.decode())
+        self.assertIn('data-part="close"', template)
+        self.assertIn(
+            "var MAX_CHARTS = 4;", script.decode()
+        )
+        self.assertIn(
+            "chart.refresh.stop()", script.decode()
+        )
+        self.assertIn(
+            "again.stop = function",
+            scripts(CHART_SCRIPT),
+        )
         # the periods
         self.assertEqual(
             re.findall(

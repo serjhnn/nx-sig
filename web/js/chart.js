@@ -18,7 +18,10 @@
 // each chart is a Chart, made from the page's
 // #chart-tpl: its own stock, period, data, tip and
 // polling, its parts found by data-part; the page
-// keeps them in charts, in the order shown.
+// keeps them in charts, in the order shown. "Add
+// chart" adds one (the next held stock not shown,
+// the period of the last chart), at most MAX_CHARTS;
+// each has a close button while there are several.
 
 (function () {
   "use strict";
@@ -32,7 +35,9 @@
   var PAD = { left: 4, right: 52, top: 12, bottom: 24 };
   // about how wide a date label is, with a gap
   var DATE_ROOM = 72;
+  var MAX_CHARTS = 4;
   var charts = []; // the charts shown, a Chart each
+  var stocks = null; // /api/trades: names and stocks
   var count = 0; // the charts made, for unique names
 
   function make(tag, attrs, text) {
@@ -156,6 +161,7 @@
     this.part("stock").addEventListener("change", function () {
       self.stock = self.part("stock").value;
       self.choose();
+      update();
     });
     Array.prototype.forEach.call(this.periods(), function (input) {
       input.name = name + "-days";
@@ -163,6 +169,9 @@
         self.days = Number(input.value);
         self.choose();
       });
+    });
+    this.part("close").addEventListener("click", function () {
+      closeChart(self);
     });
     var plot = this.part("plot");
     function at(event) {
@@ -469,10 +478,77 @@
     history.replaceState(null, "", "/chart?" + query);
   }
 
-  window.addEventListener("resize", function () {
+  function resizeAll() {
     charts.forEach(function (one) {
       one.resize();
     });
+  }
+
+  window.addEventListener("resize", resizeAll);
+
+  // the stock a new chart shows: the first held one
+  // not shown, else the first of the config not
+  // shown; null when all are
+  function nextStock() {
+    var shown = charts.map(function (one) {
+      return one.stock;
+    });
+    var held = stocks.stocks.filter(function (s) {
+      return s.count !== 0;
+    }).map(function (s) {
+      return s.stock;
+    });
+    var free = held.concat(stocks.names).filter(function (name) {
+      return shown.indexOf(name) < 0;
+    });
+    return free.length ? free[0] : null;
+  }
+
+  // the close buttons, "Add chart" and why it is
+  // off, the columns; the charts redrawn when their
+  // width changed
+  function update() {
+    var several = charts.length > 1;
+    charts.forEach(function (one) {
+      one.part("close").hidden = !several;
+      one.root.classList.toggle("closable", several);
+    });
+    $("charts").classList.toggle("multi", several);
+    var why = "";
+    if (charts.length >= MAX_CHARTS) {
+      why = "at most " + MAX_CHARTS + " charts";
+    } else if (nextStock() === null) {
+      why = "every stock is shown";
+    }
+    $("add-chart").disabled = why !== "";
+    $("add-why").textContent = why;
+    $("charts-foot").hidden = false;
+    resizeAll();
+  }
+
+  function addChart(stock, days) {
+    var chart = new Chart(stock, days);
+    charts.push(chart);
+    chart.choose();
+    update();
+    return chart;
+  }
+
+  function closeChart(chart) {
+    if (charts.length < 2) return;
+    if (chart.refresh) chart.refresh.stop();
+    chart.root.remove();
+    charts.splice(charts.indexOf(chart), 1);
+    saveAddress();
+    update();
+  }
+
+  $("add-chart").addEventListener("click", function () {
+    var stock = nextStock();
+    if (stock === null || charts.length >= MAX_CHARTS) return;
+    var last = charts[charts.length - 1];
+    var chart = addChart(stock, last ? last.days : 5);
+    chart.root.scrollIntoView({ block: "nearest" });
   });
 
   // the stock and days of the address; a stock not
@@ -490,6 +566,7 @@
     .then(nx.answer)
     .then(function (found) {
       // /api/trades: the stocks that have trades
+      stocks = found;
       var stock;
       if (found.names.indexOf(asked) >= 0) {
         stock = asked;
@@ -499,9 +576,7 @@
         })[0];
         stock = held ? held.stock : found.names[0];
       }
-      var chart = new Chart(stock, days);
-      charts.push(chart);
-      chart.choose();
+      addChart(stock, days);
     })
     .catch(function (error) {
       nx.showNotice(error.status === 403

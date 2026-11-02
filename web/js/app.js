@@ -27,7 +27,8 @@
 //       the tab is hidden. on an error it keeps the
 //       last data and says what went wrong; the top
 //       bar shows the prices' time and error. gives a
-//       function that asks again right away
+//       function that asks again right away; its
+//       stop() ends the asking (a closed chart)
 // it also marks the open page in the menu, opens
 // and closes More (the other pages, on a phone) and
 // runs the theme button (dark or light, kept in
@@ -227,6 +228,7 @@
   function poll(url, draw) {
     var timer = null;
     var lastData = null;
+    var stopped = false;
 
     // the server said no (403), failed (500) or
     // can't be reached (it stopped, no network)
@@ -246,7 +248,7 @@
 
     function next(seconds) {
       clearTimeout(timer);
-      if (!document.hidden) {
+      if (!document.hidden && !stopped) {
         timer = setTimeout(ask, Math.max(1, seconds) * 1000);
       }
     }
@@ -257,6 +259,7 @@
       fetch(address, { cache: "no-store" })
         .then(answer)
         .then(function (data) {
+          if (stopped) return;
           lastData = data;
           showPrices(data);
           draw(data);
@@ -265,20 +268,30 @@
           next(data.updated ? data.interval : 1);
         })
         .catch(function (error) {
+          if (stopped) return;
           failed(error);
           next(interval);
         });
     }
 
-    document.addEventListener("visibilitychange", function () {
+    function visible() {
       clearTimeout(timer);
       if (!document.hidden) ask();
-    });
+    }
+
+    document.addEventListener("visibilitychange", visible);
     ask();
-    return function () {
+    var again = function () {
+      if (stopped) return;
       clearTimeout(timer);
       ask();
     };
+    again.stop = function () {
+      stopped = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", visible);
+    };
+    return again;
   }
 
   // ---------- the menu and the theme ----------
