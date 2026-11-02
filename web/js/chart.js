@@ -14,17 +14,18 @@
 // (/chart?stock=TSMX&days=30&stock=SOXL&days=5, a
 // pair per chart); an address without a stock (the
 // menu's link) shows the last charts, kept in
-// localStorage; without a known stock it is
-// the first one held (/api/trades), else the first
-// of the config. Redrawn when the width changes.
+// localStorage; without a known stock a chart per
+// stock of the config (/api/trades), in its order.
+// Redrawn when the width changes.
 //
 // each chart is a Chart, made from the page's
 // #chart-tpl: its own stock, period, data, tip and
 // polling, its parts found by data-part; the page
 // keeps them in charts, in the order shown. "Add
 // chart" adds one (the next held stock not shown,
-// the period of the last chart), at most MAX_CHARTS;
-// each has a close button while there are several.
+// the period of the last chart), a chart per stock
+// at most; each has a close button while there are
+// several.
 
 (function () {
   "use strict";
@@ -38,10 +39,10 @@
   var PAD = { left: 4, right: 52, top: 12, bottom: 24 };
   // about how wide a date label is, with a gap
   var DATE_ROOM = 72;
-  var MAX_CHARTS = 4;
   // the last charts, for /chart without a stock
-  // (the menu's link)
-  var SAVED_KEY = "nx-charts";
+  // (the menu's link); "nx-charts" was the key while
+  // the default was one chart
+  var SAVED_KEY = "nx-charts-all";
   var charts = []; // the charts shown, a Chart each
   var stocks = null; // /api/trades: names and stocks
   var count = 0; // the charts made, for unique names
@@ -535,12 +536,8 @@
       one.root.classList.toggle("closable", several);
     });
     $("charts").classList.toggle("multi", several);
-    var why = "";
-    if (charts.length >= MAX_CHARTS) {
-      why = "at most " + MAX_CHARTS + " charts";
-    } else if (nextStock() === null) {
-      why = "every stock is shown";
-    }
+    var why = nextStock() === null
+      ? "every stock is shown" : "";
     $("add-chart").disabled = why !== "";
     $("add-why").textContent = why;
     $("charts-foot").hidden = false;
@@ -566,7 +563,7 @@
 
   $("add-chart").addEventListener("click", function () {
     var stock = nextStock();
-    if (stock === null || charts.length >= MAX_CHARTS) return;
+    if (stock === null) return;
     var last = charts[charts.length - 1];
     var chart = addChart(stock, last ? last.days : 5);
     chart.root.scrollIntoView({ block: "nearest" });
@@ -583,25 +580,25 @@
 
   // the charts asked (askedQuery) with a stock of
   // the config, a stock and days each, in pairs
-  // (?stock=TSMX&days=30&stock=SOXL&days=5), at most
-  // MAX_CHARTS; none: the first stock held, else the
-  // first of the config, with the first days
+  // (?stock=TSMX&days=30&stock=SOXL&days=5), a stock
+  // once; none: a chart per stock of the config, in
+  // its order, with the first days
   function start(found) {
     var query = askedQuery();
     var all = query.getAll("days");
+    var seen = [];
     var known = query.getAll("stock").map(function (name, i) {
       return { stock: name.toUpperCase(), days: toDays(all[i]) };
     }).filter(function (one) {
-      return found.names.indexOf(one.stock) >= 0;
-    }).slice(0, MAX_CHARTS);
+      var fine = found.names.indexOf(one.stock) >= 0 &&
+        seen.indexOf(one.stock) < 0;
+      seen.push(one.stock);
+      return fine;
+    });
     if (!known.length) {
-      var held = found.stocks.filter(function (s) {
-        return s.count !== 0;
-      })[0];
-      known = [{
-        stock: held ? held.stock : found.names[0],
-        days: toDays(all[0])
-      }];
+      known = found.names.map(function (name) {
+        return { stock: name, days: toDays(all[0]) };
+      });
     }
     known.forEach(function (one) {
       addChart(one.stock, one.days);

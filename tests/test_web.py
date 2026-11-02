@@ -402,12 +402,13 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         for name in parts | {"lg-b", "lg-s"}:
             self.assertIn(f'data-part="{name}"', template)
         self.assertNotIn(' id="', template)
-        # several charts: added up to a limit, a
-        # closed one stops asking
+        # several charts: a stock each, a closed one
+        # stops asking
         self.assertIn('id="add-chart"', page.decode())
         self.assertIn('data-part="close"', template)
+        self.assertNotIn("MAX_CHARTS", script.decode())
         self.assertIn(
-            "var MAX_CHARTS = 4;", script.decode()
+            '"every stock is shown"', script.decode()
         )
         self.assertIn(
             "chart.refresh.stop()", script.decode()
@@ -424,9 +425,13 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         self.assertIn(
             'query.getAll("days")', script.decode()
         )
-        # the menu's /chart: the last charts
+        # the menu's /chart: the last charts, else
+        # one per stock of the config
         self.assertIn(
-            'var SAVED_KEY = "nx-charts";',
+            "known = found.names.map(", script.decode()
+        )
+        self.assertIn(
+            'var SAVED_KEY = "nx-charts-all";',
             script.decode(),
         )
         # the periods
@@ -463,7 +468,7 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         tabs, more = nav.split('<div class="more"', 1)
         self.assertEqual(
             re.findall(r"</svg>(\w+)</a>", tabs),
-            ["Home", "Trades", "Chart", "Basetrades"],
+            ["Home", "Trades", "Charts", "Basetrades"],
         )
         self.assertIn('id="more-btn"', tabs)
         self.assertEqual(

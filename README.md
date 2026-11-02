@@ -584,7 +584,7 @@ other packages than the shell's). Open the address in a browser on the same devi
   last values and says what went wrong (no prices, a missing key, the
   server stopped). The button at the top switches dark and light (the
   system's by default, kept in the browser). On a phone the menu is at the
-  bottom (Home, Trades, Chart, Basetrades and More, which opens the list
+  bottom (Home, Trades, Charts, Basetrades and More, which opens the list
   of the other pages), on a wider screen at the side with every page; the
   pages that don't exist yet (rules) are greyed out. A stock's name on
   the main, trades and basetrades pages opens its chart.
@@ -634,23 +634,25 @@ other packages than the shell's). Open the address in a browser on the same devi
   trades ("All from trades", after asking which it replaces) and deletes
   one (after asking), like `add basetrade <stock>`, `add basetrade all`
   and `rm basetrade`, with the same checks and texts.
-- The chart page (`/chart`): a stock's price over
-  5 days, 1 month, 3 months or 1 year, like `chart <stock> period <n>`,
-  as a line with the average buy price dashed and the trades as B / S;
-  the price, its change over the period and the bars' size above it. A
-  tap or hover shows the date and price of the nearest point; the
-  cached price is the last point ("now"). It asks for new values like
-  the other pages (the bars at most once a minute).
+- The charts page (`/chart`): a stock's price over 5 days, 1 month, 3
+  months or 1 year, like `chart <stock> period <n>`, as a line with the
+  average buy price dashed and the trades as B / S; the price, its change
+  over the period and the bars' size above it. A tap or hover shows the
+  date and price of the nearest point; the cached price is the last point
+  ("now"). It asks for new values like the other pages (the bars at most
+  once a minute).
 - Several charts in one window: "Add chart" adds a chart of the next
-  held stock not shown, with the period of the last chart, up to 4; each
-  has its own stock and period and, while there are several, a close
-  button. One column on a phone, two on a wide screen.
+  held stock not shown (else the next of the config), with the period
+  of the last chart, a chart per stock at most; each has its own stock
+  and period and, while there are several, a close button. One column on
+  a phone, two on a wide screen.
 - The charts are in the address, a stock and days pair per chart
   (`/chart?stock=TSMX&days=30`, or `?stock=TSMX&days=30&stock=SOXL&days=5`
   for two), so a reload or a bookmark shows the same charts. `/chart`
   without a stock (the menu's link) shows the last charts, kept in the
   browser (localStorage), so going to another page and back keeps them;
-  without a known stock it shows the first one held.
+  without a known stock it shows a chart per stock of the config, in its
+  order, 5 days each.
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
   `/ladders` (`web/ladders.html`), `/alerts` (`web/alerts.html`), `/basetrades`
   (`web/basetrades.html`), `/chart` (`web/chart.html`), `/logo`
