@@ -510,12 +510,13 @@ the shell.
 
 ## The menu on a phone
 
-With six pages the bottom tabs on a phone keep
-four: Status, Trades, Ladders and More. More opens
-a list with Alerts, Basetrades and Chart (and the
-pages that come later). The side menu from 720px
-wide lists every page. A page under More marks
-More as the current tab.
+The bottom tabs on a phone stay five: Home,
+Trades, Ladders, Alerts and More. More takes the
+place of Chart and opens a list with Chart,
+Basetrades and Rules (and the pages that come
+later). The side menu from 720px wide lists every
+page, as now. A page under More marks More as the
+current tab.
 
 ## The basetrades page
 
