@@ -1,12 +1,15 @@
-# chart: a price chart for the terminal, one * per
-# price, for the shell's 'chart' command
+# chart: the chart engine, a stock's prices over a
+# period with its average buy price and trades; the
+# shell's 'chart' draws them for the terminal, one *
+# per price, the web's chart page in the browser
 #
 #   python tests/test_chart.py   the tests
 #
-# stock_chart() is what the shell calls: it gets the
-# bars (prices.get_bars), the average buy price
-# and the trades (storage) and draws them. the drawing
-# itself, chart_lines(), has no network and no files.
+# data() gets the bars (prices.get_bars), the average
+# buy price and the trades (engines/trades.py);
+# stock_chart() is what the shell calls, it draws
+# them. the drawing itself, chart_lines(), has no
+# network and no files.
 #
 #   TSMX 5 days, 15m bars   71.07  -14.86%
 #    83.47 |* *
@@ -35,6 +38,14 @@
 #   timeframe(days, columns)
 #       (Alpaca timeframe, label) of the bars for days
 #       that fill columns
+#   data(stock, days, points)
+#       the chart's data of a Stock over days, the bars
+#       of the coarsest timeframe with about points
+#       prices: {"bars": [(time, price)] oldest first,
+#       "timeframe", "label", "avg": the average buy
+#       price, None when none are held, "trades":
+#       [(time, 'B' or 'S', price)]}; the same errors
+#       as stock_chart()
 #   stock_chart(stock, period, width, colors=None)
 #       the lines of the chart of a Stock, [] when
 #       there are no prices in the period; KeyError for
@@ -121,22 +132,34 @@ def timeframe(days, columns):
     return TIMEFRAMES[-1][:2]
 
 
+def data(stock, days, points):
+    """the bars of stock over days with its average
+    buy price and trades, see the top"""
+    tf, label = timeframe(days, points)
+    count, avg = trades.total(stock)
+    return {
+        "bars": prices.get_bars(stock.name, days, tf),
+        "timeframe": tf,
+        "label": label,
+        "avg": avg if count > 0 else None,
+        "trades": _trades(stock),
+    }
+
+
 def stock_chart(stock, period, width, colors=None):
     """the chart of stock over period, (days, text),
     with its average buy price and trades"""
     days, _ = period
-    tf, _ = timeframe(days, plot_columns(width))
-    bars = prices.get_bars(stock.name, days, tf)
-    if not bars:
+    found = data(stock, days, plot_columns(width))
+    if not found["bars"]:
         return []
-    count, avg = trades.total(stock)
     return chart_lines(
         stock.name,
         period,
-        bars,
+        found["bars"],
         width,
-        avg=avg if count > 0 else None,
-        trades=_trades(stock),
+        avg=found["avg"],
+        trades=found["trades"],
         colors=colors,
     )
 

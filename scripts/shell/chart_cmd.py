@@ -2,16 +2,17 @@
 #
 #   chart <stock> [period <n> <days|weeks|months>]
 #
-# the chart comes from chart.stock_chart (the prices,
-# the average buy price and the trades); this file
-# reads the command and prints it.
+# the chart comes from chart.stock_chart
+# (engines/chart.py: the prices, the average buy price
+# and the trades); this file reads the command and
+# prints it.
 #
 # ChartCmd is mixed into NxSigShell: a command of its
 # own, not a kind of data
 
 import requests
 
-import chart
+from engines import chart
 from shell.ui import (
     BOLD,
     BUY_COLOR,

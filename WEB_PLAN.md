@@ -612,16 +612,18 @@ line with the average buy price and the trades,
 drawn in the browser (SVG, no library). Read-only,
 so `read_only` doesn't change it.
 
-1. **The chart in the engines**: `scripts/chart.py`
-   moves to `engines/chart.py`. Getting the data
-   becomes its own function, `chart.data(stock,
-   days, points)`: the bars of the coarsest
-   timeframe that still gives about `points`
-   prices, the average buy price (none when no
-   stock is held) and the trades (time, B or S,
-   price). `stock_chart()` draws from it; the
-   shell's `chart` prints the same (the shell
-   tests).
+1. ~~**The chart in the engines**~~ (done):
+   `scripts/chart.py` moved to `engines/chart.py`.
+   Getting the data is its own function,
+   `chart.data(stock, days, points)`: the bars of
+   the coarsest timeframe that still gives about
+   `points` prices (`timeframe`, `label`), the
+   average buy price (None when no stock is held)
+   and the trades (time, B or S, price).
+   `stock_chart()` draws from it; the shell's
+   `chart` prints the same (the shell tests).
+   `gen_deps.py` no longer names chart as an
+   engine by hand.
 2. **`/api/chart/<stock>?days=<n>`**: the points
    (time, price; at most about 200, more are
    averaged), the timeframe, the average buy

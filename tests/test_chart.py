@@ -1,4 +1,4 @@
-# tests of scripts/chart.py
+# tests of scripts/engines/chart.py
 #
 #   python tests/test_chart.py
 
@@ -7,14 +7,19 @@ from datetime import datetime, timedelta
 import unittest
 from unittest import mock
 
+import tempfile
+
 import paths  # noqa: F401, scripts/ on sys.path
 import config
-from chart import (
+import storage
+from engines import chart, prices, trades
+from engines.chart import (
     chart_lines,
     parse_period,
     plot_columns,
     timeframe,
 )
+from storage import Stock, TradeType
 
 START = datetime(2026, 10, 12, 9, 0)
 
@@ -228,6 +233,114 @@ class ChartTest(unittest.TestCase):
         self.assertIn("<p>*</>", lines[1])
         self.assertIn("<a>.</>", lines[5])
         self.assertTrue(lines[5].endswith("<d> avg</>"))
+
+
+class ChartDataTest(unittest.TestCase):
+    """chart.data() with fake bars, the trades in a
+    temp dir, no fee"""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.calls = []
+        self.bars = hourly([10, 12, 14])
+
+        def get_bars(symbol, days, tf):
+            self.calls.append((symbol, days, tf))
+            return self.bars
+
+        for target, name, value in (
+            (storage, "DB_DIR", tmp.name),
+            (prices, "get_bars", get_bars),
+        ):
+            p = mock.patch.object(target, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+        # no fee in the average buy price
+        p = mock.patch.dict(config.DATA)
+        p.start()
+        self.addCleanup(p.stop)
+        config.DATA.pop("fee", None)
+
+    def test_no_trades(self):
+        found = chart.data(Stock.SOXL, 5, 60)
+        self.assertEqual(
+            found,
+            {
+                "bars": self.bars,
+                "timeframe": "15Min",
+                "label": "15m",
+                "avg": None,
+                "trades": [],
+            },
+        )
+        self.assertEqual(self.calls, [("SOXL", 5, "15Min")])
+
+    def test_timeframe_of_points(self):
+        # the coarsest that gives about points prices
+        chart.data(Stock.SOXL, 90, 60)
+        chart.data(Stock.SOXL, 30, 60)
+        chart.data(Stock.SOXL, 365, 200)
+        self.assertEqual(
+            [tf for _, _, tf in self.calls],
+            ["1Day", "1Hour", "1Day"],
+        )
+
+    def test_avg_and_trades(self):
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            4,
+            10,
+            "12.10.2026",
+            "10:00",
+        )
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            4,
+            14,
+            "13.10.2026",
+            "11:30",
+        )
+        trades.add(
+            Stock.SOXL,
+            TradeType.SELL,
+            2,
+            15,
+            "14.10.2026",
+            "15:45",
+        )
+        found = chart.data(Stock.SOXL, 5, 60)
+        self.assertEqual(found["avg"], 12.0)
+        self.assertEqual(
+            found["trades"],
+            [
+                (datetime(2026, 10, 12, 10, 0), "B", 10.0),
+                (datetime(2026, 10, 13, 11, 30), "B", 14.0),
+                (datetime(2026, 10, 14, 15, 45), "S", 15.0),
+            ],
+        )
+        # all sold: no average
+        trades.add(Stock.SOXL, TradeType.SELL, 6, 16)
+        self.assertIsNone(
+            chart.data(Stock.SOXL, 5, 60)["avg"]
+        )
+
+    def test_stock_chart_uses_it(self):
+        self.assertEqual(
+            chart.stock_chart(
+                Stock.SOXL, (5, "5 days"), 40
+            )[0],
+            "SOXL 5 days, 15m bars   14.00  +40.00%",
+        )
+        self.bars = []
+        self.assertEqual(
+            chart.stock_chart(
+                Stock.SOXL, (5, "5 days"), 40
+            ),
+            [],
+        )
 
 
 if __name__ == "__main__":

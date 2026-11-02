@@ -83,7 +83,8 @@ HISTORY = TIERS[-1][0]
 # after a longer pause (the demo was closed) the
 # prices move as much as after MAX_GAP seconds
 MAX_GAP = 60
-# the seconds of the chart's timeframes (chart.py)
+# the seconds of the chart's timeframes
+# (engines/chart.py)
 TIMEFRAMES = {"1Day": DAY, "1Hour": 3600, "15Min": 900}
 # the limits of shift() in percent and of set_speed()
 MIN_SHIFT = -90

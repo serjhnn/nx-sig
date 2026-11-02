@@ -96,7 +96,8 @@ the venv. Never run black on all of `scripts/`.
 These pyflakes warnings are expected, leave them:
 
 - `'paths' imported but unused` in the tests
-- `'chart' imported but unused` in `test_shell.py`
+- `'engines.chart' imported but unused` in
+  `test_shell.py`
 
 ## Tests on Python 3.14
 

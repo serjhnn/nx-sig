@@ -865,6 +865,8 @@ nx-sig/
     │   │                     in the demo the made-up ones
     │   ├── rules.py          your personal rules
     │   ├── basetrades.py     the last buying price of each stock
+    │   ├── chart.py          a stock's prices, average buy and trades over a
+    │   │                     period; the terminal chart of 'chart'
     │   ├── ladder.py         price-step alerts, starts their processes
     │   ├── alerts.py         basetrade and gain alerts, starts their process
     │   ├── demo.py           the demo's sample data (./nxdemo)
@@ -913,7 +915,6 @@ nx-sig/
     ├── storage.py        trades, rules and mail broker state on disk
     ├── process.py        the helpers of the background processes, BackgroundTask
     │                     (start/stop/running pid shared by the tasks)
-    ├── chart.py          the price chart of 'chart'
     ├── tasks_owner.py    one device runs the background tasks
     ├── sync.py           syncs data/ between phone and PC (Syncthing)
     ├── metrics.py        metrics engine: statistics of your actions (planned)
@@ -943,7 +944,7 @@ python tests/test_mail_broker.py   # the mail broker's process, its Python
 python tests/test_process.py       # BackgroundTask, the service loop
 python tests/test_notifier.py      # the notify channel
 python tests/test_tasks_owner.py   # which device runs the tasks
-python tests/test_chart.py         # the price chart layout
+python tests/test_chart.py         # the price chart layout and its data
 python tests/test_demo.py          # the demo data, and a run of ./nxdemo
 python tests/test_demo_prices.py   # the demo's prices and their process
 python tests/test_web.py           # the web server: config, pages, /api/status,

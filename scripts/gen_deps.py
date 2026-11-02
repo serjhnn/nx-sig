@@ -50,11 +50,11 @@ FOLDERS = (
 BEGIN = "// BEGIN modules, written by gen_deps.py\n"
 END = "// END modules\n"
 
-# the folders give the other groups (engines/ and
-# chart are engines), every module left is a tool
+# the folders give the other groups (engines/ are
+# engines), every module left is a tool
 CORE = {"config", "storage"}
 TASKS = {"process", "tasks_owner"}
-ENGINES = {"chart"}
+ENGINES = set()
 
 
 def _paths():

@@ -211,7 +211,6 @@ const GROUPS = {
 // id: [group, text, imports, loaded by name]
 // BEGIN modules, written by gen_deps.py
 const MODS = {
-  "chart": ["engine", "A price chart for the terminal, one * per price, for the shell's 'chart' command", ["config", "engines/prices", "engines/trades"], []],
   "check_style": ["tools", "Check the code style rules of CODE_STYLE.md", ["gen_deps", "gen_docs"], []],
   "commands": ["shell", "Interactive shell for nX-sig, started with ./nxshell", ["config", "engines/demo", "engines/demo_prices", "process", "shell/chart_cmd", "shell/demo_cmd", "shell/interface", "shell/notify_cmd", "shell/overview_cmd", "shell/terminal_cmd", "shell/ui"], ["shell/alert_cmd", "shell/base_trade_cmd", "shell/ladder_cmd", "shell/mail_cmd", "shell/rule_cmd", "shell/stocks_cmd", "shell/tasks_cmd", "shell/trade_cmd", "shell/web_cmd"]],
   "config": ["core", "Reads config.json once, at the first import, and gives every module its settings through typed accessors with their defaults", [], []],
@@ -227,6 +226,7 @@ const MODS = {
   "tasks_owner": ["tasks", "Only one device runs the background tasks (the mail broker, the ladders and the alerts)", ["storage"], []],
   "engines/alerts": ["engine", "The alerts engine, price alerts for the basetrades and the gain of the held stocks, checked by one background process, services/alert_service.py", ["config", "engines/trades", "process", "storage", "tasks_owner"], []],
   "engines/basetrades": ["engine", "The basetrades engine, the last price you bought each stock at, one per stock", ["engines/trades", "storage"], []],
+  "engines/chart": ["engine", "The chart engine, a stock's prices over a period with its average buy price and trades; the shell's 'chart' draws them for the terminal, one * per price, the web's chart page in the browser", ["config", "engines/prices", "engines/trades"], []],
   "engines/demo": ["engine", "The demo engine, the sample data of ./nxdemo, which runs nX-sig without keys or accounts", ["config", "engines/alerts", "engines/demo_prices", "engines/ladder", "storage"], []],
   "engines/demo_prices": ["engine", "The demo's prices, a random walk per stock, so ./nxdemo needs no keys and no network", ["config", "process", "storage"], []],
   "engines/ladder": ["engine", "The ladders engine, price-step alerts for one stock; every ladder runs as its own process, services/ladder_service.py", ["config", "process", "storage"], []],
@@ -253,7 +253,7 @@ const MODS = {
   "notifiers/watch_notify": ["notify", "Notification server for a Garmin watch", [], []],
   "shell/alert_cmd": ["shell", "The shell side of the price alerts, the engine is engines/alerts.py", ["engines/alerts", "notifiers/notifier", "shell/interface", "shell/ui", "tasks_owner"], []],
   "shell/base_trade_cmd": ["shell", "The basetrades, the last price you bought each stock at", ["engines/basetrades", "shell/alert_cmd", "shell/interface", "shell/ui"], []],
-  "shell/chart_cmd": ["shell", "The price of a stock over a period", ["chart", "shell/ui"], []],
+  "shell/chart_cmd": ["shell", "The price of a stock over a period", ["engines/chart", "shell/ui"], []],
   "shell/demo_cmd": ["shell", "The shell side of the demo (./nxdemo)", ["config", "engines/demo", "engines/demo_prices", "shell/ui"], []],
   "shell/interface": ["shell", "What a command module implements", [], []],
   "shell/ladder_cmd": ["shell", "The shell side of the ladders, the engine is engines/ladder.py", ["engines/ladder", "notifiers/notifier", "shell/interface", "shell/ui", "tasks_owner"], []],
@@ -272,7 +272,7 @@ const MODS = {
   "mtsig/order_watcher": ["mtsig", "Records broker order emails as trades", ["config", "engines/mail_broker", "engines/trades", "mtsig/mail_reader", "mtsig/order_parser", "process", "storage", "tasks_owner"], []],
   "tests/test_alerts": ["tests", "Tests of scripts/engines/alerts.py and scripts/services/alert_service.py", ["config", "engines/alerts", "services/alert_service", "storage", "tasks_owner"], []],
   "tests/test_basetrades": ["tests", "Tests of scripts/engines/basetrades.py", ["engines/basetrades", "engines/trades", "storage"], []],
-  "tests/test_chart": ["tests", "Tests of scripts/chart.py", ["chart", "config"], []],
+  "tests/test_chart": ["tests", "Tests of scripts/engines/chart.py", ["config", "engines/chart", "engines/prices", "engines/trades", "storage"], []],
   "tests/test_config": ["tests", "Tests of scripts/config.py", ["config"], []],
   "tests/test_demo": ["tests", "Tests of scripts/engines/demo.py and the demo settings (demo/config.json, demo/seed/)", ["config", "engines/alerts", "engines/basetrades", "engines/demo", "engines/ladder", "engines/rules", "engines/trades", "storage"], []],
   "tests/test_demo_prices": ["tests", "Tests of scripts/engines/demo_prices.py and the demo settings in config.py", ["config", "engines/demo_prices", "engines/prices", "process", "services/demo_prices_service", "storage"], []],
@@ -284,7 +284,7 @@ const MODS = {
   "tests/test_positions": ["tests", "Tests of scripts/engines/positions.py", ["config", "engines/positions", "engines/trades", "storage"], []],
   "tests/test_process": ["tests", "Tests of scripts/process.py", ["engines/alerts", "engines/demo_prices", "engines/ladder", "engines/mail_broker", "engines/web", "process"], []],
   "tests/test_rules": ["tests", "Tests of scripts/engines/rules.py", ["engines/rules", "storage"], []],
-  "tests/test_shell": ["tests", "Tests of the nxshell commands", ["chart", "commands", "config", "engines/alerts", "engines/basetrades", "engines/demo", "engines/demo_prices", "engines/ladder", "engines/mail_broker", "engines/prices", "engines/trades", "engines/web", "notifiers/notifier", "notifiers/telegram_notify", "notifiers/termux_notify", "process", "shell/alert_cmd", "shell/demo_cmd", "shell/notify_cmd", "shell/overview_cmd", "shell/terminal_cmd", "shell/ui", "storage", "tasks_owner"], []],
+  "tests/test_shell": ["tests", "Tests of the nxshell commands", ["commands", "config", "engines/alerts", "engines/basetrades", "engines/chart", "engines/demo", "engines/demo_prices", "engines/ladder", "engines/mail_broker", "engines/prices", "engines/trades", "engines/web", "notifiers/notifier", "notifiers/telegram_notify", "notifiers/termux_notify", "process", "shell/alert_cmd", "shell/demo_cmd", "shell/notify_cmd", "shell/overview_cmd", "shell/terminal_cmd", "shell/ui", "storage", "tasks_owner"], []],
   "tests/test_statement": ["tests", "Tests of scripts/engines/statement.py", ["engines/statement", "storage"], []],
   "tests/test_storage": ["tests", "Tests of scripts/storage.py", ["storage"], []],
   "tests/test_sync": ["tests", "Tests of scripts/sync.py", ["sync"], []],

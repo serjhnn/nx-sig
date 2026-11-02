@@ -34,7 +34,7 @@ from unittest import mock
 os.environ["NO_COLOR"] = "1"
 
 import paths  # noqa: F401, scripts/ on sys.path
-import chart
+from engines import chart
 import config
 from engines import alerts, demo, demo_prices, ladder
 from engines import mail_broker, web
