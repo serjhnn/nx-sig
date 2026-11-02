@@ -237,7 +237,7 @@ The `web` settings (optional, `"web": {"host": "127.0.0.1", "port": 8080}`):
 | `host` | the address the web server listens on (default `"127.0.0.1"`, only this device); `"0.0.0.0"` lets the other devices of the network open it too |
 | `port` | its port, `1` to `65535` (default `8080`) |
 | `interval` | seconds between two price requests while the main page is open, at least `1` (default `5`) |
-| `read_only` | `true` (default): the web pages only show the data; `false` lets the trades page add and delete trades (coming) |
+| `read_only` | `true` (default): the web pages only show the data; `false` lets the trades page add and delete trades |
 
 With `auto`, the width is read again for every command, so the output adjusts
 to the screen as it is now; it is never less than 48. On a screen wider than 48
@@ -568,8 +568,12 @@ other packages than the shell's). Open the address in a browser on the same devi
   its trades, newest first, with the ids of `rm trade`. The chosen stock
   is in the address (`/trades#SOXL`); without one it is the first stock
   held. Its prices update like the main page's; a stock's trades are
-  asked for again only when it has a new one. It only shows the trades
-  for now: adding and deleting them comes next.
+  asked for again only when it has a new one.
+- With config `web` `read_only` off, the trades page also adds a trade
+  ("Add trade": stock, buy or sell, count, price, and a date and time or
+  now) and deletes one (the bin of its row, after asking), like `add
+  trade` and `rm trade`, with the same checks and texts. With it on (the
+  default) the page only shows, and says "read-only".
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
   `/logo` (a page with the logo), `/logo.svg`, `/style.css` (the style
   every page shares, `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
@@ -594,8 +598,8 @@ other packages than the shell's). Open the address in a browser on the same devi
   they fail, and say whether `read_only` is on.
 - Every `/api/` request must name the server in its `Host` (`127.0.0.1`,
   `localhost` or `[::1]` with its port), so a website that points
-  another name at this device can't read it. A change (a POST, coming
-  with the add and delete of the trades page) must also come from the
+  another name at this device can't read it. A change (a POST: `/api/trades/add`,
+  `/api/trades/delete`) must also come from the
   server's own pages (`Origin`), carry the token the server makes when
   it starts and puts into its pages, and be JSON; while `read_only` is on
   (the default) every change is `403`. Changes are always logged.

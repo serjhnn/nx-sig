@@ -730,6 +730,7 @@ class ApiTradesTest(ApiMixin, unittest.TestCase):
                 "interval": 5,
                 "demo": False,
                 "read_only": True,
+                "names": [s.name for s in Stock],
                 "stocks": [],
             },
         )
@@ -872,15 +873,22 @@ class ApiTradesTest(ApiMixin, unittest.TestCase):
             "s.last": trade,
             "had.last": trade,
             "t": trade,
+            "result": {"text": "", "trade": trade},
         }
         used = re.findall(
-            r"\b((?:data|lastData|detail|s|had|t)"
+            r"\b((?:data|lastData|detail|s|had|t|result)"
             r"(?:\.(?:stock|last))?)"
             r"\.([a-z_]+)\b(?![A-Za-z(])",
             scripts(TRADES_SCRIPT),
         )
         self.assertGreater(len(used), 20)
-        array = {"length", "slice", "reduce", "filter"}
+        array = {
+            "length",
+            "slice",
+            "reduce",
+            "filter",
+            "forEach",
+        }
         for name, field in set(used):
             if field in array:
                 continue
@@ -1072,6 +1080,205 @@ class ChangeTest(ApiMixin, unittest.TestCase):
         self.assertEqual(status, 500)
         self.assertIn("web log", data["error"])
         self.log.exception.assert_called()
+
+
+class TradeChangeTest(ApiMixin, unittest.TestCase):
+    """POST /api/trades/add and /api/trades/delete"""
+
+    def setUp(self):
+        super().setUp()
+        config.DATA["web"] = {"read_only": False}
+        self.serve()
+
+    def post(self, path, data):
+        """(status, data) of a change from the
+        server's own page"""
+        host = f"127.0.0.1:{self.port}"
+        body = (
+            data
+            if isinstance(data, bytes)
+            else (json.dumps(data).encode())
+        )
+        response, answer = self.request(
+            path,
+            "POST",
+            body=body,
+            headers={
+                "Host": host,
+                "Origin": f"http://{host}",
+                "Content-Type": "application/json",
+                api.TOKEN_HEADER: self.server.token,
+            },
+        )
+        return response.status, json.loads(answer)
+
+    def add(self, **data):
+        change = {
+            "stock": "SOXL",
+            "type": "buy",
+            "count": 10,
+            "price": 20.5,
+        }
+        change.update(data)
+        return self.post("/api/trades/add", change)
+
+    def test_add(self):
+        status, data = self.add()
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data["text"], "added BUY 10 SOXL @ 20.5"
+        )
+        found = trades.get_all(Stock.SOXL)
+        self.assertEqual(len(found), 1)
+        self.assertEqual(
+            data["trade"]["id"], found[0]["Id"]
+        )
+        self.assertEqual(data["trade"]["type"], "BUY")
+        self.assertEqual(found[0]["Count"], 10)
+        self.assertEqual(found[0]["Price"], 20.5)
+        # it is logged
+        self.assertIn(
+            "added BUY 10 SOXL @ 20.5",
+            [
+                c.args[0] % c.args[1:]
+                for c in self.log.info.call_args_list
+            ],
+        )
+
+    def test_add_any_case_at_a_time(self):
+        status, data = self.add(
+            stock="soxl",
+            type="SeLl",
+            count=3,
+            price=7,
+            date="01.10.2026",
+            time="15:45",
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data["text"], "added SELL 3 SOXL @ 7"
+        )
+        self.assertEqual(
+            data["trade"],
+            {
+                "id": 1,
+                "date": "01.10.2026",
+                "time": "15:45",
+                "type": "SELL",
+                "count": 3,
+                "price": 7.0,
+            },
+        )
+        # an older trade: the id of the trade added,
+        # not of the last one in the file
+        status, data = self.add(
+            date="01.09.2026", time="10:00"
+        )
+        self.assertEqual(data["trade"]["id"], 2)
+        self.assertEqual(
+            data["trade"]["date"], "01.09.2026"
+        )
+
+    def test_add_refused(self):
+        for change, error in (
+            ({"stock": "XYZ"}, "unknown stock 'XYZ'"),
+            ({"stock": None}, "unknown stock"),
+            ({"type": "hold"}, "unknown trade type 'hold'"),
+            ({"type": 1}, "unknown trade type"),
+            (
+                {"count": 1.5},
+                "count must be a whole number",
+            ),
+            ({"count": "10"}, "count must be a whole"),
+            ({"count": True}, "count must be a whole"),
+            ({"count": None}, "count must be a whole"),
+            ({"price": "20"}, "price a number"),
+            ({"count": 0}, "must be positive"),
+            ({"price": -1}, "must be positive"),
+            (
+                {"date": "01.10.2026"},
+                "give both date and time",
+            ),
+            (
+                {"date": "31.02.2026", "time": "10:00"},
+                "bad date or time",
+            ),
+            (
+                {"date": 1, "time": 2},
+                "date and time are text",
+            ),
+        ):
+            status, data = self.add(**change)
+            self.assertEqual(status, 400, change)
+            self.assertIn(error, data["error"], change)
+        # what json.loads lets through
+        for price in (b"NaN", b"Infinity", b"-Infinity"):
+            body = (
+                b'{"stock": "SOXL", "type": "buy", '
+                b'"count": 1, "price": ' + price + b"}"
+            )
+            status, data = self.post(
+                "/api/trades/add", body
+            )
+            self.assertEqual(status, 400, price)
+        self.assertEqual(trades.get_all(Stock.SOXL), [])
+
+    def test_delete(self):
+        self.add()
+        self.add(price=21)
+        status, data = self.post(
+            "/api/trades/delete", {"stock": "soxl", "id": 1}
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data["text"], "deleted SOXL trade 1"
+        )
+        self.assertEqual(
+            [t["Id"] for t in trades.get_all(Stock.SOXL)],
+            [2],
+        )
+        # again: gone
+        status, data = self.post(
+            "/api/trades/delete", {"stock": "SOXL", "id": 1}
+        )
+        self.assertEqual(status, 404)
+        self.assertEqual(data["error"], "no SOXL trade 1")
+
+    def test_delete_refused(self):
+        self.add()
+        for change in (
+            {"stock": "XYZ", "id": 1},
+            {"stock": "SOXL", "id": "1"},
+            {"stock": "SOXL", "id": 1.0},
+            {"stock": "SOXL"},
+        ):
+            status, _ = self.post(
+                "/api/trades/delete", change
+            )
+            self.assertEqual(status, 400, change)
+        self.assertEqual(len(trades.get_all(Stock.SOXL)), 1)
+
+    def test_read_only(self):
+        config.DATA["web"] = {}
+        status, data = self.add()
+        self.assertEqual(status, 403)
+        self.assertEqual(data["error"], api.READ_ONLY_ERROR)
+        trades.add(Stock.SOXL, TradeType.BUY, 1, 1)
+        status, _ = self.post(
+            "/api/trades/delete", {"stock": "SOXL", "id": 1}
+        )
+        self.assertEqual(status, 403)
+        self.assertEqual(len(trades.get_all(Stock.SOXL)), 1)
+
+    def test_names(self):
+        self.server.prices = FakeCache()
+        response, body = self.request(
+            "/api/trades", logged=False
+        )
+        self.assertEqual(
+            json.loads(body)["names"],
+            [s.name for s in Stock],
+        )
 
 
 class FakeClock:

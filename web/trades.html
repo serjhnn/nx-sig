@@ -27,13 +27,67 @@
       <div><b id="notice-title"></b> <span id="notice-text"></span></div>
     </div>
 
+    <div class="notice ok" id="done" role="status" hidden>
+      <span class="dot"></span>
+      <div id="done-text"></div>
+    </div>
+
     <section class="panel" aria-label="Stocks with trades">
       <div class="panel-h"><h2>Stocks</h2>
-        <span class="sub" id="stocks-sub"></span></div>
+        <span class="sub" id="stocks-sub"></span>
+        <button class="btn primary sm" type="button"
+          id="add-open" aria-controls="add" aria-expanded="false"
+          hidden>Add trade</button></div>
       <div class="stocks" id="stocks" role="group"
         aria-label="Choose a stock"></div>
       <p class="empty" id="no-stocks" hidden>no trades yet, see
         'help add trade' in the shell</p>
+    </section>
+
+    <section class="panel" id="add" aria-label="Add a trade" hidden>
+      <div class="panel-h"><h2>Add a trade</h2></div>
+      <form class="form" id="add-form" novalidate>
+        <div class="field">
+          <label for="f-stock">Stock</label>
+          <select id="f-stock"></select>
+        </div>
+        <div class="field">
+          <span class="flabel" id="f-type-label">Type</span>
+          <div class="seg" role="radiogroup"
+            aria-labelledby="f-type-label">
+            <label><input type="radio" name="type" value="buy"
+              id="f-buy" checked><span>Buy</span></label>
+            <label><input type="radio" name="type" value="sell"
+              ><span>Sell</span></label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-count">Count</label>
+          <input id="f-count" type="number" inputmode="numeric"
+            min="1" step="1" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="f-price">Price</label>
+          <input id="f-price" type="number" inputmode="decimal"
+            min="0" step="any" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="f-date">Date</label>
+          <input id="f-date" type="date">
+        </div>
+        <div class="field">
+          <label for="f-time">Time</label>
+          <input id="f-time" type="time">
+        </div>
+        <p class="hint">Without a date and time the trade is
+          recorded now.</p>
+        <p class="form-error" id="f-error" role="alert" hidden></p>
+        <div class="form-actions">
+          <button class="btn" type="button" id="f-cancel">Cancel</button>
+          <button class="btn primary" type="submit"
+            id="f-submit">Add</button>
+        </div>
+      </form>
     </section>
 
     <div class="stack" id="chosen" hidden>
@@ -59,6 +113,8 @@
                 <th scope="col">Qty</th>
                 <th scope="col">Price</th>
                 <th scope="col" class="wide-only">Value</th>
+                <th scope="col" class="act" id="del-col" hidden><span
+                  class="sr">Delete</span></th>
               </tr>
             </thead>
             <tbody id="trades"></tbody>

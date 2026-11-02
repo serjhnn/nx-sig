@@ -16,7 +16,8 @@
 //       "interval"), calls draw(data); pauses while
 //       the tab is hidden. on an error it keeps the
 //       last data and says what went wrong; the top
-//       bar shows the prices' time and error
+//       bar shows the prices' time and error. gives a
+//       function that asks again right away
 // it also marks the open page in the menu and runs
 // the theme button (dark or light, kept in
 // localStorage).
@@ -211,6 +212,10 @@
       if (!document.hidden) ask();
     });
     ask();
+    return function () {
+      clearTimeout(timer);
+      ask();
+    };
   }
 
   // ---------- the menu and the theme ----------

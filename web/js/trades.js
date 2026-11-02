@@ -9,6 +9,13 @@
 // /api/trades/<stock>, asked again only when the
 // stock's number of trades or its last trade
 // changed.
+//
+// unless config "web" "read_only" is on (the
+// answers' read_only), "Add trade" opens a form
+// (POST /api/trades/add) and each trade has a delete
+// button (POST /api/trades/delete, after asking);
+// the server checks them like the shell and its
+// texts are shown.
 
 (function () {
   "use strict";
@@ -24,6 +31,11 @@
   var loading = null; // the stock being asked for
   var chips = {}; // stock name -> its button
   var shown = {}; // key -> text, to flash changes
+  var refresh = null; // asks /api/trades right away
+  var scrolledTo = null; // the chip last scrolled to
+  var doneTimer = null;
+  var TRASH = "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13" +
+    "M9 7V4h6v3";
 
   // set a node's text; flash it when it changed
   function put(node, key, text) {
@@ -146,13 +158,172 @@
       tr.appendChild(el("td", "px", num(t.price, 2)));
       tr.appendChild(el("td", "wide-only",
         num(t.count * t.price, 2)));
+      if (canChange()) tr.appendChild(deleteCell(t));
       body.appendChild(tr);
     });
+    $("del-col").hidden = !canChange();
     var count = detail.trades.length;
     $("trades-sub").textContent =
       count + (count === 1 ? " trade" : " trades");
     $("no-trades").hidden = count > 0;
   }
+
+  // ---------- changes ----------
+
+  function canChange() {
+    return lastData !== null && !lastData.read_only;
+  }
+
+  // a server text as a sentence
+  function sentence(text) {
+    text = String(text);
+    return text.charAt(0).toUpperCase() + text.slice(1) +
+      (/[.!?]$/.test(text) ? "" : ".");
+  }
+
+  function done(text) {
+    $("done-text").textContent = sentence(text);
+    $("done").hidden = false;
+    clearTimeout(doneTimer);
+    doneTimer = setTimeout(function () {
+      $("done").hidden = true;
+    }, 6000);
+  }
+
+  // after a change: the stock's trades and the chips
+  // anew, now
+  function changed(text, name) {
+    done(text);
+    detail = null;
+    if (name && name !== chosen) {
+      chosen = name;
+      history.replaceState(null, "", "#" + name);
+    }
+    refresh();
+  }
+
+  function deleteCell(t) {
+    var td = el("td", "act");
+    var button = el("button", "del");
+    button.type = "button";
+    var label = "Delete trade " + t.id;
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    var svg = document.createElementNS(
+      "http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    var path = document.createElementNS(
+      "http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", TRASH);
+    svg.appendChild(path);
+    button.appendChild(svg);
+    button.addEventListener("click", function () {
+      remove(detail.stock.stock, t, button);
+    });
+    td.appendChild(button);
+    return td;
+  }
+
+  // delete trade t of stock name, after asking, like
+  // 'rm trade'
+  function remove(name, t, button) {
+    var question = "Delete " + name + " trade " + t.id +
+      ": " + t.type + " " + t.count + " @ " +
+      num(t.price, 2) + " on " + shortDate(t.date) +
+      " " + t.time + "?";
+    if (!window.confirm(question)) return;
+    button.disabled = true;
+    nx.send("/api/trades/delete", { stock: name, id: t.id })
+      .then(function (result) {
+        changed(result.text, name);
+      })
+      .catch(function (error) {
+        button.disabled = false;
+        nx.showNotice("Not deleted.", sentence(
+          error.message || error));
+      });
+  }
+
+  // "2026-09-02" (a date input) -> "02.09.2026"
+  function dotDate(value) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    return m ? m[3] + "." + m[2] + "." + m[1] : value;
+  }
+
+  function openForm() {
+    var select = $("f-stock");
+    select.textContent = "";
+    lastData.names.forEach(function (name) {
+      var option = el("option", "", name);
+      option.value = name;
+      select.appendChild(option);
+    });
+    select.value = chosen || lastData.names[0];
+    $("f-buy").checked = true;
+    ["f-count", "f-price", "f-date", "f-time"].forEach(
+      function (id) { $(id).value = ""; });
+    $("f-error").hidden = true;
+    $("add").hidden = false;
+    $("add-open").setAttribute("aria-expanded", "true");
+    $("f-count").focus();
+  }
+
+  function closeForm() {
+    $("add").hidden = true;
+    $("add-open").setAttribute("aria-expanded", "false");
+  }
+
+  function formError(text) {
+    $("f-error").textContent = sentence(text);
+    $("f-error").hidden = false;
+  }
+
+  function submit(event) {
+    event.preventDefault();
+    var form = $("add-form");
+    var count = $("f-count").value.trim();
+    var price = $("f-price").value.trim();
+    // an input of type number gives "" for what
+    // isn't a number
+    if (!count || !price) {
+      formError("give the count and the price");
+      return;
+    }
+    var change = {
+      stock: $("f-stock").value,
+      type: form.elements.type.value,
+      count: Number(count),
+      price: Number(price)
+    };
+    var date = $("f-date").value;
+    var time = $("f-time").value;
+    if (date || time) {
+      change.date = dotDate(date);
+      change.time = time;
+    }
+    $("f-submit").disabled = true;
+    nx.send("/api/trades/add", change)
+      .then(function (result) {
+        $("f-submit").disabled = false;
+        closeForm();
+        changed(result.text, change.stock);
+      })
+      .catch(function (error) {
+        $("f-submit").disabled = false;
+        formError(error.message || error);
+      });
+  }
+
+  $("add-open").addEventListener("click", function () {
+    if ($("add").hidden) openForm(); else closeForm();
+  });
+  $("f-cancel").addEventListener("click", closeForm);
+  $("add-form").addEventListener("submit", submit);
 
   // the trades of the chosen stock are out of date
   function stale(s) {
@@ -194,15 +365,30 @@
   }
 
   function draw(data) {
+    var wasReadOnly = lastData && lastData.read_only;
     lastData = data;
     var rows = data.stocks;
     chosen = pick(rows);
     drawChips(rows);
+    $("add-open").hidden = data.read_only;
+    if (data.read_only) closeForm();
+    if (data.read_only) {
+      $("stocks-sub").textContent +=
+        (rows.length ? " · " : "") + "read-only";
+    }
     var s = rows.filter(function (row) {
       return row.stock === chosen;
     })[0];
     $("chosen").hidden = !s;
     if (!s) return;
+    if (scrolledTo !== s.stock) {
+      // a new chip goes in front of the others: keep
+      // the chosen one in sight (only when it changes,
+      // not against the user's scrolling)
+      chips[s.stock].scrollIntoView(
+        { block: "nearest", inline: "nearest" });
+      scrolledTo = s.stock;
+    }
     drawChosen(s);
     if (detail && detail.stock.stock !== s.stock) {
       // another stock: don't show the old one's trades
@@ -210,7 +396,12 @@
       $("trades-sub").textContent = "";
       $("no-trades").hidden = true;
     }
-    if (stale(s)) load(s.stock);
+    if (stale(s)) {
+      load(s.stock);
+    } else if (wasReadOnly !== data.read_only) {
+      // the delete buttons come or go
+      drawTrades();
+    }
   }
 
   window.addEventListener("hashchange", function () {
@@ -218,5 +409,5 @@
     if (chips[name]) choose(name);
   });
 
-  nx.poll("/api/trades", draw);
+  refresh = nx.poll("/api/trades", draw);
 })();

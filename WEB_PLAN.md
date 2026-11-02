@@ -257,12 +257,22 @@ its own pages.
    `nx.send(url, data)` in `app.js` sends a change.
    Checked in a browser: the page's own change
    works, another site's is stopped.
-6. **Add and delete**: the add form (stock, buy or
-   sell, count, price, optional date and time)
-   calls `trades.add()`, so the checks and error
-   texts are the shell's; delete asks first, like
-   `rm trade`. Hidden while `read_only` is on. The
-   bank statement import stays in the shell.
+6. ~~**Add and delete**~~ (done):
+   `POST /api/trades/add` (stock, buy or sell,
+   count, price, a date and time or none) calls
+   `trades.add()`; `POST /api/trades/delete` (stock,
+   id) `trades.delete()`; the shell's checks and
+   texts, every change logged. On the page "Add
+   trade" opens a form (the stocks of the config,
+   a buy/sell switch, date and time inputs), the
+   bin of a trade row deletes it after asking; the
+   result shows for a few seconds, the page asks
+   anew right away. Hidden while `read_only` is on,
+   the header then says "read-only". The bank
+   statement import stays in the shell. Checked in
+   a browser: adding (also for a stock without
+   trades, at a date), the server's errors in the
+   form, deleting, the read-only view.
 7. **Tests**: the engine function, `/api/trades`,
    the read-only option, the protection (another
    origin, no token, a form post are turned away),

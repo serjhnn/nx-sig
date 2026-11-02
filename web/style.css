@@ -610,7 +610,7 @@ td.key {
   gap: 4px;
   min-width: 0;
 }
-.field label {
+.field > label {
   font: 500 12px var(--sans);
   color: var(--muted);
 }
@@ -623,6 +623,128 @@ td.key {
   background: var(--bg);
   color: var(--fg);
   width: 100%;
+}
+
+.btn.sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+/* only for screen readers */
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- forms (trades page) ---------- */
+
+.panel-h .sub {
+  margin-left: auto;
+}
+.notice.ok {
+  background: var(--accent-soft);
+}
+.form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 4px 12px 12px;
+}
+.form .hint,
+.form .form-error,
+.form .form-actions {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.flabel {
+  font: 500 12px var(--sans);
+  color: var(--muted);
+}
+.hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+.form-error {
+  color: var(--loss);
+  font-size: 13px;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+/* buy or sell: two radio buttons as one switch */
+.seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.seg label {
+  position: relative;
+  cursor: pointer;
+}
+.seg input {
+  position: absolute;
+  opacity: 0;
+}
+.seg span {
+  display: block;
+  text-align: center;
+  padding: 7px 0;
+  font: 600 13px var(--mono);
+  color: var(--muted);
+  background: var(--bg);
+}
+.seg input:checked + span {
+  color: var(--surface);
+  background: var(--gain);
+}
+.seg input[value="sell"]:checked + span {
+  background: var(--loss);
+}
+.seg input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+@media (min-width: 720px) {
+  .form {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+/* the delete button of a trade row */
+th.act,
+td.act {
+  width: 1%;
+  padding-left: 0;
+}
+.del {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.del:hover {
+  color: var(--loss);
+  border-color: var(--loss);
+}
+.del svg {
+  width: 15px;
+  height: 15px;
 }
 
 /* ---------- narrow screens, after the rules above ---------- */

@@ -311,8 +311,9 @@ for your own use first. In this order:
   `engines/positions.py`, `engines/overview.py`,
   the price cache and `/api/status` in the web
   server. Still open (WEB_PLAN.md "Later"):
-  - the trades page: shown (`/trades`); adding
-    and deleting trades next (WEB_PLAN.md)
+  - the trades page (`/trades`): done, adding and
+    deleting with config `web` `read_only` off;
+    tests and docs to finish (WEB_PLAN.md)
   - the other pages: ladders, alerts, chart,
     basetrades, rules
   - the gain alerts on the main page, like

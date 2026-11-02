@@ -11,6 +11,9 @@
 #   /api/trades/<s>    the trades of stock s,
 #                      stock_trades(); 404 for a stock
 #                      not in the config
+# and the changes (POST, see below):
+#   /api/trades/add    add a trade, add_trade()
+#   /api/trades/delete delete a trade, delete_trade()
 # each answer also has the prices' time and error,
 # the interval and demo (see prices()).
 #
@@ -44,15 +47,19 @@
 #   trades(cache)
 #   stock_trades(cache, name)
 #       the data of the paths above
+#   add_trade(data)
+#   delete_trade(data)
+#       the changes above: (http status, data)
 
 import hmac
 import json
 import logging
+import math
 
 import config
 from engines import overview, positions
 from engines import trades as trades_engine
-from storage import Stock
+from storage import Stock, TradeType
 
 # the addresses the api answers on
 PRIVATE_HOSTS = ("127.0.0.1", "::1")
@@ -247,8 +254,11 @@ def trades(cache):
     (see prices()) and
 
     {"stocks": [a stock (see _stock()) of each stock
-                that has trades, in config order]}"""
+                that has trades, in config order],
+     "names": the names of every stock of the config,
+              for the add form}"""
     found_prices, data = prices(cache)
+    data["names"] = [stock.name for stock in Stock]
     data["stocks"] = [
         _stock(row, found_prices)
         for row in trades_engine.by_stock()
@@ -266,13 +276,9 @@ def stock_trades(cache, name):
 
     raises NotFound if name (any case) isn't a stock
     of the config"""
-    try:
-        stock = Stock[name.upper()]
-    except KeyError:
-        raise NotFound(
-            f"unknown stock '{name}', expected one "
-            f"of: {', '.join(s.name for s in Stock)}"
-        ) from None
+    stock = _stock_named(name)
+    if stock is None:
+        raise NotFound(_unknown_stock(name))
     found_prices, data = prices(cache)
     found = trades_engine.get_all(stock)
     count, avg_price = trades_engine.total(stock)
@@ -286,6 +292,133 @@ def stock_trades(cache, name):
     data["stock"] = _stock(row, found_prices)
     data["trades"] = [_trade(t) for t in found]
     return data
+
+
+def add_trade(data):
+    """POST /api/trades/add: record a trade like 'add
+    trade', with the engine's checks.
+
+    data: {"stock": a name (any case), "type": "buy"
+    or "sell" (any case), "count": a whole number,
+    "price": a number, "date": "dd.mm.yyyy" and
+    "time": "hh:mm" (both or neither, else now)}
+
+    (200, {"text": what the shell says, "trade": the
+    trade}), or (400, {"error"}) with the shell's
+    text"""
+    stock = _stock_named(data.get("stock"))
+    if stock is None:
+        return 400, {
+            "error": _unknown_stock(data.get("stock"))
+        }
+    trade_type = data.get("type")
+    try:
+        trade_type = TradeType[trade_type.upper()]
+    except (AttributeError, KeyError):
+        return 400, {
+            "error": f"unknown trade type '{trade_type}'"
+            ", expected buy/sell"
+        }
+    count, price = data.get("count"), data.get("price")
+    if not _is_int(count) or not _is_number(price):
+        return 400, {
+            "error": "count must be a whole number and "
+            "price a number"
+        }
+    date, time = data.get("date"), data.get("time")
+    if not all(
+        isinstance(v, (str, type(None)))
+        for v in (date, time)
+    ):
+        return 400, {"error": "date and time are text"}
+    before = {t["Id"] for t in trades_engine.get_all(stock)}
+    try:
+        trades_engine.add(
+            stock,
+            trade_type,
+            count,
+            price,
+            date or None,
+            time or None,
+        )
+    except trades_engine.TradeError as e:
+        return 400, {"error": str(e)}
+    added = [
+        t
+        for t in trades_engine.get_all(stock)
+        if t["Id"] not in before
+    ]
+    log.info(
+        "added %s %s %s @ %s",
+        trade_type.name,
+        count,
+        stock.name,
+        price,
+    )
+    return 200, {
+        "text": f"added {trade_type.name} {count} "
+        f"{stock.name} @ {price:g}",
+        "trade": _trade(added[0]) if added else None,
+    }
+
+
+def delete_trade(data):
+    """POST /api/trades/delete: delete a trade like 'rm
+    trade' (the page asks first).
+
+    data: {"stock": a name (any case), "id": the
+    trade's id}
+
+    (200, {"text": what the shell says}), (404,
+    {"error"}) if there is no such trade, (400,
+    {"error"}) for a bad stock or id"""
+    stock = _stock_named(data.get("stock"))
+    if stock is None:
+        return 400, {
+            "error": _unknown_stock(data.get("stock"))
+        }
+    trade_id = data.get("id")
+    if not _is_int(trade_id):
+        return 400, {"error": "the id is a whole number"}
+    if not trades_engine.delete(stock, trade_id):
+        return 404, {
+            "error": f"no {stock.name} trade {trade_id}"
+        }
+    log.info("deleted %s trade %s", stock.name, trade_id)
+    return 200, {
+        "text": f"deleted {stock.name} trade {trade_id}"
+    }
+
+
+def _stock_named(name):
+    """the Stock of name (any case), None if there is
+    none"""
+    try:
+        return Stock[name.upper()]
+    except (AttributeError, KeyError):
+        return None
+
+
+def _unknown_stock(name):
+    return (
+        f"unknown stock '{name}', expected one of: "
+        f"{', '.join(s.name for s in Stock)}"
+    )
+
+
+def _is_int(value):
+    """a whole number of json, not true or false"""
+    return isinstance(value, int) and not isinstance(
+        value, bool
+    )
+
+
+def _is_number(value):
+    """a finite number of json (not NaN or Infinity,
+    which json.loads lets through)"""
+    return _is_int(value) or (
+        isinstance(value, float) and math.isfinite(value)
+    )
 
 
 def _stock(row, found_prices):
@@ -332,7 +465,10 @@ PATHS = {"/api/status": status, "/api/trades": trades}
 # {path prefix: function(cache, the rest of the path)}
 PREFIXES = {"/api/trades/": stock_trades}
 # {path: function(data) of a change, see change()}
-CHANGES = {}
+CHANGES = {
+    "/api/trades/add": add_trade,
+    "/api/trades/delete": delete_trade,
+}
 
 
 def _iso(when):
