@@ -21,5 +21,11 @@
         "width": "auto",
         "theme": "colored",
         "chart_height": 15
+    },
+    "web": {
+        "host": "127.0.0.1",
+        "port": 8080,
+        "interval": 5,
+        "read_only": false
     }
 }

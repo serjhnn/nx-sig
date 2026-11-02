@@ -76,8 +76,9 @@ pip install -r requirements.txt
 ./nxdemo
 ```
 
-`./nxdemo` starts the shell with sample trades, basetrades, rules, a ladder
-and an alert, and with made-up prices that move by themselves, so every
+`./nxdemo` starts the shell with sample trades of every stock, basetrades,
+rules, five ladders and five alerts, and with made-up prices that move by
+themselves, so every
 feature can be tried without an Alpaca account, a mail account, a `.env` file
 or the internet. Type `demo tour` for the commands to try, in order.
 
@@ -129,6 +130,12 @@ The `demo` command works only in the demo:
 - **Messages** of the ladders and alerts don't go to `notify`: the shell
   prints them (the last 100 are kept in `demo_data/demo_messages.json`), and
   `test notify` works the same way.
+- **The web pages**: `run web` in the demo serves the demo's data and
+  prices. `demo/config.json` has `"web": {"read_only": false}`, so adding
+  and deleting trades and adding, running, stopping and deleting ladders
+  can be tried on the pages.
+- **New sample data**: a demo started before keeps its data; `demo reset`
+  starts over with the sample data of `demo/seed/` as it is now.
 - **Not in the demo**: the mail broker (`run mail-broker`), as it would record
   real broker emails, and syncing.
 
@@ -579,8 +586,14 @@ other packages than the shell's). Open the address in a browser on the same devi
   level and how far the price still has to move to it ("price past the
   level" when a stopped ladder missed it), and a picture of the rungs:
   the last level and the next three as ticks, the price as a dot (at an
-  end with an arrow when it is beyond them). It only shows the ladders
-  for now: adding, running, stopping and deleting them come next.
+  end with an arrow when it is beyond them).
+- With `read_only` off, the ladders page also adds a ladder ("Add
+  ladder": stock, down or up, step, "from" filled in with the price, run
+  it now), and each card has Run or Stop and Delete (after asking), like
+  `add`, `run`, `stop` and `rm ladder`, with the same checks and texts.
+  Taking the background tasks over from another device (`run ladder <id>
+  force`) stays in the shell. The result of a change shows above the
+  page for a few seconds (longer when it failed).
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
   `/ladders` (`web/ladders.html`), `/logo` (a page with the logo), `/logo.svg`, `/style.css` (the style
   every page shares, `web/style.css`), the pages' scripts (`/js/`,

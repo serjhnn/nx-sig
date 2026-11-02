@@ -6,5 +6,13 @@
     {
         "Id": 2,
         "Rule": "sell a third at +20% from the basetrade"
+    },
+    {
+        "Id": 3,
+        "Rule": "no new ladder within 2% of the price"
+    },
+    {
+        "Id": 4,
+        "Rule": "keep a third of the money in cash"
     }
 ]

@@ -1,2 +1,6 @@
 Id,For,Direction,Percent,Created,Stock,Amount
 1,basetrades,up,15.0,20.10.2026 15:35,,
+2,gain,up,,21.10.2026 16:20,TSMX,100.0
+3,gain,up,10.0,22.10.2026 15:50,all,
+4,gain,down,,23.10.2026 17:15,NVDL,150.0
+5,basetrades,down,10.0,24.10.2026 15:25,,

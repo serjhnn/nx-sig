@@ -67,6 +67,8 @@ class DemoTest(unittest.TestCase):
             self._tmp.name, "demo_prices_status.json"
         )
         storage.demo_prices_status_set({"pid": 7})
+        ids = [saved["Id"] for saved in ladder.get_all()]
+        self.assertGreater(len(ids), 1)
         with mock.patch.object(
             ladder,
             "stop",
@@ -76,8 +78,9 @@ class DemoTest(unittest.TestCase):
             "stop",
             lambda: stopped.append("a") or False,
         ):
-            self.assertEqual(demo.reset(), 1)
-        self.assertEqual(stopped, [1, "a"])
+            # every ladder was running, the alerts not
+            self.assertEqual(demo.reset(), len(ids))
+        self.assertEqual(stopped, ids + ["a"])
         # the prices process goes on: its heartbeat stays
         self.assertTrue(os.path.exists(status))
 
