@@ -777,7 +777,8 @@ td.act {
   }
 }
 .ladder {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   padding: 10px 12px 8px;
   background: var(--raised);
@@ -816,6 +817,7 @@ td.act {
   font-weight: 600;
 }
 .ladder-foot {
+  margin-top: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -896,6 +898,89 @@ td.act {
   font: 600 11px var(--mono);
   color: var(--price);
   white-space: nowrap;
+}
+
+/* ---------- the alerts page ---------- */
+
+.process {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+}
+.process-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.process-text b {
+  font: 600 13px var(--sans);
+}
+.process .chip {
+  margin-left: auto;
+}
+.alerts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 2px 12px 12px;
+}
+@media (min-width: 720px) {
+  .alerts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* a column: a short card next to a taller one keeps
+   its rows at the top and its footer at the bottom */
+.alert {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 8px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 0;
+}
+.alert-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.alert-h b {
+  font: 600 15px var(--mono);
+}
+.alert-h .what {
+  font: 12px var(--sans);
+  color: var(--muted);
+}
+.alert-none {
+  margin: 0;
+  font: 12px var(--mono);
+  color: var(--muted);
+}
+/* the levels table of a card: smaller, no frame */
+table.levels {
+  font-size: 12px;
+}
+table.levels th,
+table.levels td {
+  padding: 4px 6px;
+}
+table.levels th:first-child,
+table.levels td:first-child {
+  padding-left: 0;
+}
+table.levels th:last-child,
+table.levels td:last-child {
+  padding-right: 0;
+}
+table.levels tr.reached td {
+  font-weight: 600;
+}
+table.levels .chip {
+  font-size: 11px;
+  padding: 1px 6px;
 }
 
 /* ---------- narrow screens, after the rules above ---------- */

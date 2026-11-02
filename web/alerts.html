@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+ content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alerts · nX-sig</title>
+<link rel="icon" href="/logo.svg">
+<link rel="stylesheet" href="/style.css">
+<script>
+  // the saved theme before the page draws, no flash
+  try {
+    var t = localStorage.getItem("nx-theme");
+    if (t === "dark" || t === "light") {
+      document.documentElement.dataset.theme = t;
+    }
+  } catch (e) {}
+</script>
+</head>
+<body>
+<div class="app">
+  <!-- frame -->
+
+  <main class="main">
+    <div class="notice" id="notice" role="status" hidden>
+      <span class="dot warn"></span>
+      <div><b id="notice-title"></b> <span id="notice-text"></span></div>
+    </div>
+
+    <div class="notice ok" id="done" role="status" hidden>
+      <span class="dot"></span>
+      <div id="done-text"></div>
+    </div>
+
+    <section class="panel process" aria-label="The alerts process">
+      <span class="dot off" id="proc-dot"></span>
+      <div class="process-text">
+        <b>Alerts process</b>
+        <span class="sub" id="proc-text">-</span>
+      </div>
+      <span class="chip idle" id="proc-state">-</span>
+    </section>
+
+    <section class="panel" aria-label="The alerts">
+      <div class="panel-h"><h2>Alerts</h2>
+        <span class="sub" id="alerts-sub"></span></div>
+      <div class="alerts" id="alerts"></div>
+      <p class="empty" id="no-alerts" hidden>no alerts yet, see
+        'help add alert' in the shell</p>
+    </section>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script src="/js/alerts.js"></script>
+</body>
+</html>

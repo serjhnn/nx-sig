@@ -595,8 +595,16 @@ other packages than the shell's). Open the address in a browser on the same devi
   Taking the background tasks over from another device (`run ladder <id>
   force`) stays in the shell. The result of a change shows above the
   page for a few seconds (longer when it failed).
+- The alerts page (`/alerts`): whether the alerts process runs (with its
+  last check, or the device that runs the background tasks), and a card
+  per saved alert ("down 10%", "TSMX +100") with a table of its level per
+  stock (per basetrade, or per held stock for a gain alert): the level,
+  the price and how far it still has to move, or "reached". It only
+  shows the alerts for now: adding and deleting them and running and
+  stopping their process come next.
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
-  `/ladders` (`web/ladders.html`), `/logo` (a page with the logo),
+  `/ladders` (`web/ladders.html`), `/alerts` (`web/alerts.html`), `/logo`
+  (a page with the logo),
   `/logo.svg`, `/style.css` (the style every page shares,
   `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
   they use (`/fonts/`, IBM Plex, bundled so nothing comes from the
@@ -628,8 +636,8 @@ other packages than the shell's). Open the address in a browser on the same devi
   "down 10%", "TSMX +100"), each with its level per stock (as `ls
   basetrades al` and `xtop al`: per basetrade, or per held stock for a
   gain alert) with the price, how far it still has to move in % and
-  whether it was reached, and whether the alerts process runs; for the
-  alerts page, which comes next. The same rules as above.
+  whether it was reached, and whether the alerts process runs; the
+  alerts page uses it. The same rules as above.
 - Every `/api/` request must name the server in its `Host` (`127.0.0.1`,
   `localhost` or `[::1]` with its port), so a website that points another
   name at this device can't read it. A change (a POST: `/api/trades/add`,
@@ -809,9 +817,10 @@ nx-sig/
 ├── assets/modules.html  the module map (generated), also online:
 │                         serjhnn.github.io/nx-sig/assets/modules.html
 ├── web/                  the web pages: index.html, trades.html,
-│                         ladders.html, frame.html (the top bar and menu
-│                         of every page), style.css, js/ (app.js shared,
-│                         main.js, trades.js, ladders.js), fonts/
+│                         ladders.html, alerts.html, frame.html (the top
+│                         bar and menu of every page), style.css, js/
+│                         (app.js shared, main.js, trades.js, ladders.js,
+│                         alerts.js), fonts/
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
 │                         (test_shell.py: every shell command)
 └── scripts/

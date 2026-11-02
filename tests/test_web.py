@@ -43,6 +43,7 @@ SCRIPT_PATH = os.path.join(files.JS_DIR, "main.js")
 
 TRADES_SCRIPT = os.path.join(files.JS_DIR, "trades.js")
 LADDERS_SCRIPT = os.path.join(files.JS_DIR, "ladders.js")
+ALERTS_SCRIPT = os.path.join(files.JS_DIR, "alerts.js")
 
 
 def scripts(page=SCRIPT_PATH):
@@ -294,6 +295,33 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         for name in ids:
             self.assertIn(f'id="{name}"', page)
 
+    def test_alerts_page(self):
+        response, body = self.request("/alerts")
+        self.assertEqual(response.status, 200)
+        page = files.page(
+            files.ALERTS_PATH, self.server.token
+        )
+        self.assertEqual(body, page)
+        self.assertLess(
+            body.index(b'src="/js/app.js"'),
+            body.index(b'src="/js/alerts.js"'),
+        )
+        response, body = self.request("/js/alerts.js")
+        self.assertEqual(response.status, 200)
+        with open(ALERTS_SCRIPT, "rb") as f:
+            script = f.read()
+        self.assertEqual(body, script)
+        self.assertIn(b'nx.poll("/api/alerts"', script)
+        # every element the scripts look up is there
+        ids = set(
+            re.findall(
+                r'\$\("([\w-]+)"\)', scripts(ALERTS_SCRIPT)
+            )
+        )
+        self.assertGreater(len(ids), 5)
+        for name in ids:
+            self.assertIn(f'id="{name}"', page.decode())
+
     def test_menu(self):
         # every page the menu links to is there, and
         # the frame isn't served by itself
@@ -302,6 +330,7 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         self.assertIn("/", links)
         self.assertIn("/trades", links)
         self.assertIn("/ladders", links)
+        self.assertIn("/alerts", links)
         for path in links:
             response, _ = self.request(path)
             self.assertEqual(response.status, 200, path)
@@ -1242,6 +1271,31 @@ class ApiAlertsTest(ApiMixin, unittest.TestCase):
         self.assertFalse(levels["SOXL"]["reached"])
         self.assertEqual(found[none]["levels"], [])
         self.assertEqual(found[none]["direction"], "down")
+
+    def test_fields_of_the_page(self):
+        # every field alerts.js reads is in the JSON
+        basetrades.save(Stock.SOXL, 30, 10)
+        alerts_engine.create("basetrades", "down", 10)
+        _, data = self.get(FakeCache({"SOXL": 28.0}))
+        alert = data["alerts"][0]
+        fields = {
+            "data": data,
+            "lastData": data,
+            "p": data["process"],
+            "a": alert,
+            "r": alert["levels"][0],
+        }
+        used = re.findall(
+            r"\b(data|lastData|p|a|r)\.([a-z_]+)"
+            r"\b(?![A-Za-z(])",
+            scripts(ALERTS_SCRIPT),
+        )
+        self.assertGreater(len(used), 20)
+        array = {"length", "filter", "forEach", "some"}
+        for name, field in set(used):
+            if field in array:
+                continue
+            self.assertIn(field, fields[name], name)
 
     def test_process_running(self):
         with mock.patch.object(

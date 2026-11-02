@@ -439,11 +439,22 @@ the shell.
    and `reached` (the engine's `past()`); the stock
    names for the form. Only on `127.0.0.1`, with
    `read_only`.
-3. **The page `/alerts`, read-only**: a bar with the
-   process state and its last check, a card per
-   alert with its stocks (level, price, distance, a
-   "reached" chip); phone first, the Alerts link in
-   the menu works.
+3. ~~**The page `/alerts`, read-only**~~ (done):
+   `web/alerts.html` and `web/js/alerts.js`. A bar
+   with the process (a dot and chip: running with
+   its last check, elsewhere with the other device,
+   stopped); a card per alert with its text ("down
+   10%", "TSMX +100"), its kind and a table of its
+   stocks (level, price, how far in %, or a
+   "reached" chip, green for up, red for down);
+   "no basetrades yet" or "TSMX isn't held" when it
+   has no level. One column on a phone, two from
+   720px; a short card keeps its rows at the top
+   (the ladder cards too now). The Alerts link in
+   the menu works. Checked in a browser at 360, 390
+   and 1200px, dark and light, the process running
+   and stopped: nothing wider than the screen, no
+   errors.
 4. **The changes**: POST `/api/alerts/add`
    (basetrades: down or up, a %; gain: a stock or
    all, up or down, an amount or a %), `/delete`,

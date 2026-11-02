@@ -12,6 +12,7 @@
 #                 token for the changes, see api.py)
 #   /trades       web/trades.html, the trades page
 #   /ladders      web/ladders.html, the ladders page
+#   /alerts       web/alerts.html, the alerts page
 #   /logo         a page with the logo, as wide as the
 #                 screen
 #   /logo.svg     assets/logo.svg
@@ -39,6 +40,7 @@ STYLE_PATH = os.path.join(WEB_DIR, "style.css")
 INDEX_PATH = os.path.join(WEB_DIR, "index.html")
 TRADES_PATH = os.path.join(WEB_DIR, "trades.html")
 LADDERS_PATH = os.path.join(WEB_DIR, "ladders.html")
+ALERTS_PATH = os.path.join(WEB_DIR, "alerts.html")
 FRAME_PATH = os.path.join(WEB_DIR, "frame.html")
 FRAME_MARK = b"<!-- frame -->"
 TOKEN_MARK = b"{{token}}"
@@ -50,6 +52,7 @@ PATHS = {
     "/": (INDEX_PATH, HTML),
     "/trades": (TRADES_PATH, HTML),
     "/ladders": (LADDERS_PATH, HTML),
+    "/alerts": (ALERTS_PATH, HTML),
     "/logo.svg": (LOGO_PATH, "image/svg+xml"),
     "/style.css": (STYLE_PATH, "text/css; charset=utf-8"),
 }
