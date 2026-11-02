@@ -1952,9 +1952,13 @@ class WebProcessTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 web_service.run()
         self.log.error.assert_called_once()
+        text = printed.call_args.args[0]
         self.assertIn(
-            "can't listen", printed.call_args.args[0]
+            f"can't listen on 127.0.0.1:{port}", text
         )
+        # what to check
+        self.assertIn("the port is in use", text)
+        self.assertIn("'ls web'", text)
         self.assertEqual(web.status()["state"], "crashed")
 
 

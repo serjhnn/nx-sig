@@ -24,6 +24,7 @@
 #
 # logs: {storage_dir}/logs/web.log
 
+import errno
 import json
 import logging
 import os
@@ -169,7 +170,17 @@ def run():
         log.error(
             "can't listen on %s:%s: %s", host, port, e
         )
-        print(f"can't listen on {host}:{port}: {e}")
+        why = e.strerror or str(e)
+        if e.errno == errno.EADDRINUSE:
+            # the most likely one: the web server of the
+            # other shell, which has its own data
+            why = (
+                "the port is in use, e.g. by the web "
+                "server of the other shell (./nxshell or "
+                "./nxdemo, see 'ls web' there); or set "
+                "config web port"
+            )
+        print(f"can't listen on {host}:{port}: {why}")
         web.save_status(pid, started, "crashed")
         sys.exit(1)
     web.save_status(pid, started, "serving")

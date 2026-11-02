@@ -24,7 +24,7 @@
     },
     "web": {
         "host": "127.0.0.1",
-        "port": 8080,
+        "port": 8081,
         "interval": 5,
         "read_only": false
     }

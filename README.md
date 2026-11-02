@@ -131,9 +131,10 @@ The `demo` command works only in the demo:
   prints them (the last 100 are kept in `demo_data/demo_messages.json`), and
   `test notify` works the same way.
 - **The web pages**: `run web` in the demo serves the demo's data and
-  prices. `demo/config.json` has `"web": {"read_only": false}`, so adding
-  and deleting trades and adding, running, stopping and deleting ladders
-  can be tried on the pages.
+  prices at http://127.0.0.1:8081/, so it can run next to the web server
+  of `./nxshell` (8080). `demo/config.json` has `"web": {"port": 8081,
+  "read_only": false}`, so adding and deleting trades and adding,
+  running, stopping and deleting ladders can be tried on the pages.
 - **New sample data**: a demo started before keeps its data; `demo reset`
   starts over with the sample data of `demo/seed/` as it is now.
 - **Not in the demo**: the mail broker (`run mail-broker`), as it would record
