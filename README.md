@@ -571,7 +571,8 @@ other packages than the shell's). Open the address in a browser on the same devi
   system's by default, kept in the browser). On a phone the menu is at the
   bottom (Home, Trades, Ladders, Alerts and More, which opens the list of
   the other pages), on a wider screen at the side with every page; the
-  pages that don't exist yet (chart, rules) are greyed out.
+  pages that don't exist yet (rules) are greyed out. A stock's name on
+  the main, trades and basetrades pages opens its chart.
 - The trades page (`/trades`): the stocks that have trades as chips (the
   count held at its average, the gain %), and the chosen stock's gain and
   its trades, newest first, with the ids of `rm trade`. The chosen stock
@@ -618,9 +619,18 @@ other packages than the shell's). Open the address in a browser on the same devi
   trades ("All from trades", after asking which it replaces) and deletes
   one (after asking), like `add basetrade <stock>`, `add basetrade all`
   and `rm basetrade`, with the same checks and texts.
+- The chart page (`/chart`, under More on a phone): a stock's price over
+  5 days, 1 month, 3 months or 1 year, like `chart <stock> period <n>`,
+  as a line with the average buy price dashed and the trades as B / S;
+  the price, its change over the period and the bars' size above it. A
+  tap or hover shows the date and price of the nearest point; the
+  cached price is the last point ("now"). The stock and period are in
+  the address (`/chart?stock=TSMX&days=30`); without a stock it shows
+  the first one held. It asks for new values like the other pages (the
+  bars at most once a minute).
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
   `/ladders` (`web/ladders.html`), `/alerts` (`web/alerts.html`), `/basetrades`
-  (`web/basetrades.html`), `/logo`
+  (`web/basetrades.html`), `/chart` (`web/chart.html`), `/logo`
   (a page with the logo),
   `/logo.svg`, `/style.css` (the style every page shares,
   `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
@@ -668,7 +678,7 @@ other packages than the shell's). Open the address in a browser on the same devi
   days (5 without, at most 1825) as JSON, like `chart <stock> period <n>
   days`: at most 200 points (more bars are averaged), the bars' size,
   the average buy price, the trades since the first point and the
-  cached price. The bars are kept for a minute, so a reload doesn't
+  cached price; the chart page uses it. The bars are kept for a minute, so a reload doesn't
   fetch them again. A stock not in the config is `404`, a wrong `days`
   `400`, prices that can't be fetched (a missing key, no network)
   `503`. The same rules as above.
@@ -856,10 +866,10 @@ nx-sig/
 │                         serjhnn.github.io/nx-sig/assets/modules.html
 ├── web/                  the web pages: index.html, trades.html,
 │                         ladders.html, alerts.html, basetrades.html,
-│                         frame.html (the top bar and menu of every
-│                         page), style.css, js/ (app.js shared,
-│                         main.js, trades.js, ladders.js, alerts.js,
-│                         basetrades.js), fonts/
+│                         chart.html, frame.html (the top bar and menu
+│                         of every page), style.css, js/ (app.js
+│                         shared, main.js, trades.js, ladders.js,
+│                         alerts.js, basetrades.js, chart.js), fonts/
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
 │                         (test_shell.py: every shell command)
 └── scripts/

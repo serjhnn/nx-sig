@@ -1002,6 +1002,183 @@ td.act {
   justify-content: flex-end;
 }
 
+/* ---------- the chart page ---------- */
+
+.chart-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 12px;
+  padding: 12px 12px 4px;
+}
+@media (min-width: 720px) {
+  .chart-controls {
+    grid-template-columns: 220px 300px;
+  }
+}
+.seg.periods {
+  grid-template-columns: repeat(4, 1fr);
+}
+.chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 8px 12px 0;
+  font: 13px var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.chart-head b {
+  font: 600 16px var(--mono);
+}
+.chart-head .px {
+  font-weight: 600;
+  color: var(--price);
+}
+.chart-head .muted {
+  font-size: 12px;
+}
+.plot-wrap {
+  position: relative;
+  padding: 6px 12px 0;
+}
+.plot {
+  height: 240px;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+@media (min-width: 720px) {
+  .plot {
+    height: 340px;
+  }
+}
+.plot-svg {
+  display: block;
+  overflow: visible;
+}
+.plot-svg .grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.plot-svg .ylabel,
+.plot-svg .xlabel {
+  font: 11px var(--mono);
+  fill: var(--muted);
+}
+.plot-svg .avg {
+  stroke: var(--muted);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+}
+.plot-svg .avg-label {
+  fill: var(--fg);
+  font-weight: 600;
+}
+.plot-svg .line {
+  fill: none;
+  stroke: var(--price);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.plot-svg .area {
+  fill: var(--price);
+  opacity: 0.1;
+}
+.plot-svg .last {
+  fill: var(--price);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+.plot-svg .last.live {
+  fill: var(--accent);
+}
+.plot-svg .trade circle {
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+.plot-svg .trade text {
+  font: 700 10px var(--mono);
+  fill: var(--surface);
+}
+.plot-svg .trade.B circle {
+  fill: var(--gain);
+}
+.plot-svg .trade.S circle {
+  fill: var(--loss);
+}
+.plot-svg .cursor {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+.plot-svg .cursor-dot {
+  fill: var(--surface);
+  stroke: var(--price);
+  stroke-width: 2;
+}
+.tip {
+  position: absolute;
+  top: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--raised);
+  font: 600 12px var(--mono);
+  white-space: pre;
+  pointer-events: none;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 4px 12px 12px;
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.legend i {
+  font-style: normal;
+}
+.lg-line,
+.lg-avg {
+  width: 16px;
+  height: 0;
+  border-top: 2px solid var(--price);
+}
+.lg-avg {
+  border-top: 2px dashed var(--muted);
+}
+.lg-b,
+.lg-s {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font: 700 9px var(--mono);
+  color: var(--surface);
+  background: var(--gain);
+}
+.lg-s {
+  background: var(--loss);
+}
+.lg-now {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+/* a stock name that opens its chart */
+a.to-chart {
+  color: inherit;
+  text-decoration: none;
+}
+a.to-chart:hover {
+  text-decoration: underline dotted;
+}
+
 /* ---------- the alerts page ---------- */
 
 .process {

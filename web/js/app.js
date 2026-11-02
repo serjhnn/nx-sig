@@ -6,6 +6,8 @@
 //   num, signed, trend          numbers as text
 //   clock, dayTime              ISO times as text
 //   shortDate("02.09.2026")     "02.09.26", as the shell
+//   chartLink(name)             a link to the chart of
+//       stock name, with the name as its text
 //   put(node, key, text)        set a node's text, flash
 //       it when the text under key changed
 //   showNotice(title, text), hideNotice()
@@ -18,7 +20,8 @@
 //   send(url, data)             POSTs data (an object)
 //       as JSON with the server's token; a promise of
 //       the answer, or an Error with the server's text
-//   poll(url, draw)             asks url every
+//   poll(url, draw)             asks url (or what the
+//       function url gives each time) every
 //       "interval" seconds (the server's config "web"
 //       "interval"), calls draw(data); pauses while
 //       the tab is hidden. on an error it keeps the
@@ -100,6 +103,13 @@
   function shortDate(date) {
     return date.length === 10
       ? date.slice(0, 6) + date.slice(-2) : date;
+  }
+
+  // a link to the chart page of stock name
+  function chartLink(name) {
+    var link = el("a", "to-chart", name);
+    link.href = "/chart?stock=" + encodeURIComponent(name);
+    return link;
   }
 
   var shown = {}; // key -> text, to flash changes
@@ -243,7 +253,8 @@
 
     function ask() {
       var interval = lastData ? lastData.interval : 5;
-      fetch(url, { cache: "no-store" })
+      var address = typeof url === "function" ? url() : url;
+      fetch(address, { cache: "no-store" })
         .then(answer)
         .then(function (data) {
           lastData = data;
@@ -326,6 +337,7 @@
     clock: clock,
     dayTime: dayTime,
     shortDate: shortDate,
+    chartLink: chartLink,
     put: put,
     showNotice: showNotice,
     hideNotice: hideNotice,

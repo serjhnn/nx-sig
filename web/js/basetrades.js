@@ -80,7 +80,8 @@
     if (c) return c;
     c = { box: el("article", "ladder basetrade") };
     var head = el("div", "ladder-h");
-    c.stock = el("b", "", name);
+    c.stock = el("b");
+    c.stock.appendChild(nx.chartLink(name));
     c.what = el("span", "what");
     c.change = el("span", "chip idle");
     head.appendChild(c.stock);

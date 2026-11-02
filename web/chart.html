@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+ content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chart · nX-sig</title>
+<link rel="icon" href="/logo.svg">
+<link rel="stylesheet" href="/style.css">
+<script>
+  // the saved theme before the page draws, no flash
+  try {
+    var t = localStorage.getItem("nx-theme");
+    if (t === "dark" || t === "light") {
+      document.documentElement.dataset.theme = t;
+    }
+  } catch (e) {}
+</script>
+</head>
+<body>
+<div class="app">
+  <!-- frame -->
+
+  <main class="main">
+    <div class="notice" id="notice" role="status" hidden>
+      <span class="dot warn"></span>
+      <div><b id="notice-title"></b> <span id="notice-text"></span></div>
+    </div>
+
+    <div class="notice ok" id="done" role="status" hidden>
+      <span class="dot"></span>
+      <div id="done-text"></div>
+    </div>
+
+    <section class="panel" aria-label="The chart">
+      <div class="chart-controls">
+        <div class="field">
+          <label for="c-stock">Stock</label>
+          <select id="c-stock"></select>
+        </div>
+        <div class="field">
+          <span class="flabel" id="c-period-label">Period</span>
+          <div class="seg periods" role="radiogroup"
+            aria-labelledby="c-period-label">
+            <label><input type="radio" name="days" value="5"
+              checked><span>5d</span></label>
+            <label><input type="radio" name="days"
+              value="30"><span>1m</span></label>
+            <label><input type="radio" name="days"
+              value="90"><span>3m</span></label>
+            <label><input type="radio" name="days"
+              value="365"><span>1y</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="chart-head">
+        <b id="c-name">-</b>
+        <span class="px" id="c-price">-</span>
+        <span class="chip idle" id="c-change">-</span>
+        <span class="muted" id="c-info"></span>
+      </div>
+      <div class="plot-wrap">
+        <div class="plot" id="plot"></div>
+        <div class="tip" id="tip" hidden></div>
+      </div>
+      <p class="empty" id="c-empty" hidden></p>
+      <div class="legend" id="legend" aria-hidden="true">
+        <span><i class="lg-line"></i>price</span>
+        <span id="lg-avg"><i class="lg-avg"></i>avg buy</span>
+        <span id="lg-b"><i class="lg-b">B</i>buy</span>
+        <span id="lg-s"><i class="lg-s">S</i>sell</span>
+        <span id="lg-now"><i class="lg-now"></i>now</span>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script src="/js/chart.js"></script>
+</body>
+</html>

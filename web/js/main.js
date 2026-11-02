@@ -67,7 +67,9 @@
     rows.forEach(function (p) {
       var tr = el("tr");
       var k = p.stock + ":";
-      tr.appendChild(el("td", "key", p.stock));
+      var key = el("td", "key");
+      key.appendChild(nx.chartLink(p.stock));
+      tr.appendChild(key);
       cell(tr, k + "count", String(p.count));
       cell(tr, k + "avg", num(p.avg, 2));
       cell(tr, k + "price", num(p.price, 2), "px");

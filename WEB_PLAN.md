@@ -645,20 +645,36 @@ so `read_only` doesn't change it.
    text. Checked in the demo with its made-up bars
    (5, 30, 365 and 1825 days). Only on
    `127.0.0.1`.
-3. **The page `/chart`, read-only**:
+3. ~~**The page `/chart`, read-only**~~ (done):
    `web/chart.html` and `web/js/chart.js`: a stock
    picker and the periods 5d, 1m, 3m, 1y (kept in
-   the address, `?stock=TSMX&days=30`); the price
-   as a line, the average buy price as a dashed
-   line with its value, the trades as B / S marks,
-   a few price and date labels; a tap or hover
-   shows the date and price of the nearest point.
-   The last point follows the cached price (the
-   page polls like the others, the bars only on
-   load and on a change of stock or period). It
-   fits the screen's width (redrawn on resize). In
-   the More list; the stock names on the main,
-   trades and basetrades pages link to it.
+   the address, `?stock=TSMX&days=30`; without a
+   stock, or one not in the config, the first one
+   held from `/api/trades`); the stock, its price,
+   its change over the period, the bars' size and
+   the average buy price above the chart; the
+   price as a line (gold, the area below it
+   shaded), the points evenly spaced so nights and
+   weekends leave no gaps; the average buy price
+   dashed with its value at the right; the trades
+   as B / S marks at the nearest point; four price
+   lines and as many dates as fit; a tap or hover
+   shows the date and price of the nearest point
+   (on a phone the tip stays until the next tap).
+   The page polls `/api/chart` itself (`nx.poll`
+   takes a function for the address now): the
+   server keeps the bars a minute, so new bars
+   come in by themselves; the cached price is the
+   last point ("now", in the accent color). It
+   fits the screen's width (redrawn on resize);
+   the legend shows only what is on the chart.
+   The Chart link under More works; the stock
+   names on the main, trades and basetrades pages
+   link to it (`nx.chartLink()`). Checked in a
+   browser in the demo at 360, 390 and 1200px,
+   dark and light: the periods, the picker, the
+   tip, a bad address, the links; nothing wider
+   than the screen, no errors.
 4. **Tests**, with each step: `chart.data()` with
    fake bars (`test_chart.py`); `/api/chart` (bad
    stock 404, bad days 400, no bars, the cache, a

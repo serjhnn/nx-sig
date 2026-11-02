@@ -51,6 +51,7 @@ ALERTS_SCRIPT = os.path.join(files.JS_DIR, "alerts.js")
 BASETRADES_SCRIPT = os.path.join(
     files.JS_DIR, "basetrades.js"
 )
+CHART_SCRIPT = os.path.join(files.JS_DIR, "chart.js")
 
 
 def scripts(page=SCRIPT_PATH):
@@ -357,6 +358,59 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         for name in ids:
             self.assertIn(f'id="{name}"', page.decode())
 
+    def test_chart_page(self):
+        response, body = self.request("/chart")
+        self.assertEqual(response.status, 200)
+        page = files.page(
+            files.CHART_PATH, self.server.token
+        )
+        self.assertEqual(body, page)
+        self.assertLess(
+            body.index(b'src="/js/app.js"'),
+            body.index(b'src="/js/chart.js"'),
+        )
+        response, body = self.request("/js/chart.js")
+        self.assertEqual(response.status, 200)
+        with open(CHART_SCRIPT, "rb") as f:
+            script = f.read()
+        self.assertEqual(body, script)
+        self.assertIn(b'"/api/chart/"', script)
+        self.assertIn(b'fetch("/api/trades"', script)
+        # every element the scripts look up is there
+        ids = set(
+            re.findall(
+                r'\$\("([\w-]+)"\)',
+                scripts(CHART_SCRIPT),
+            )
+        )
+        self.assertGreater(len(ids), 8)
+        for name in ids:
+            self.assertIn(f'id="{name}"', page.decode())
+        # the periods
+        self.assertEqual(
+            re.findall(
+                r'name="days"\s+value="(\d+)"',
+                page.decode(),
+            ),
+            ["5", "30", "90", "365"],
+        )
+
+    def test_chart_links(self):
+        # the stock names of the main, trades and
+        # basetrades pages open their chart
+        for script in (
+            SCRIPT_PATH,
+            TRADES_SCRIPT,
+            BASETRADES_SCRIPT,
+        ):
+            with open(script) as f:
+                text = f.read()
+            self.assertTrue(
+                "nx.chartLink(" in text
+                or '"/chart?stock="' in text,
+                script,
+            )
+
     def test_more(self):
         # on a phone Chart, Basetrades and Rules are
         # under More, the other pages are tabs
@@ -384,6 +438,7 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         self.assertIn("/ladders", links)
         self.assertIn("/alerts", links)
         self.assertIn("/basetrades", links)
+        self.assertIn("/chart", links)
         for path in links:
             response, _ = self.request(path)
             self.assertEqual(response.status, 200, path)
@@ -1683,6 +1738,39 @@ class ApiChartTest(ApiMixin, unittest.TestCase):
         self.assertEqual(response.status, 200)
         self.assertEqual(data["points"], [])
         self.assertEqual(data["trades"], [])
+
+    def test_fields_of_the_page(self):
+        # every field chart.js reads is in the JSON
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            4,
+            12,
+            "12.10.2026",
+            "10:30",
+        )
+        _, data = self.get(
+            "/api/chart/SOXL", FakeCache({"SOXL": 14.0})
+        )
+        _, found = self.get("/api/trades")
+        fields = {
+            "data": data,
+            "lastData": data,
+            "t": data["trades"][0],
+            "found": found,
+            "s": found["stocks"][0],
+        }
+        used = re.findall(
+            r"\b(data|lastData|t|found|s)\."
+            r"([a-z_]+)\b(?![A-Za-z(])",
+            scripts(CHART_SCRIPT),
+        )
+        self.assertGreater(len(used), 15)
+        array = {"length", "forEach", "map", "filter"}
+        for name, field in set(used):
+            if field in array:
+                continue
+            self.assertIn(field, fields[name], name)
 
     def test_bars_kept(self):
         # a reload or another tab: no new request
