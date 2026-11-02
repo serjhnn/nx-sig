@@ -15,9 +15,9 @@ The main page is done (steps 1 to 8, the paths as
 they were then: `assets/web/` is now `web/`, and
 the price cache and `/api/status` moved from
 `web_service.py` into `scripts/web/`). The trades
-page and the ladders page are done too (see their
-sections). The alerts page is next, see "The alerts
-page".
+page, the ladders page and the alerts page are
+done too (see their sections); what comes next is
+under "Later".
 
 ## The style (style C)
 
@@ -486,22 +486,36 @@ the shell.
    alerts process in the demo: run, add both kinds,
    the server's error in the form, delete, stop;
    and the read-only view.
-6. **Tests**: the state, the api with both kinds
-   and reached levels, the changes (processes
-   faked), the page's ids and fields; a browser
-   check at 360, 390 and 1200px, dark and light,
-   read-only and not, and once with the real alerts
-   process in the demo.
-7. **Docs**: README, `TODO.md`, the module map.
+6. ~~**Tests**~~ (done, with each step):
+   `alerts.process_state()` (`test_alerts.py`);
+   `/api/alerts` with both kinds, reached levels,
+   a stock not held, no price, the process running;
+   the four changes with a faked process (both
+   kinds, adding while it runs, saved but not
+   started, bad input, no notify channel, run and
+   stop in every state, deleting the last one,
+   read-only); the page's ids and the fields
+   `alerts.js` reads (`test_web.py`). The real
+   alerts process run, stopped and its alerts added
+   and deleted through the page in the demo. The
+   four pages checked in a browser at 360, 390 and
+   1200px, dark and light, read-only and not:
+   nothing wider than the screen, nothing outside
+   its card, no errors (not in CI).
+7. ~~**Docs**~~ (done, with each step): README (the
+   alerts page and its changes, `/api/alerts`, the
+   tests), `TODO.md` and the module map;
+   `COMMANDS.md` didn't change.
 
 ## Later
 
-- The other pages: alerts, chart, basetrades,
-  rules; with `web/frame.html`,
-  `app.js` (`nx.poll`, `nx.send`) and the forms of
-  the trades page.
+- The other pages: chart, basetrades, rules; with
+  `web/frame.html`, `app.js` (`nx.poll`,
+  `nx.send`, `nx.tell`) and the forms and cards of
+  the trades, ladders and alerts pages.
 - On the trades page: the bank statement import
   (`add trade from <file>`, an upload).
-- The gain alerts on the main page, like `xtop al`.
+- The gain alerts on the main page, like `xtop al`
+  (`/api/alerts` has them now).
 - A login, if the page should be opened from
   another device.

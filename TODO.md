@@ -325,10 +325,16 @@ for your own use first. In this order:
   adding, running, stopping and deleting with
   `read_only` off (taking the background tasks
   over stays in the shell). The demo has
-  `read_only` off and more sample data. Still open
-  (WEB_PLAN.md "Later"):
-  - the other pages: alerts, chart, basetrades,
-    rules
+  `read_only` off and more sample data.
+- ~~**Web alerts page**~~ (done, see
+  [WEB_PLAN.md](WEB_PLAN.md) "The alerts page"):
+  `/alerts`, the alerts process and a card per
+  alert with its level per stock; adding (basetrades
+  or gain), deleting, running and stopping with
+  `read_only` off (taking the background tasks over
+  stays in the shell). Still open (WEB_PLAN.md
+  "Later"):
+  - the other pages: chart, basetrades, rules
   - the bank statement import on the trades page
   - the gain alerts on the main page, like
     `xtop al`
