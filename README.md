@@ -76,6 +76,21 @@ pip install -r requirements.txt
 ./nxdemo
 ```
 
+The demo needs Python 3.10 or newer (only the mail broker needs 3.14), git
+and pip: `pkg install python git` in Termux, `sudo apt install python3
+python3-pip git` on Debian or Ubuntu.
+
+If `pip install` refuses with `externally-managed-environment` (newer
+Ubuntu, Debian or Fedora protect the system Python), install into a
+[virtual environment](#python-virtual-environment) instead:
+
+```bash
+python3 -m venv .venv          # Debian/Ubuntu: sudo apt install python3-venv
+source .venv/bin/activate      # again in each new terminal
+pip install -r requirements.txt
+./nxdemo
+```
+
 `./nxdemo` starts the shell with sample trades of every stock, basetrades,
 rules, five ladders and five alerts, and with made-up prices that move by
 themselves, so every
