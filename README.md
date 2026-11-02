@@ -887,7 +887,7 @@ python tests/test_statement.py     # bank statement parsing
 python tests/test_trades.py        # trades engine, by_stock, statement import
 python tests/test_positions.py     # held stocks, their gain and total
 python tests/test_overview.py      # status: tasks, last trades, all of it
-python tests/test_ladder.py        # ladder levels, rows, task rows
+python tests/test_ladder.py        # ladder levels, rows (ls ladders), task rows
 python tests/test_alerts.py        # alert levels and crossings, task row
 python tests/test_mail_broker.py   # the mail broker's process, its Python
 python tests/test_process.py       # BackgroundTask, the service loop
@@ -897,8 +897,9 @@ python tests/test_chart.py         # the price chart layout
 python tests/test_demo.py          # the demo data, and a run of ./nxdemo
 python tests/test_demo_prices.py   # the demo's prices and their process
 python tests/test_web.py           # the web server: config, pages, /api/status,
-                                   # /api/trades, /api/ladders, the changes of
-                                   # trades and ladders, the checks of a change,
+                                   # /api/trades, /api/ladders, the pages and
+                                   # the fields their scripts read, the changes
+                                   # of trades and ladders, the checks of a change,
                                    # the price cache, its process
 python tests/test_shell.py         # every shell command, faked prices
 python tests/test_sync.py          # device IDs, .stignore

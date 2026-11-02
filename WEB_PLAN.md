@@ -15,9 +15,8 @@ The main page is done (steps 1 to 8, the paths as
 they were then: `assets/web/` is now `web/`, and
 the price cache and `/api/status` moved from
 `web_service.py` into `scripts/web/`). The trades
-page is done too (steps 0 to 8 of "The trades
-page"). The ladders page is next, see "The ladders
-page".
+page and the ladders page are done too (see their
+sections); what comes next is under "Later".
 
 ## The style (style C)
 
@@ -378,18 +377,33 @@ ladder <id> force`) stays in the shell.
    processes in the demo: add and run, stop, run,
    stop and delete, the server's errors in the
    form, the read-only view.
-6. **Tests**: the rows, the api, the changes
-   (also another device running the tasks), the
-   page's ids and fields; the processes faked as
-   in `test_ladder.py`. The page checked in a
-   browser at 360, 390 and 1200px, dark and light,
-   read-only and not.
-7. **Docs**: README, `TODO.md`, the module map.
+6. ~~**Tests**~~ (done, with each step):
+   `ladder.rows()` and `ladder.levels()`
+   (`test_ladder.py`); `/api/ladders` in every
+   state (running, stopped, done, crashed, a level
+   passed, no price, near 0); the four changes
+   with faked processes (add, add and run, saved
+   but not started, bad input, no notify channel,
+   running twice, deleting a running one, unknown
+   ids, read-only); the page's ids and the fields
+   `ladders.js` reads (`test_web.py`); the demo's
+   reset with five ladders (`test_demo.py`). Real
+   ladder processes started, stopped and deleted
+   through the page in the demo. The three pages
+   checked in a browser at 360, 390 and 1200px,
+   dark and light, read-only and not: nothing
+   wider than the screen, no label or button
+   outside its card, no errors (not in CI).
+7. ~~**Docs**~~ (done, with each step): README (the
+   ladders page and its changes, `/api/ladders`,
+   the demo's web settings and sample data, the
+   tests), `TODO.md` and the module map;
+   `COMMANDS.md` didn't change.
 
 ## Later
 
-- The other pages: ladders, alerts, chart,
-  basetrades, rules; with `web/frame.html`,
+- The other pages: alerts, chart, basetrades,
+  rules; with `web/frame.html`,
   `app.js` (`nx.poll`, `nx.send`) and the forms of
   the trades page.
 - On the trades page: the bank statement import
