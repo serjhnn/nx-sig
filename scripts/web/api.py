@@ -34,6 +34,11 @@
 #   /api/alerts/delete delete one, delete_alert()
 #   /api/alerts/run    start the process, run_alerts()
 #   /api/alerts/stop   stop it, stop_alerts()
+#   /api/basetrades/add
+#                      save a basetrade (or all from
+#                      the trades), add_basetrade()
+#   /api/basetrades/delete
+#                      delete one, delete_basetrade()
 # each answer also has the prices' time and error,
 # the interval and demo (see prices()).
 #
@@ -80,6 +85,8 @@
 #   delete_alert(data)
 #   run_alerts(data)
 #   stop_alerts(data)
+#   add_basetrade(data)
+#   delete_basetrade(data)
 #       the changes above: (http status, data)
 
 import hmac
@@ -829,6 +836,119 @@ def stop_alerts(data):
     return 200, {"text": "the alerts aren't running"}
 
 
+def add_basetrade(data):
+    """POST /api/basetrades/add: save a basetrade like
+    'add basetrade', with the engine's checks; it
+    replaces the stock's older one.
+
+    data: {"stock": a name (any case), "price": a
+    number, "count": a whole number}, or {"stock",
+    "from_trades": true} for the lowest buy since the
+    last sell, or {"stock": "all"} for that of each
+    stock that has trades (the page asks first)
+
+    (200, {"text": what the shell says}), or (400,
+    {"error"}) with the shell's text"""
+    name = data.get("stock")
+    if isinstance(name, str) and name.lower() == "all":
+        return _add_all_basetrades()
+    stock = _stock_named(name)
+    if stock is None:
+        return 400, {"error": _unknown_stock(name)}
+    from_trades = data.get("from_trades", False)
+    if not isinstance(from_trades, bool):
+        return 400, {
+            "error": "from_trades is true or false"
+        }
+    lowest = ""
+    if from_trades:
+        try:
+            buy = basetrades.from_trades(stock)
+        except basetrades.BaseTradeError as e:
+            return 400, {"error": str(e)}
+        price, count = buy["Price"], buy["Count"]
+        lowest = (
+            f" ({basetrades.LOWEST}, "
+            f"{_short_date(buy['Date'])})"
+        )
+    else:
+        price, count = data.get("price"), data.get("count")
+        if not _is_number(price) or not _is_int(count):
+            return 400, {
+                "error": "price must be a number and "
+                "count a whole number"
+            }
+    try:
+        replaced = basetrades.save(stock, price, count)
+    except basetrades.BaseTradeError as e:
+        return 400, {"error": str(e)}
+    text = (
+        f"{'replaced' if replaced else 'added'} "
+        f"basetrade of {stock.name}: {count} at "
+        f"{price:g}{lowest}"
+    )
+    log.info("%s", text)
+    return 200, {"text": text}
+
+
+def _add_all_basetrades():
+    """add_basetrade() of "all": (200, {"text": the
+    shell's lines joined by "; "}), or (400,
+    {"error"}) when no stock has a lowest buy"""
+    try:
+        saved = basetrades.all_from_trades()
+    except basetrades.BaseTradeError as e:
+        return 400, {"error": str(e)}
+    lines = []
+    for stock, buy, replaced in saved:
+        if buy is None:
+            lines.append(
+                f"skipped {stock.name}: no buys since "
+                "the last sell"
+            )
+            continue
+        lines.append(
+            f"{'replaced' if replaced else 'added'} "
+            f"{stock.name}: {buy['Count']} at "
+            f"{buy['Price']:g} "
+            f"({_short_date(buy['Date'])})"
+        )
+    text = f"from the {basetrades.LOWEST}: " + "; ".join(
+        lines
+    )
+    log.info("%s", text)
+    return 200, {"text": text}
+
+
+def delete_basetrade(data):
+    """POST /api/basetrades/delete: delete the
+    basetrade of data["stock"] like 'rm basetrade'
+    (the page asks first).
+
+    (200, {"text"}), (404, {"error"}) if the stock has
+    no basetrade, (400, {"error"}) for an unknown
+    stock"""
+    stock = _stock_named(data.get("stock"))
+    if stock is None:
+        return 400, {
+            "error": _unknown_stock(data.get("stock"))
+        }
+    if basetrades.delete(stock.name) is None:
+        return 404, {
+            "error": f"no basetrade of {stock.name}, "
+            "see 'ls basetrades'"
+        }
+    log.info("deleted basetrade of %s", stock.name)
+    return 200, {
+        "text": f"deleted basetrade of {stock.name}"
+    }
+
+
+def _short_date(date):
+    """ "02.09.2026" -> "02.09.26", as the shell"""
+    return date[:6] + date[-2:] if len(date) == 10 else date
+
+
 def _saved_alert(alert_id):
     """the saved alert alert_id, or None"""
     return next(
@@ -1044,6 +1164,8 @@ CHANGES = {
     "/api/alerts/delete": delete_alert,
     "/api/alerts/run": run_alerts,
     "/api/alerts/stop": stop_alerts,
+    "/api/basetrades/add": add_basetrade,
+    "/api/basetrades/delete": delete_basetrade,
 }
 
 

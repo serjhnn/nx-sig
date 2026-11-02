@@ -560,18 +560,22 @@ the other pages.
    wider than the screen, no label outside its
    card, no errors; the other pages' tabs as
    before.
-3. **The changes**: POST `/api/basetrades/add`
-   (stock with price and count, or stock and
-   `from_trades`, or `all`) and
-   `/api/basetrades/delete` (a stock) behind the
-   checks of a change, with `basetrades.save()`,
-   `from_trades()`, `delete()` and the shell's
-   texts; bad input 400, an unknown stock or
-   basetrade 404. The loop of `add basetrade all`
-   moves from `shell/base_trade_cmd.py` into the
-   engine (`basetrades.all_from_trades()`), so the
-   shell and the page share it and the shell
-   prints the same.
+3. ~~**The changes**~~ (done): POST
+   `/api/basetrades/add` (`stock` with `price` and
+   `count`, or `stock` and `from_trades: true`, or
+   `stock: "all"`) and `/api/basetrades/delete` (a
+   `stock`) behind the checks of a change, with
+   `basetrades.save()`, `from_trades()`,
+   `delete()` and the shell's texts (all's lines
+   joined by "; "); bad input or an unknown stock
+   400 (as the trades' changes), no basetrade to
+   delete 404. The loop of `add basetrade all`
+   moved from `shell/base_trade_cmd.py` into the
+   engine: `basetrades.lowest_buys()` (what the
+   shell asks about before it replaces older
+   basetrades) and `all_from_trades(found)`, with
+   `LOWEST` and `NO_LOWEST`; the shell prints the
+   same.
 4. **The forms**: "Add basetrade" (stock, "from
    the trades" or price and count, filled in with
    the one from the trades until typed in), "All

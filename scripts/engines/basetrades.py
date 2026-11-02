@@ -22,6 +22,15 @@
 #       the lowest buy of a Stock since its last sell
 #       (any sell, partial too), the later one of equal
 #       prices; it isn't saved
+#   lowest_buys()
+#       [(stock, from_trades(stock) or None)] of each
+#       stock that has trades
+#   all_from_trades(found=None)
+#       save the lowest buy of each stock of found
+#       (lowest_buys() by default) as its basetrade:
+#       [(stock, buy, replaced)], buy and replaced
+#       None for a stock without one (skipped); a
+#       BaseTradeError when no stock has one
 #
 # a basetrade is {"Stock" (name), "Price", "Count"}
 
@@ -31,6 +40,12 @@ from storage import TradeType
 
 # for the shell, which doesn't import storage
 Stock = storage.Stock
+
+
+# what a basetrade from the trades is
+LOWEST = "lowest buy since the last sell"
+# when no stock has one
+NO_LOWEST = f"no stock has a {LOWEST}, see 'ls trades'"
 
 
 class BaseTradeError(Exception):
@@ -76,3 +91,30 @@ def from_trades(stock):
             "'ls trades'"
         )
     return lowest
+
+
+def lowest_buys():
+    found = []
+    for stock, _ in trades.summary():
+        try:
+            buy = from_trades(stock)
+        except BaseTradeError:
+            buy = None
+        found.append((stock, buy))
+    return found
+
+
+def all_from_trades(found=None):
+    if found is None:
+        found = lowest_buys()
+    if not any(buy for _, buy in found):
+        raise BaseTradeError(NO_LOWEST)
+    saved = []
+    for stock, buy in found:
+        replaced = None
+        if buy is not None:
+            replaced = save(
+                stock, buy["Price"], buy["Count"]
+            )
+        saved.append((stock, buy, replaced))
+    return saved

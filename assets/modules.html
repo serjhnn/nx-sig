@@ -252,7 +252,7 @@ const MODS = {
   "notifiers/termux_notify": ["notify", "A message as an Android notification through Termux:API, the notify channel \"termux\" of config.json (see notifier.py)", [], []],
   "notifiers/watch_notify": ["notify", "Notification server for a Garmin watch", [], []],
   "shell/alert_cmd": ["shell", "The shell side of the price alerts, the engine is engines/alerts.py", ["engines/alerts", "notifiers/notifier", "shell/interface", "shell/ui", "tasks_owner"], []],
-  "shell/base_trade_cmd": ["shell", "The basetrades, the last price you bought each stock at", ["engines/basetrades", "engines/trades", "shell/alert_cmd", "shell/interface", "shell/ui"], []],
+  "shell/base_trade_cmd": ["shell", "The basetrades, the last price you bought each stock at", ["engines/basetrades", "shell/alert_cmd", "shell/interface", "shell/ui"], []],
   "shell/chart_cmd": ["shell", "The price of a stock over a period", ["chart", "shell/ui"], []],
   "shell/demo_cmd": ["shell", "The shell side of the demo (./nxdemo)", ["config", "engines/demo", "engines/demo_prices", "shell/ui"], []],
   "shell/interface": ["shell", "What a command module implements", [], []],

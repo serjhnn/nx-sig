@@ -654,12 +654,16 @@ other packages than the shell's). Open the address in a browser on the same devi
   basetrades alert's level and whether it was reached) and, for each
   stock that has one, the lowest buy since the last sell (as `add
   basetrade <stock>`); the basetrades page uses it. The same rules
-  as above.
+  as above. `/api/basetrades/add` saves a basetrade with a price and
+  count, from the trades, or all from the trades (as `add basetrade`),
+  `/api/basetrades/delete` deletes one (as `rm basetrade`), with the
+  shell's checks and texts.
 - Every `/api/` request must name the server in its `Host` (`127.0.0.1`,
   `localhost` or `[::1]` with its port), so a website that points another
   name at this device can't read it. A change (a POST: `/api/trades/add`,
   `/api/trades/delete`, `/api/ladders/add`, `/run`, `/stop`, `/delete`,
-  `/api/alerts/add`, `/delete`, `/run`, `/stop`) must also come from the
+  `/api/alerts/add`, `/delete`, `/run`, `/stop`, `/api/basetrades/add`,
+  `/delete`) must also come from the
   server's own pages (`Origin`), carry the token
   the server makes when it starts and puts into its pages, and be JSON;
   while `read_only` is on (the default) every change is `403`. Changes
@@ -940,7 +944,8 @@ python tests/test_web.py           # the web server: config, pages, /api/status,
                                    # /api/trades, /api/ladders, /api/alerts,
                                    # /api/basetrades, the
                                    # pages and the fields their scripts read, the
-                                   # changes of trades, ladders and alerts, the
+                                   # changes of trades, ladders, alerts and
+                                   # basetrades, the
                                    # checks of a change, the price cache, its
                                    # process
 python tests/test_shell.py         # every shell command, faked prices

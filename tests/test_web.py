@@ -2390,6 +2390,214 @@ class AlertChangeTest(ApiMixin, unittest.TestCase):
         self.assertEqual(self.started, [False])
 
 
+class BasetradeChangeTest(ApiMixin, unittest.TestCase):
+    """POST /api/basetrades/add and
+    /api/basetrades/delete"""
+
+    def setUp(self):
+        super().setUp()
+        config.DATA["web"] = {"read_only": False}
+        self.serve()
+
+    post = TradeChangeTest.post
+
+    def add(self, **data):
+        return self.post("/api/basetrades/add", data)
+
+    def test_add_with_price_and_count(self):
+        status, data = self.add(
+            stock="soxl", price=28.75, count=30
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data,
+            {
+                "text": "added basetrade of SOXL: 30 "
+                "at 28.75"
+            },
+        )
+        self.assertEqual(
+            basetrades.get("SOXL"),
+            {"Stock": "SOXL", "Price": 28.75, "Count": 30},
+        )
+        # the older one is replaced
+        status, data = self.add(
+            stock="SOXL", price=25, count=10
+        )
+        self.assertEqual(
+            data["text"],
+            "replaced basetrade of SOXL: 10 at 25",
+        )
+        self.assertEqual(
+            basetrades.get("SOXL")["Count"], 10
+        )
+        self.log.info.assert_called()
+
+    def test_add_from_trades(self):
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            10,
+            30,
+            "01.10.2026",
+            "15:40",
+        )
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            5,
+            25,
+            "02.10.2026",
+            "15:40",
+        )
+        status, data = self.add(
+            stock="SOXL", from_trades=True
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data["text"],
+            "added basetrade of SOXL: 5 at 25 (lowest "
+            "buy since the last sell, 02.10.26)",
+        )
+        self.assertEqual(
+            basetrades.get("SOXL")["Price"], 25
+        )
+        # no buy since the last sell: the engine's text
+        trades.add(Stock.TSMX, TradeType.BUY, 10, 40)
+        trades.add(Stock.TSMX, TradeType.SELL, 10, 45)
+        status, data = self.add(
+            stock="TSMX", from_trades=True
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(
+            data["error"],
+            "no buys of TSMX since the last sell, see "
+            "'ls trades'",
+        )
+        self.assertIsNone(basetrades.get("TSMX"))
+
+    def test_add_all(self):
+        status, data = self.add(stock="all")
+        self.assertEqual(status, 400)
+        self.assertEqual(
+            data["error"], basetrades.NO_LOWEST
+        )
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            10,
+            30,
+            "01.10.2026",
+            "15:40",
+        )
+        trades.add(
+            Stock.TSMX,
+            TradeType.BUY,
+            10,
+            40,
+            "01.10.2026",
+            "15:40",
+        )
+        trades.add(Stock.TSMX, TradeType.SELL, 10, 45)
+        basetrades.save(Stock.SOXL, 20, 1)
+        status, data = self.add(stock="ALL")
+        self.assertEqual(status, 200)
+        # in config order, TSMX before SOXL
+        self.assertEqual(
+            data["text"],
+            "from the lowest buy since the last sell: "
+            "skipped TSMX: no buys since the last sell; "
+            "replaced SOXL: 10 at 30 (01.10.26)",
+        )
+        self.assertEqual(
+            basetrades.get_all(),
+            [{"Stock": "SOXL", "Price": 30.0, "Count": 10}],
+        )
+
+    def test_add_bad_input(self):
+        for data, error in (
+            (
+                {"stock": "XXX", "price": 1, "count": 1},
+                "unknown stock 'XXX'",
+            ),
+            ({"price": 1, "count": 1}, "unknown stock"),
+            (
+                {"stock": "SOXL", "price": "1", "count": 1},
+                "price must be a number",
+            ),
+            (
+                {"stock": "SOXL", "price": 1, "count": 1.5},
+                "price must be a number",
+            ),
+            (
+                {
+                    "stock": "SOXL",
+                    "price": 1,
+                    "count": True,
+                },
+                "price must be a number",
+            ),
+            ({"stock": "SOXL"}, "price must be a number"),
+            (
+                {"stock": "SOXL", "price": 0, "count": 1},
+                "price and count must be positive",
+            ),
+            (
+                {"stock": "SOXL", "price": 1, "count": -1},
+                "price and count must be positive",
+            ),
+            (
+                {"stock": "SOXL", "from_trades": "yes"},
+                "from_trades is true or false",
+            ),
+        ):
+            status, got = self.add(**data)
+            self.assertEqual(status, 400, data)
+            self.assertTrue(
+                got["error"].startswith(error), got
+            )
+        self.assertEqual(basetrades.get_all(), [])
+
+    def test_delete(self):
+        basetrades.save(Stock.SOXL, 30, 10)
+        status, data = self.post(
+            "/api/basetrades/delete", {"stock": "soxl"}
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data, {"text": "deleted basetrade of SOXL"}
+        )
+        self.assertEqual(basetrades.get_all(), [])
+        status, data = self.post(
+            "/api/basetrades/delete", {"stock": "SOXL"}
+        )
+        self.assertEqual(status, 404)
+        self.assertEqual(
+            data["error"],
+            "no basetrade of SOXL, see 'ls basetrades'",
+        )
+        status, data = self.post(
+            "/api/basetrades/delete", {"stock": 5}
+        )
+        self.assertEqual(status, 400)
+
+    def test_read_only(self):
+        basetrades.save(Stock.SOXL, 30, 10)
+        config.DATA["web"] = {"read_only": True}
+        status, data = self.add(
+            stock="SOXL", price=1, count=1
+        )
+        self.assertEqual(status, 403)
+        self.assertEqual(data["error"], api.READ_ONLY_ERROR)
+        status, _ = self.post(
+            "/api/basetrades/delete", {"stock": "SOXL"}
+        )
+        self.assertEqual(status, 403)
+        self.assertEqual(
+            basetrades.get("SOXL")["Price"], 30.0
+        )
+
+
 class FakeClock:
     def __init__(self):
         self.now = 1000.0

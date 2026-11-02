@@ -9,7 +9,7 @@
 # BaseTradeCommands implements them for the verb
 # commands of commands.py
 
-from engines import basetrades, trades
+from engines import basetrades
 from engines.basetrades import Stock
 from shell.alert_cmd import print_basetrade_alerts
 from shell.interface import Commands
@@ -42,7 +42,7 @@ ADD_USAGE = (
     "basetrade <stock> price <price> count <count>"
 )
 # what a basetrade from the trades is
-LOWEST = "lowest buy since the last sell"
+LOWEST = basetrades.LOWEST
 
 
 class BaseTradeCommands(Commands):
@@ -150,18 +150,9 @@ class BaseTradeCommands(Commands):
     def _add_all(self):
         # [(stock, lowest buy or None)] of the stocks
         # that have trades
-        found = []
-        for stock, _ in trades.summary():
-            try:
-                buy = basetrades.from_trades(stock)
-            except basetrades.BaseTradeError:
-                buy = None
-            found.append((stock, buy))
+        found = basetrades.lowest_buys()
         if not any(buy for _, buy in found):
-            print_error(
-                f"error: no stock has a {LOWEST}, "
-                "see 'ls trades'"
-            )
+            print_error(f"error: {basetrades.NO_LOWEST}")
             return
         older = [
             stock.name
@@ -177,16 +168,17 @@ class BaseTradeCommands(Commands):
                 print_wrapped("cancelled")
                 return
         print_wrapped(f"from the {LOWEST}:")
-        for stock, buy in found:
+        for (
+            stock,
+            buy,
+            replaced,
+        ) in basetrades.all_from_trades(found):
             if buy is None:
                 print_wrapped(
                     f"skipped {stock.name}: no buys "
                     "since the last sell"
                 )
                 continue
-            replaced = basetrades.save(
-                stock, buy["Price"], buy["Count"]
-            )
             print_wrapped(
                 f"{'replaced' if replaced else 'added'} "
                 f"{stock.name}: {buy['Count']} at "

@@ -106,6 +106,63 @@ class BaseTradesTest(unittest.TestCase):
         # nothing saved
         self.assertEqual(basetrades.get_all(), [])
 
+    def test_lowest_buys(self):
+        self.assertEqual(basetrades.lowest_buys(), [])
+        self._trades((BUY, 5, 20), (BUY, 3, 15))
+        trades.add(Stock.TSMX, BUY, 2, 40)
+        trades.add(Stock.TSMX, SELL, 2, 45)
+        found = basetrades.lowest_buys()
+        # each stock that has trades, in config order,
+        # None without a buy since the last sell
+        self.assertEqual(
+            [(s, b and b["Price"]) for s, b in found],
+            [(Stock.TSMX, None), (Stock.SOXL, 15.0)],
+        )
+
+    def test_all_from_trades(self):
+        with self.assertRaises(
+            basetrades.BaseTradeError
+        ) as e:
+            basetrades.all_from_trades()
+        self.assertEqual(
+            str(e.exception), basetrades.NO_LOWEST
+        )
+        self._trades((BUY, 5, 20), (BUY, 3, 15))
+        trades.add(Stock.TSMX, BUY, 2, 40)
+        trades.add(Stock.TSMX, SELL, 2, 45)
+        basetrades.save(Stock.SOXL, 30, 1)
+        saved = basetrades.all_from_trades()
+        self.assertEqual(
+            [
+                (s, b and b["Price"], replaced)
+                for s, b, replaced in saved
+            ],
+            [
+                (Stock.TSMX, None, None),
+                (Stock.SOXL, 15.0, True),
+            ],
+        )
+        self.assertEqual(
+            basetrades.get_all(),
+            [{"Stock": "SOXL", "Price": 15.0, "Count": 3}],
+        )
+
+    def test_all_from_trades_of_found(self):
+        # only the stocks given, e.g. the ones the
+        # shell asked about
+        self._trades((BUY, 5, 20))
+        trades.add(Stock.TSMX, BUY, 2, 40)
+        found = [
+            f
+            for f in basetrades.lowest_buys()
+            if f[0] == Stock.TSMX
+        ]
+        basetrades.all_from_trades(found)
+        self.assertEqual(
+            [b["Stock"] for b in basetrades.get_all()],
+            ["TSMX"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
