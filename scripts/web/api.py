@@ -26,6 +26,11 @@
 #   /api/ladders/delete
 #                      stop and delete one,
 #                      delete_ladder()
+#   /api/alerts/add    save an alert, start the
+#                      process, add_alert()
+#   /api/alerts/delete delete one, delete_alert()
+#   /api/alerts/run    start the process, run_alerts()
+#   /api/alerts/stop   stop it, stop_alerts()
 # each answer also has the prices' time and error,
 # the interval and demo (see prices()).
 #
@@ -67,6 +72,10 @@
 #   run_ladder(data)
 #   stop_ladder(data)
 #   delete_ladder(data)
+#   add_alert(data)
+#   delete_alert(data)
+#   run_alerts(data)
+#   stop_alerts(data)
 #       the changes above: (http status, data)
 
 import hmac
@@ -606,6 +615,160 @@ def delete_ladder(data):
     }
 
 
+def add_alert(data):
+    """POST /api/alerts/add: save an alert like 'add
+    alert', with the engine's checks, and start the
+    alerts process if it isn't running.
+
+    data: {"kind": "basetrades", "direction": "down"
+    or "up", "percent": a number} or {"kind": "gain",
+    "stock": a name or "all" (any case), "value": a
+    number, negative for a loss, "in_percent": true
+    for a % of the average buy price (none: false)}
+
+    (200, {"id", "text": what the shell says,
+    "start_error": why the process didn't start,
+    None}), or (400, {"error"}) with the shell's text;
+    an alert that is saved when the process doesn't
+    start is still 200"""
+    kind = data.get("kind")
+    if kind == "basetrades":
+        direction = data.get("direction")
+        if not isinstance(direction, str) or (
+            direction.lower() not in ladder.DIRECTIONS
+        ):
+            return 400, {
+                "error": f"unknown direction "
+                f"'{direction}', expected down/up"
+            }
+        percent = data.get("percent")
+        if not _is_number(percent):
+            return 400, {"error": "<n> must be a number"}
+        if not notifier.is_configured():
+            return 400, {"error": notifier.setup_error()}
+        try:
+            alert_id = alerts_engine.create(
+                kind, direction.lower(), percent
+            )
+        except alerts_engine.AlertError as e:
+            return 400, {"error": str(e)}
+    elif kind == "gain":
+        stock = data.get("stock")
+        if (
+            isinstance(stock, str)
+            and stock.lower() == "all"
+        ):
+            stock = "all"
+        else:
+            found = _stock_named(stock)
+            if found is None:
+                return 400, {"error": _unknown_stock(stock)}
+            stock = found.name
+        value = data.get("value")
+        if not _is_number(value):
+            return 400, {"error": "<n> must be a number"}
+        in_percent = data.get("in_percent", False)
+        if not isinstance(in_percent, bool):
+            return 400, {
+                "error": "in_percent is true or false"
+            }
+        if not notifier.is_configured():
+            return 400, {"error": notifier.setup_error()}
+        try:
+            alert_id = alerts_engine.create_gain(
+                stock, value, in_percent
+            )
+        except alerts_engine.AlertError as e:
+            return 400, {"error": str(e)}
+    else:
+        return 400, {
+            "error": "alerts are for basetrades/gain"
+        }
+    saved = _saved_alert(alert_id)
+    text = (
+        f"alert {alert_id} saved: {saved['For']} "
+        f"{alerts_engine.describe(saved)}"
+    )
+    log.info("%s", text)
+    start_error = None
+    if not alerts_engine.running_pid():
+        status, started = run_alerts({})
+        if status == 200:
+            text += "; " + started["text"]
+        else:
+            start_error = started["error"]
+    return 200, {
+        "id": alert_id,
+        "text": text,
+        "start_error": start_error,
+    }
+
+
+def delete_alert(data):
+    """POST /api/alerts/delete: delete alert
+    data["id"] like 'rm alert <id>' (the page asks
+    first); the process stops when no alert is left.
+
+    (200, {"text"}), (404, {"error"}) if there is no
+    such alert, (400, {"error"}) for a bad id"""
+    alert_id = data.get("id")
+    if not _is_int(alert_id):
+        return 400, {"error": "the id is a whole number"}
+    if _saved_alert(alert_id) is None:
+        return 404, {
+            "error": f"no alert {alert_id}, see "
+            "'ls alerts'"
+        }
+    was_running = bool(alerts_engine.running_pid())
+    alerts_engine.remove(alert_id)
+    log.info("deleted alert %s", alert_id)
+    text = f"deleted alert {alert_id}"
+    if was_running and not alerts_engine.running_pid():
+        text += ", no alerts left: alerts stopped"
+    return 200, {"text": text}
+
+
+def run_alerts(data):
+    """POST /api/alerts/run: start the alerts process
+    like 'run alerts' (taking the background tasks
+    over from another device, force, stays in the
+    shell).
+
+    (200, {"text"}), or (409, {"error"}) with the
+    engine's text if it doesn't start (it runs
+    already, another device runs the background
+    tasks, no alert, it stops right away)"""
+    try:
+        pid = alerts_engine.start()
+    except alerts_engine.AlertError as e:
+        return 409, {"error": str(e)}
+    log.info("started the alerts, pid %s", pid)
+    return 200, {"text": f"alerts started (pid {pid})"}
+
+
+def stop_alerts(data):
+    """POST /api/alerts/stop: stop the alerts process
+    like 'stop alerts'; the alerts stay saved.
+
+    (200, {"text"})"""
+    if alerts_engine.stop():
+        log.info("stopped the alerts")
+        return 200, {"text": "alerts stopped"}
+    return 200, {"text": "the alerts aren't running"}
+
+
+def _saved_alert(alert_id):
+    """the saved alert alert_id, or None"""
+    return next(
+        (
+            a
+            for a in alerts_engine.alerts_get_all()
+            if a["Id"] == alert_id
+        ),
+        None,
+    )
+
+
 def _saved_ladder(data):
     """the saved ladder of data["id"], or the (http
     status, data) of a bad or unknown id"""
@@ -804,6 +967,10 @@ CHANGES = {
     "/api/ladders/run": run_ladder,
     "/api/ladders/stop": stop_ladder,
     "/api/ladders/delete": delete_ladder,
+    "/api/alerts/add": add_alert,
+    "/api/alerts/delete": delete_alert,
+    "/api/alerts/run": run_alerts,
+    "/api/alerts/stop": stop_alerts,
 }
 
 

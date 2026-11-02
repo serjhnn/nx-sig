@@ -1901,6 +1901,299 @@ class LadderChangeTest(ApiMixin, unittest.TestCase):
         self.assertEqual(self.started, [])
 
 
+class AlertChangeTest(ApiMixin, unittest.TestCase):
+    """POST /api/alerts/add, delete, run and stop; the
+    process is faked"""
+
+    # a change from the server's own page
+    post = TradeChangeTest.post
+
+    def setUp(self):
+        super().setUp()
+        config.DATA["web"] = {"read_only": False}
+        self.pid = None
+        self.started = []
+
+        def start(key=None, force=False):
+            alerts_engine.TASK.check_start(key)
+            if self.pid:
+                raise alerts_engine.AlertError(
+                    "the alerts are already checked "
+                    f"(pid {self.pid})"
+                )
+            self.started.append(force)
+            self.pid = 4100 + len(self.started)
+            return self.pid
+
+        def stop(key=None):
+            was, self.pid = self.pid, None
+            return was is not None
+
+        for target, name, value in (
+            (alerts_engine.TASK, "start", start),
+            (alerts_engine.TASK, "stop", stop),
+            (
+                alerts_engine,
+                "running_pid",
+                lambda: self.pid,
+            ),
+            (api.notifier, "is_configured", lambda: True),
+        ):
+            p = mock.patch.object(target, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+        self.serve()
+
+    def add(self, **data):
+        return self.post("/api/alerts/add", data)
+
+    def test_add_basetrades(self):
+        status, data = self.add(
+            kind="basetrades", direction="DOWN", percent=10
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data,
+            {
+                "id": 1,
+                "text": "alert 1 saved: basetrades down "
+                "10%; alerts started (pid 4101)",
+                "start_error": None,
+            },
+        )
+        saved = alerts_engine.alerts_get_all()
+        self.assertEqual(saved[0]["For"], "basetrades")
+        self.assertEqual(saved[0]["Percent"], 10.0)
+        # never force: that stays in the shell
+        self.assertEqual(self.started, [False])
+
+    def test_add_gain(self):
+        status, data = self.add(
+            kind="gain", stock="tsmx", value=100
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data["text"],
+            "alert 1 saved: gain TSMX +100; alerts "
+            "started (pid 4101)",
+        )
+        # the process runs: not started again
+        status, data = self.add(
+            kind="gain",
+            stock="ALL",
+            value=-10,
+            in_percent=True,
+        )
+        self.assertEqual(
+            data["text"], "alert 2 saved: gain all -10%"
+        )
+        self.assertEqual(self.started, [False])
+        second = alerts_engine.alerts_get_all()[1]
+        self.assertEqual(second["Stock"], "all")
+        self.assertEqual(second["Direction"], "down")
+        self.assertEqual(second["Percent"], 10.0)
+
+    def test_add_saved_but_not_started(self):
+        def refuse(key=None, force=False):
+            raise alerts_engine.AlertError(
+                "another device runs the background tasks"
+            )
+
+        with mock.patch.object(
+            alerts_engine.TASK, "start", refuse
+        ):
+            status, data = self.add(
+                kind="basetrades",
+                direction="up",
+                percent=15,
+            )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data["start_error"],
+            "another device runs the background tasks",
+        )
+        self.assertEqual(
+            data["text"],
+            "alert 1 saved: basetrades up 15%",
+        )
+
+    def test_add_refused(self):
+        for change, error in (
+            ({}, "alerts are for basetrades/gain"),
+            ({"kind": "price"}, "alerts are for"),
+            (
+                {
+                    "kind": "basetrades",
+                    "direction": "left",
+                    "percent": 5,
+                },
+                "unknown direction",
+            ),
+            (
+                {
+                    "kind": "basetrades",
+                    "direction": "down",
+                    "percent": "5",
+                },
+                "must be a number",
+            ),
+            (
+                {
+                    "kind": "basetrades",
+                    "direction": "down",
+                    "percent": 0,
+                },
+                "percent must be positive",
+            ),
+            (
+                {
+                    "kind": "basetrades",
+                    "direction": "down",
+                    "percent": 100,
+                },
+                "can't go down 100 percent",
+            ),
+            (
+                {
+                    "kind": "gain",
+                    "stock": "XYZ",
+                    "value": 5,
+                },
+                "unknown stock 'XYZ'",
+            ),
+            (
+                {
+                    "kind": "gain",
+                    "stock": "SOXL",
+                    "value": 0,
+                },
+                "the gain can't be 0",
+            ),
+            (
+                {
+                    "kind": "gain",
+                    "stock": "SOXL",
+                    "value": -100,
+                    "in_percent": True,
+                },
+                "a loss can't be 100 percent",
+            ),
+            (
+                {
+                    "kind": "gain",
+                    "stock": "SOXL",
+                    "value": 5,
+                    "in_percent": "yes",
+                },
+                "in_percent is true or false",
+            ),
+        ):
+            status, data = self.add(**change)
+            self.assertEqual(status, 400, change)
+            self.assertIn(error, data["error"], change)
+        with mock.patch.object(
+            api.notifier, "is_configured", lambda: False
+        ):
+            status, data = self.add(
+                kind="gain", stock="SOXL", value=5
+            )
+        self.assertEqual(status, 400)
+        self.assertEqual(
+            data["error"], api.notifier.setup_error()
+        )
+        self.assertEqual(alerts_engine.alerts_get_all(), [])
+        self.assertEqual(self.started, [])
+
+    def test_run_and_stop(self):
+        status, data = self.post("/api/alerts/run", {})
+        self.assertEqual(status, 409)
+        self.assertIn("no alerts", data["error"])
+        self.add(
+            kind="basetrades", direction="down", percent=10
+        )
+        status, data = self.post("/api/alerts/run", {})
+        self.assertEqual(status, 409)
+        self.assertIn("already checked", data["error"])
+        status, data = self.post("/api/alerts/stop", {})
+        self.assertEqual(
+            (status, data),
+            (200, {"text": "alerts stopped"}),
+        )
+        status, data = self.post("/api/alerts/stop", {})
+        self.assertEqual(
+            data["text"], "the alerts aren't running"
+        )
+        status, data = self.post("/api/alerts/run", {})
+        self.assertEqual(
+            (status, data),
+            (200, {"text": "alerts started (pid 4102)"}),
+        )
+
+    def test_delete(self):
+        self.add(
+            kind="basetrades", direction="down", percent=10
+        )
+        self.add(kind="gain", stock="SOXL", value=50)
+        status, data = self.post(
+            "/api/alerts/delete", {"id": 1}
+        )
+        self.assertEqual(
+            (status, data),
+            (200, {"text": "deleted alert 1"}),
+        )
+        self.assertIsNotNone(self.pid)
+        # the last one: the process stops
+        status, data = self.post(
+            "/api/alerts/delete", {"id": 2}
+        )
+        self.assertEqual(
+            data["text"],
+            "deleted alert 2, no alerts left: alerts "
+            "stopped",
+        )
+        self.assertIsNone(self.pid)
+        status, data = self.post(
+            "/api/alerts/delete", {"id": 2}
+        )
+        self.assertEqual(status, 404)
+        self.assertEqual(
+            data["error"], "no alert 2, see 'ls alerts'"
+        )
+        for bad in ({"id": "1"}, {"id": 1.0}, {}):
+            status, _ = self.post("/api/alerts/delete", bad)
+            self.assertEqual(status, 400, bad)
+
+    def test_read_only(self):
+        self.add(
+            kind="basetrades", direction="down", percent=10
+        )
+        config.DATA["web"] = {}
+        for path, change in (
+            (
+                "add",
+                {
+                    "kind": "gain",
+                    "stock": "SOXL",
+                    "value": 5,
+                },
+            ),
+            ("delete", {"id": 1}),
+            ("run", {}),
+            ("stop", {}),
+        ):
+            status, data = self.post(
+                f"/api/alerts/{path}", change
+            )
+            self.assertEqual(status, 403, path)
+            self.assertEqual(
+                data["error"], api.READ_ONLY_ERROR
+            )
+        self.assertEqual(
+            len(alerts_engine.alerts_get_all()), 1
+        )
+        self.assertEqual(self.started, [False])
+
+
 class FakeClock:
     def __init__(self):
         self.now = 1000.0

@@ -455,13 +455,22 @@ the shell.
    and 1200px, dark and light, the process running
    and stopped: nothing wider than the screen, no
    errors.
-4. **The changes**: POST `/api/alerts/add`
-   (basetrades: down or up, a %; gain: a stock or
-   all, up or down, an amount or a %), `/delete`,
-   `/run`, `/stop` behind the checks of a change,
-   with `alerts.create()`, `create_gain()`,
-   `remove()`, `start()` (never force), `stop()` and
-   the shell's texts.
+4. ~~**The changes**~~ (done): POST
+   `/api/alerts/add` (`{"kind": "basetrades",
+   "direction", "percent"}` or `{"kind": "gain",
+   "stock"` (a name or all), `"value"` (negative
+   for a loss), `"in_percent"}`; the notify channel
+   must be set up), `/delete` (an id), `/run`,
+   `/stop` behind the checks of a change, with
+   `alerts.create()`, `create_gain()`, `remove()`,
+   `start()` (never force), `stop()` and the
+   shell's texts. Adding starts the process if it
+   doesn't run (still 200 with `start_error` when
+   it doesn't start), deleting the last alert stops
+   it; `run` gives 409 with the engine's text (no
+   alerts, it runs already, another device). Tested
+   with a faked process, and once with the real
+   alerts process in the demo.
 5. **The forms**: "Add alert" with a
    basetrades/gain switch; Run or Stop in the
    process bar; Delete on each card after asking.

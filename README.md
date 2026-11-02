@@ -609,8 +609,8 @@ other packages than the shell's). Open the address in a browser on the same devi
   `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
   they use (`/fonts/`, IBM Plex, bundled so nothing comes from the
   internet), `/api/status`, `/api/trades`, `/api/ladders` and
-  `/api/alerts`; it changes data only through the changes of the trades
-  and ladders pages (see below), any other path is `404`. The browser
+  `/api/alerts`; it changes data only through the changes of the trades,
+  ladders and alerts pages (see below), any other path is `404`. The browser
   files are in `web/`, the server's parts in `scripts/web/`: `files.py`
   sends the files (a page gets the shared top bar and menu of
   `web/frame.html`), `api.py` the JSON and the changes, `price_cache.py`
@@ -641,13 +641,16 @@ other packages than the shell's). Open the address in a browser on the same devi
 - Every `/api/` request must name the server in its `Host` (`127.0.0.1`,
   `localhost` or `[::1]` with its port), so a website that points another
   name at this device can't read it. A change (a POST: `/api/trades/add`,
-  `/api/trades/delete`, `/api/ladders/add`, `/run`, `/stop`, `/delete`)
-  must also come from the server's own pages (`Origin`), carry the token
+  `/api/trades/delete`, `/api/ladders/add`, `/run`, `/stop`, `/delete`,
+  `/api/alerts/add`, `/delete`, `/run`, `/stop`) must also come from the
+  server's own pages (`Origin`), carry the token
   the server makes when it starts and puts into its pages, and be JSON;
   while `read_only` is on (the default) every change is `403`. Changes
-  are always logged. A ladder run from the web is started by the web
-  server like `run ladder <id>` (only on the device that runs the
-  background tasks; taking them over, `force`, stays in the shell).
+  are always logged. A ladder or the alerts process run from the web is
+  started by the web server like `run ladder <id>` and `run alerts` (only
+  on the device that runs the background tasks; taking them over,
+  `force`, stays in the shell). Adding an alert starts the alerts
+  process, deleting the last one stops it, as in the shell.
 - The server fetches the prices every config `web` `interval` seconds
   (default `5`), but only while a page asked for them in the last 30
   seconds: with no page open it requests nothing, and however many pages
@@ -918,8 +921,9 @@ python tests/test_demo_prices.py   # the demo's prices and their process
 python tests/test_web.py           # the web server: config, pages, /api/status,
                                    # /api/trades, /api/ladders, /api/alerts, the
                                    # pages and the fields their scripts read, the
-                                   # changes of trades and ladders, the checks of
-                                   # a change, the price cache, its process
+                                   # changes of trades, ladders and alerts, the
+                                   # checks of a change, the price cache, its
+                                   # process
 python tests/test_shell.py         # every shell command, faked prices
 python tests/test_sync.py          # device IDs, .stignore
 python scripts/check_style.py      # code style (line width), generated files
