@@ -65,6 +65,49 @@ class TradesTest(unittest.TestCase):
         )
         self.assertEqual(len(found[0][1]), 1)
 
+    def test_by_stock(self):
+        self.assertEqual(trades.by_stock(), [])
+        config.DATA["fee"] = 2
+        trades.add(Stock.TSMX, TradeType.BUY, 10, 18)
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            4,
+            25,
+            "01.09.2026",
+            "15:30",
+        )
+        trades.add(Stock.SOXL, TradeType.SELL, 4, 30)
+
+        rows = trades.by_stock()
+        # config order, as summary()
+        self.assertEqual(
+            [r["stock"] for r in rows],
+            [stock for stock, _ in trades.summary()],
+        )
+        for row in rows:
+            found = trades.get_all(row["stock"])
+            count, avg_price = trades.total(row["stock"])
+            self.assertEqual(
+                row,
+                {
+                    "stock": row["stock"],
+                    "trades": len(found),
+                    "last": found[-1],
+                    "count": count,
+                    "avg": avg_price,
+                },
+            )
+        soxl = next(
+            r for r in rows if r["stock"] == Stock.SOXL
+        )
+        # all sold: still listed, with 0 held
+        self.assertEqual(soxl["count"], 0)
+        self.assertEqual(soxl["trades"], 2)
+        self.assertEqual(
+            soxl["last"]["Type"], TradeType.SELL
+        )
+
     def test_total_buy_averages_price(self):
         trades.add(Stock.TSMX, TradeType.BUY, 10, 250)
         trades.add(Stock.TSMX, TradeType.BUY, 10, 270)

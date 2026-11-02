@@ -26,6 +26,10 @@
 #       adds config "fee" to its cost
 #   summary()
 #       [(stock, trades)] of the stocks that have trades
+#   by_stock()
+#       one dict per stock that has trades: how many,
+#       the last one, the count held and the average
+#       buy price, for 'ls trades' and the web
 #
 # a trade is {"Id", "Date", "Time", "Type", "Count",
 # "Price"}, Type a TradeType
@@ -152,9 +156,15 @@ def total(stock):
     fee is config "fee", the fee of one trade; a
     sell's fee doesn't change the average
     """
+    return _total(get_all(stock))
+
+
+def _total(found):
+    """(count held, average buy price) of the trades
+    found, oldest first (see total())"""
     fee = config.fee()
     total_count, avg_price = 0, 0.0
-    for t in get_all(stock):
+    for t in found:
         total_count, avg_price = _apply(
             total_count,
             avg_price,
@@ -173,6 +183,26 @@ def summary():
         if trades:
             found.append((stock, trades))
     return found
+
+
+def by_stock():
+    """one dict per stock that has trades, in config
+    order: stock, trades (how many), last (the newest
+    trade), count (held) and avg (average buy price,
+    as total() gives them); each file is read once"""
+    rows = []
+    for stock, found in summary():
+        count, avg_price = _total(found)
+        rows.append(
+            {
+                "stock": stock,
+                "trades": len(found),
+                "last": found[-1],
+                "count": count,
+                "avg": avg_price,
+            }
+        )
+    return rows
 
 
 def _apply(

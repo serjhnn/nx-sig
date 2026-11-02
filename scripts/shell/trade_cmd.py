@@ -230,7 +230,7 @@ class TradeCommands(Commands):
     def _stocks_with_trades(self):
         """the stocks that have trades: how many and the
         date of the last one"""
-        rows = trades.summary()
+        rows = trades.by_stock()
         if not rows:
             print_wrapped(
                 "no trades yet, see 'help add trade'"
@@ -257,13 +257,13 @@ class TradeCommands(Commands):
                 else separator
             ),
         ]
-        for stock, found in rows:
-            last = found[-1]
+        for row in rows:
+            last = row["last"]
             date = short_date(last["Date"])
             when = f"{date} {last['Time']}"
             cols = [
-                f"{stock.name:<5}",
-                f"{len(found):>6}",
+                f"{row['stock'].name:<5}",
+                f"{row['trades']:>6}",
                 f"{when:<14}",
             ]
             if color:

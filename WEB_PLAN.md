@@ -208,11 +208,13 @@ its own pages.
    the menu. The main page looks the same (compared
    pixel by pixel). The Trades link goes live with
    its page in step 4.
-2. **Trades in an engine**: what `ls trades` shows
-   (the stocks that have trades with their count
-   and average; one stock's trades with id, date,
-   buy/sell, count, price) as a function the shell
-   and the web use; `ls trades` prints the same.
+2. ~~**Trades in an engine**~~ (done): the engine
+   already had most of it (`summary()`, `get_all()`,
+   `total()`); new is `trades.by_stock()`, each
+   stock that has trades with how many, the last
+   one, the count held and the average, each file
+   read once. `ls trades` uses it and prints the
+   same (compared with and without color).
 3. **`/api/trades`**: the stocks, or one stock's
    trades and its total, with the price and gain
    from the price cache; only on `127.0.0.1`, and
