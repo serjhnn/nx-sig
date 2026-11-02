@@ -1493,20 +1493,24 @@ class ApiBasetradesTest(ApiMixin, unittest.TestCase):
         # every field basetrades.js reads is in the
         # JSON
         basetrades.save(Stock.SOXL, 30, 10)
+        trades.add(Stock.SOXL, TradeType.BUY, 10, 30)
         alerts_engine.create("basetrades", "down", 10)
         _, data = self.get(FakeCache({"SOXL": 28.0}))
         row = data["basetrades"][0]
         fields = {
             "data": data,
+            "lastData": data,
             "b": row,
             "a": row["alerts"][0],
+            "lowest": data["from_trades"]["SOXL"],
         }
         used = re.findall(
-            r"\b(data|b|a)\.([a-z_]+)\b(?![A-Za-z(])",
+            r"\b(data|lastData|b|a|lowest)\."
+            r"([a-z_]+)\b(?![A-Za-z(])",
             scripts(BASETRADES_SCRIPT),
         )
         self.assertGreater(len(used), 10)
-        array = {"length", "forEach", "map"}
+        array = {"length", "forEach", "map", "filter"}
         for name, field in set(used):
             if field in array:
                 continue

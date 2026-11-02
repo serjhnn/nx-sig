@@ -982,6 +982,25 @@ td.act {
   font-size: 11px;
   padding: 1px 6px;
 }
+/* the header's buttons go below the title when
+   they don't fit next to it */
+.panel-h.wrap {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.panel-h .acts {
+  display: flex;
+  gap: 6px;
+}
+@media (max-width: 719px) {
+  /* on its own line, at the right */
+  .panel-h .acts {
+    margin-left: auto;
+  }
+}
+.basetrade .ladder-foot {
+  justify-content: flex-end;
+}
 
 /* ---------- the alerts page ---------- */
 

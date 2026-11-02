@@ -32,9 +32,55 @@
       <div id="done-text"></div>
     </div>
 
+    <section class="panel" id="add" aria-label="Add a basetrade" hidden>
+      <div class="panel-h"><h2>Add a basetrade</h2></div>
+      <form class="form" id="add-form" novalidate>
+        <div class="field">
+          <label for="f-stock">Stock</label>
+          <select id="f-stock"></select>
+        </div>
+        <div class="field">
+          <span class="flabel" id="f-source-label">From</span>
+          <div class="seg" role="radiogroup"
+            aria-labelledby="f-source-label">
+            <label><input type="radio" name="source"
+              value="trades" id="f-trades" checked><span>The
+              trades</span></label>
+            <label><input type="radio" name="source"
+              value="own" id="f-own"><span>Price and
+              count</span></label>
+          </div>
+        </div>
+        <div class="field" id="f-price-field" hidden>
+          <label for="f-price">Price</label>
+          <input id="f-price" type="number" inputmode="decimal"
+            min="0" step="any" autocomplete="off">
+        </div>
+        <div class="field" id="f-count-field" hidden>
+          <label for="f-count">Count</label>
+          <input id="f-count" type="number" inputmode="numeric"
+            min="1" step="1" autocomplete="off">
+        </div>
+        <p class="hint" id="f-hint"></p>
+        <p class="form-error" id="f-error" role="alert" hidden></p>
+        <div class="form-actions">
+          <button class="btn" type="button" id="f-cancel">Cancel</button>
+          <button class="btn primary" type="submit"
+            id="f-submit">Save</button>
+        </div>
+      </form>
+    </section>
+
     <section class="panel" aria-label="The basetrades">
-      <div class="panel-h"><h2>Basetrades</h2>
-        <span class="sub" id="basetrades-sub"></span></div>
+      <div class="panel-h wrap"><h2>Basetrades</h2>
+        <span class="sub" id="basetrades-sub"></span>
+        <span class="acts" id="acts" hidden>
+          <button class="btn sm" type="button"
+            id="all-btn">All from trades</button>
+          <button class="btn primary sm" type="button"
+            id="add-open" aria-controls="add"
+            aria-expanded="false">Add basetrade</button>
+        </span></div>
       <div class="ladders" id="basetrades"></div>
       <p class="empty" id="no-basetrades" hidden>no basetrades yet,
         see 'help add basetrade' in the shell</p>

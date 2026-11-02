@@ -612,6 +612,12 @@ other packages than the shell's). Open the address in a browser on the same devi
   price and its change % from the buying price, a line with the buying
   price and each basetrades alert's level as ticks and the price as a
   dot, and the alerts ("down 10% · 25.88", marked when reached).
+- With `read_only` off, the basetrades page also adds a basetrade ("Add
+  basetrade": a stock, from its trades or a price and count, filled in
+  with its lowest buy since the last sell), sets all of them from the
+  trades ("All from trades", after asking which it replaces) and deletes
+  one (after asking), like `add basetrade <stock>`, `add basetrade all`
+  and `rm basetrade`, with the same checks and texts.
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
   `/ladders` (`web/ladders.html`), `/alerts` (`web/alerts.html`), `/basetrades`
   (`web/basetrades.html`), `/logo`

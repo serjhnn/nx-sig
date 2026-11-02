@@ -576,12 +576,20 @@ the other pages.
    basetrades) and `all_from_trades(found)`, with
    `LOWEST` and `NO_LOWEST`; the shell prints the
    same.
-4. **The forms**: "Add basetrade" (stock, "from
-   the trades" or price and count, filled in with
-   the one from the trades until typed in), "All
-   from the trades" (after asking), Delete on each
-   card (after asking). Hidden while `read_only` is
-   on.
+4. ~~**The forms**~~ (done): "Add basetrade"
+   (stock, "the trades" or "price and count",
+   filled in with the lowest buy until typed in;
+   "the trades" is chosen when the stock has one;
+   the hint says the lowest buy and which
+   basetrade it replaces), "All from trades"
+   (after asking, naming the basetrades it
+   replaces), Delete on each card (after asking).
+   The buttons are in the panel's header, below
+   the title on a phone. Hidden while `read_only`
+   is on. Checked in a browser in the demo: add
+   from the trades, add with a price and count,
+   the form's error, delete, all; the read-only
+   view at 360, 390 and 1200px, dark and light.
 5. **Tests**, with each step: `/api/basetrades`
    (no basetrades, no price, alerts reached or
    not, a stock without buys since the last sell),
