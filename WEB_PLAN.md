@@ -529,15 +529,18 @@ one, like `add basetrade` and `rm basetrade`. The
 same `read_only` option and checks of a change as
 the other pages.
 
-1. **`/api/basetrades`**: each basetrade (stock,
-   price, count) with its stock's cached price and
-   `change_pct` (none without a price), and the
-   levels of the basetrade alerts for it (price,
-   reached); for each held stock without a
-   basetrade the one from the trades
-   (`basetrades.from_trades()`, none when there is
-   no buy since the last sell), to fill the form;
-   `names` for the form. Only on `127.0.0.1`.
+1. ~~**`/api/basetrades`**~~ (done): each
+   basetrade in config order (`stock`, `buy`,
+   `count`) with its stock's cached `price` and
+   `change_pct` (None without a price), and
+   `alerts`: each basetrades alert's `id`, `text`,
+   `level` and `reached`; `from_trades`, the
+   lowest buy since the last sell
+   (`basetrades.from_trades()`) of every stock of
+   the config that has one, a stock with a
+   basetrade too (the form can replace it); `names`
+   for the form. `api.basetrade_rows()`, only on
+   `127.0.0.1`.
 2. **The page `/basetrades`, read-only**:
    `web/basetrades.html` and
    `web/js/basetrades.js`, a card per basetrade

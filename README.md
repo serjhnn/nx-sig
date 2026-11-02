@@ -612,8 +612,8 @@ other packages than the shell's). Open the address in a browser on the same devi
   `/logo.svg`, `/style.css` (the style every page shares,
   `web/style.css`), the pages' scripts (`/js/`, `web/js/`), the fonts
   they use (`/fonts/`, IBM Plex, bundled so nothing comes from the
-  internet), `/api/status`, `/api/trades`, `/api/ladders` and
-  `/api/alerts`; it changes data only through the changes of the trades,
+  internet), `/api/status`, `/api/trades`, `/api/ladders`,
+  `/api/alerts` and `/api/basetrades`; it changes data only through the changes of the trades,
   ladders and alerts pages (see below), any other path is `404`. The browser
   files are in `web/`, the server's parts in `scripts/web/`: `files.py`
   sends the files (a page gets the shared top bar and menu of
@@ -642,6 +642,12 @@ other packages than the shell's). Open the address in a browser on the same devi
   gain alert) with the price, how far it still has to move in % and
   whether it was reached, and whether the alerts process runs; the
   alerts page uses it. The same rules as above.
+- `/api/basetrades` is the basetrades as JSON (as `ls basetrades al`:
+  the buying price and count, the stock's price and its change %, each
+  basetrades alert's level and whether it was reached) and, for each
+  stock that has one, the lowest buy since the last sell (as `add
+  basetrade <stock>`); the basetrades page will use it. The same rules
+  as above.
 - Every `/api/` request must name the server in its `Host` (`127.0.0.1`,
   `localhost` or `[::1]` with its port), so a website that points another
   name at this device can't read it. A change (a POST: `/api/trades/add`,
@@ -923,7 +929,8 @@ python tests/test_chart.py         # the price chart layout
 python tests/test_demo.py          # the demo data, and a run of ./nxdemo
 python tests/test_demo_prices.py   # the demo's prices and their process
 python tests/test_web.py           # the web server: config, pages, /api/status,
-                                   # /api/trades, /api/ladders, /api/alerts, the
+                                   # /api/trades, /api/ladders, /api/alerts,
+                                   # /api/basetrades, the
                                    # pages and the fields their scripts read, the
                                    # changes of trades, ladders and alerts, the
                                    # checks of a change, the price cache, its

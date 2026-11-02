@@ -1336,6 +1336,130 @@ class ApiAlertsTest(ApiMixin, unittest.TestCase):
         self.log.exception.assert_called()
 
 
+class ApiBasetradesTest(ApiMixin, unittest.TestCase):
+    """/api/basetrades"""
+
+    def get(self, cache=None, host="127.0.0.1"):
+        self.serve(host)
+        self.server.prices = cache or FakeCache()
+        response, body = self.request(
+            "/api/basetrades",
+            logged=host != "127.0.0.1",
+        )
+        return response, json.loads(body)
+
+    def test_empty(self):
+        response, data = self.get()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            data,
+            {
+                "updated": None,
+                "error": None,
+                "interval": 5,
+                "demo": False,
+                "read_only": True,
+                "basetrades": [],
+                "from_trades": {},
+                "names": [s.name for s in Stock],
+            },
+        )
+
+    def test_basetrades_and_alerts(self):
+        basetrades.save(Stock.SOXL, 30, 10)
+        basetrades.save(Stock.TSMX, 40, 5)
+        down = alerts_engine.create(
+            "basetrades", "down", 10
+        )
+        up = alerts_engine.create("basetrades", "up", 20)
+        # a gain alert isn't a basetrade's
+        alerts_engine.create_gain("TSMX", 100)
+        _, data = self.get(FakeCache({"SOXL": 27.0}))
+        # config order, not the order saved
+        tsmx, soxl = data["basetrades"]
+        self.assertEqual(
+            soxl,
+            {
+                "stock": "SOXL",
+                "buy": 30.0,
+                "count": 10,
+                "price": 27.0,
+                "change_pct": -10.0,
+                "alerts": [
+                    {
+                        "id": down,
+                        "text": "down 10%",
+                        "level": 27.0,
+                        "reached": True,
+                    },
+                    {
+                        "id": up,
+                        "text": "up 20%",
+                        "level": 36.0,
+                        "reached": False,
+                    },
+                ],
+            },
+        )
+        # no price: no change, nothing reached
+        self.assertEqual(tsmx["stock"], "TSMX")
+        self.assertIsNone(tsmx["price"])
+        self.assertIsNone(tsmx["change_pct"])
+        self.assertEqual(
+            [
+                (a["level"], a["reached"])
+                for a in tsmx["alerts"]
+            ],
+            [(36.0, False), (48.0, False)],
+        )
+
+    def test_from_trades(self):
+        trades.add(Stock.SOXL, TradeType.BUY, 10, 30)
+        trades.add(Stock.SOXL, TradeType.BUY, 5, 25)
+        trades.add(Stock.SOXL, TradeType.BUY, 5, 28)
+        # no buy since the last sell: none
+        trades.add(Stock.TSMX, TradeType.BUY, 10, 40)
+        trades.add(Stock.TSMX, TradeType.SELL, 4, 45)
+        _, data = self.get()
+        self.assertEqual(
+            list(data["from_trades"]), ["SOXL"]
+        )
+        lowest = data["from_trades"]["SOXL"]
+        self.assertEqual(lowest["type"], "BUY")
+        self.assertEqual(lowest["price"], 25.0)
+        self.assertEqual(lowest["count"], 5)
+        self.assertEqual(
+            set(lowest),
+            {
+                "id",
+                "date",
+                "time",
+                "type",
+                "count",
+                "price",
+            },
+        )
+
+    def test_only_on_localhost(self):
+        basetrades.save(Stock.SOXL, 30, 10)
+        response, data = self.get(host="0.0.0.0")
+        self.assertEqual(response.status, 403)
+        self.assertEqual(list(data), ["error"])
+
+    def test_failure(self):
+        def broken():
+            raise OSError("disk")
+
+        with mock.patch.object(
+            basetrades, "get_all", broken
+        ):
+            self.serve()
+            self.server.prices = FakeCache()
+            response, body = self.request("/api/basetrades")
+        self.assertEqual(response.status, 500)
+        self.log.exception.assert_called()
+
+
 class ChangeTest(ApiMixin, unittest.TestCase):
     """the checks of a change (a POST), with a fake
     change at /api/test"""

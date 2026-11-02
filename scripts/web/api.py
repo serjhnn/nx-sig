@@ -16,6 +16,9 @@
 #   /api/alerts        the saved alerts with their
 #                      level per stock and the
 #                      process, alerts()
+#   /api/basetrades    the basetrades with the price
+#                      and their alert levels,
+#                      basetrade_rows()
 # and the changes (POST, see below):
 #   /api/trades/add    add a trade, add_trade()
 #   /api/trades/delete delete a trade, delete_trade()
@@ -65,6 +68,7 @@
 #   stock_trades(cache, name)
 #   ladders(cache)
 #   alerts(cache)
+#   basetrade_rows(cache)
 #       the data of the paths above
 #   add_trade(data)
 #   delete_trade(data)
@@ -407,6 +411,74 @@ def alerts(cache):
         )
         for alert in alerts_engine.alerts_get_all()
     ]
+    data["names"] = [stock.name for stock in Stock]
+    return data
+
+
+def basetrade_rows(cache):
+    """the data of /api/basetrades: what every answer
+    has (see prices()) and
+
+    {"basetrades": [one dict per basetrade, in config
+                    order: "stock", "buy" (its
+                    price), "count",
+                    "price": its stock's, None
+                             without,
+                    "change_pct": price's change from
+                                  buy in %, None
+                                  without a price,
+                    "alerts": [{"id", "text" ("down
+                                10%"), "level",
+                                "reached"}] of each
+                              basetrades alert],
+     "from_trades": {name: the lowest buy since the
+                     last sell (a trade, see
+                     _trade()), of each stock of the
+                     config that has one, for the
+                     add form},
+     "names": the names of every stock of the
+              config}"""
+    found_prices, data = prices(cache)
+    found = basetrades.get_all()
+    levels = {b["Stock"]: [] for b in found}
+    for alert, stocks in alerts_engine.basetrade_levels(
+        found, found_prices
+    ):
+        for name, at, reached in stocks:
+            levels[name].append(
+                {
+                    "id": alert["Id"],
+                    "text": alerts_engine.describe(alert),
+                    "level": at,
+                    "reached": bool(reached),
+                }
+            )
+    rows = []
+    for b in found:
+        price = found_prices.get(b["Stock"])
+        change_pct = None
+        if price is not None:
+            change_pct = (
+                (price - b["Price"]) / b["Price"] * 100
+            )
+        rows.append(
+            {
+                "stock": b["Stock"],
+                "buy": b["Price"],
+                "count": b["Count"],
+                "price": price,
+                "change_pct": change_pct,
+                "alerts": levels[b["Stock"]],
+            }
+        )
+    data["basetrades"] = rows
+    data["from_trades"] = {}
+    for stock in Stock:
+        try:
+            lowest = basetrades.from_trades(stock)
+        except basetrades.BaseTradeError:
+            continue
+        data["from_trades"][stock.name] = _trade(lowest)
     data["names"] = [stock.name for stock in Stock]
     return data
 
@@ -956,6 +1028,7 @@ PATHS = {
     "/api/trades": trades,
     "/api/ladders": ladders,
     "/api/alerts": alerts,
+    "/api/basetrades": basetrade_rows,
 }
 # {path prefix: function(cache, the rest of the path)}
 PREFIXES = {"/api/trades/": stock_trades}
