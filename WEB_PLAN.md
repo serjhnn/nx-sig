@@ -347,10 +347,20 @@ ladder <id> force`) stays in the shell.
    Checked in a browser at 360, 390 and 1200px,
    dark and light, with a ladder in every state: no
    label outside its card, no errors.
-4. **The changes**: POST `/api/ladders/add`,
-   `/run`, `/stop`, `/delete` behind the checks of
-   a change, with `ladder.create()`, `start()`,
-   `stop()`, `remove()` and the shell's texts.
+4. ~~**The changes**~~ (done): POST
+   `/api/ladders/add` (stock, down or up, step,
+   from, run; the notify channel must be set up,
+   like the shell checks), `/run`, `/stop`,
+   `/delete` (an id) behind the checks of a change,
+   with `ladder.create()`, `start()` (never force),
+   `stop()`, `remove()` and the shell's texts. A
+   ladder saved but not started is still 200, with
+   `start_error`; `run` gives 409 with the engine's
+   text when it doesn't start (it runs already,
+   another device runs the tasks), an unknown id
+   404. Tested with faked processes, and once with
+   a real ladder process started, stopped and
+   deleted through the web.
 5. **The forms**: add (stock, down or up, step,
    from with the price filled in, run now); on
    each card run or stop, and delete after asking.

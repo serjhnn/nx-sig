@@ -16,6 +16,13 @@
 # and the changes (POST, see below):
 #   /api/trades/add    add a trade, add_trade()
 #   /api/trades/delete delete a trade, delete_trade()
+#   /api/ladders/add   save a ladder, maybe start it,
+#                      add_ladder()
+#   /api/ladders/run   start one, run_ladder()
+#   /api/ladders/stop  stop one, stop_ladder()
+#   /api/ladders/delete
+#                      stop and delete one,
+#                      delete_ladder()
 # each answer also has the prices' time and error,
 # the interval and demo (see prices()).
 #
@@ -52,6 +59,10 @@
 #       the data of the paths above
 #   add_trade(data)
 #   delete_trade(data)
+#   add_ladder(data)
+#   run_ladder(data)
+#   stop_ladder(data)
+#   delete_ladder(data)
 #       the changes above: (http status, data)
 
 import hmac
@@ -62,6 +73,7 @@ import math
 import config
 from engines import ladder, overview, positions
 from engines import trades as trades_engine
+from notifiers import notifier
 from storage import Stock, TradeType
 
 # the addresses the api answers on
@@ -363,6 +375,159 @@ def _ladder(row, price):
     }
 
 
+def add_ladder(data):
+    """POST /api/ladders/add: save a ladder like 'add
+    ladder', with the engine's checks, and start it
+    with "run" (like 'add ladder ... run').
+
+    data: {"stock": a name (any case), "direction":
+    "down" or "up" (any case), "step": a number,
+    "from": a number, "run": true or false (none:
+    false)}
+
+    (200, {"id", "text": what the shell says,
+    "start_error": why it didn't start, None}), or
+    (400, {"error"}) with the shell's text; a ladder
+    that is saved but doesn't start is still 200"""
+    stock = _stock_named(data.get("stock"))
+    if stock is None:
+        return 400, {
+            "error": _unknown_stock(data.get("stock"))
+        }
+    direction = data.get("direction")
+    if not isinstance(direction, str) or (
+        direction.lower() not in ladder.DIRECTIONS
+    ):
+        return 400, {
+            "error": f"unknown direction '{direction}', "
+            "expected down/up"
+        }
+    direction = direction.lower()
+    step, price = data.get("step"), data.get("from")
+    if not _is_number(step) or not _is_number(price):
+        return 400, {
+            "error": "step and price must be numbers"
+        }
+    run = data.get("run", False)
+    if not isinstance(run, bool):
+        return 400, {"error": "run is true or false"}
+    if not notifier.is_configured():
+        return 400, {"error": notifier.setup_error()}
+    try:
+        ladder_id = ladder.create(
+            stock.name, direction, step, price
+        )
+    except ladder.LadderError as e:
+        return 400, {"error": str(e)}
+    log.info(
+        "saved ladder %s: %s %s %s from %s",
+        ladder_id,
+        stock.name,
+        direction,
+        step,
+        price,
+    )
+    text = (
+        f"ladder {ladder_id} saved: {stock.name} "
+        f"{direction} every {step:g} from {price:g}"
+    )
+    start_error = None
+    if run:
+        status, started = run_ladder({"id": ladder_id})
+        if status == 200:
+            text += "; " + started["text"]
+        else:
+            start_error = started["error"]
+    return 200, {
+        "id": ladder_id,
+        "text": text,
+        "start_error": start_error,
+    }
+
+
+def run_ladder(data):
+    """POST /api/ladders/run: start ladder data["id"]
+    like 'run ladder <id>' (taking the background
+    tasks over from another device, force, stays in
+    the shell).
+
+    (200, {"text"}), (404, {"error"}) if there is no
+    such ladder, (409, {"error"}) if it doesn't start
+    (it runs already, another device runs the
+    background tasks, it stops right away), with the
+    engine's text"""
+    found = _saved_ladder(data)
+    if isinstance(found, tuple):
+        return found
+    try:
+        pid = ladder.start(found["Id"])
+    except ladder.LadderError as e:
+        return 409, {"error": str(e)}
+    log.info("started ladder %s, pid %s", found["Id"], pid)
+    return 200, {
+        "text": f"ladder {found['Id']} started (pid "
+        f"{pid}), next alert at "
+        f"{ladder.next_level(found):g}"
+    }
+
+
+def stop_ladder(data):
+    """POST /api/ladders/stop: stop ladder data["id"]
+    like 'stop ladder <id>'; it stays saved.
+
+    (200, {"text"}), (404, {"error"}) if there is no
+    such ladder"""
+    found = _saved_ladder(data)
+    if isinstance(found, tuple):
+        return found
+    ladder_id = found["Id"]
+    if ladder.stop(ladder_id):
+        log.info("stopped ladder %s", ladder_id)
+        return 200, {"text": f"ladder {ladder_id} stopped"}
+    return 200, {
+        "text": f"ladder {ladder_id} is not running"
+    }
+
+
+def delete_ladder(data):
+    """POST /api/ladders/delete: stop ladder
+    data["id"] if it runs and delete it, like 'rm
+    ladder <id>' (the page asks first).
+
+    (200, {"text"}), (404, {"error"}) if there is no
+    such ladder, (409, {"error"}) if its files can't
+    be deleted"""
+    found = _saved_ladder(data)
+    if isinstance(found, tuple):
+        return found
+    ladder_id = found["Id"]
+    try:
+        was_running = ladder.remove(ladder_id)
+    except (ladder.LadderError, OSError) as e:
+        return 409, {"error": str(e)}
+    log.info("deleted ladder %s", ladder_id)
+    return 200, {
+        "text": f"ladder {ladder_id} "
+        + ("stopped and " if was_running else "")
+        + "deleted"
+    }
+
+
+def _saved_ladder(data):
+    """the saved ladder of data["id"], or the (http
+    status, data) of a bad or unknown id"""
+    ladder_id = data.get("id")
+    if not _is_int(ladder_id):
+        return 400, {"error": "the id is a whole number"}
+    found = ladder.get(ladder_id)
+    if found is None:
+        return 404, {
+            "error": f"no ladder {ladder_id}, see "
+            "'ls ladders'"
+        }
+    return found
+
+
 def add_trade(data):
     """POST /api/trades/add: record a trade like 'add
     trade', with the engine's checks.
@@ -541,6 +706,10 @@ PREFIXES = {"/api/trades/": stock_trades}
 CHANGES = {
     "/api/trades/add": add_trade,
     "/api/trades/delete": delete_trade,
+    "/api/ladders/add": add_ladder,
+    "/api/ladders/run": run_ladder,
+    "/api/ladders/stop": stop_ladder,
+    "/api/ladders/delete": delete_ladder,
 }
 
 

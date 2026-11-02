@@ -586,8 +586,8 @@ other packages than the shell's). Open the address in a browser on the same devi
   every page shares, `web/style.css`), the pages' scripts (`/js/`,
   `web/js/`), the fonts they use (`/fonts/`, IBM Plex, bundled so nothing
   comes from the internet), `/api/status`, `/api/trades` and
-  `/api/ladders`; it changes data only through the trades page's changes
-  (see below), any other path is `404`. The browser files are in `web/`,
+  `/api/ladders`; it changes data only through the changes of the trades
+  and ladders pages (see below), any other path is `404`. The browser files are in `web/`,
   the server's parts in `scripts/web/`: `files.py` sends the files (a
   page gets the shared top bar and menu of `web/frame.html`), `api.py`
   the JSON and the changes, `price_cache.py` keeps the prices.
@@ -609,12 +609,15 @@ other packages than the shell's). Open the address in a browser on the same devi
   move to the next level (amount and %) and the next three levels; the
   ladders page uses it. The same rules as above.
 - Every `/api/` request must name the server in its `Host` (`127.0.0.1`,
-  `localhost` or `[::1]` with its port), so a website that points
-  another name at this device can't read it. A change (a POST: `/api/trades/add`,
-  `/api/trades/delete`) must also come from the
-  server's own pages (`Origin`), carry the token the server makes when
-  it starts and puts into its pages, and be JSON; while `read_only` is on
-  (the default) every change is `403`. Changes are always logged.
+  `localhost` or `[::1]` with its port), so a website that points another
+  name at this device can't read it. A change (a POST: `/api/trades/add`,
+  `/api/trades/delete`, `/api/ladders/add`, `/run`, `/stop`, `/delete`)
+  must also come from the server's own pages (`Origin`), carry the token
+  the server makes when it starts and puts into its pages, and be JSON;
+  while `read_only` is on (the default) every change is `403`. Changes
+  are always logged. A ladder run from the web is started by the web
+  server like `run ladder <id>` (only on the device that runs the
+  background tasks; taking them over, `force`, stays in the shell).
 - The server fetches the prices every config `web` `interval` seconds
   (default `5`), but only while a page asked for them in the last 30
   seconds: with no page open it requests nothing, and however many pages
@@ -881,8 +884,8 @@ python tests/test_chart.py         # the price chart layout
 python tests/test_demo.py          # the demo data, and a run of ./nxdemo
 python tests/test_demo_prices.py   # the demo's prices and their process
 python tests/test_web.py           # the web server: config, pages, /api/status,
-                                   # /api/trades, /api/ladders, adding and
-                                   # deleting trades, the checks of a change,
+                                   # /api/trades, /api/ladders, the changes of
+                                   # trades and ladders, the checks of a change,
                                    # the price cache, its process
 python tests/test_shell.py         # every shell command, faked prices
 python tests/test_sync.py          # device IDs, .stignore

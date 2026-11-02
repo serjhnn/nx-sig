@@ -1465,6 +1465,214 @@ class TradeChangeTest(ApiMixin, unittest.TestCase):
         )
 
 
+class LadderChangeTest(ApiMixin, unittest.TestCase):
+    """POST /api/ladders/add, run, stop and delete;
+    the processes are faked"""
+
+    # a change from the server's own page
+    post = TradeChangeTest.post
+
+    def setUp(self):
+        super().setUp()
+        config.DATA["web"] = {"read_only": False}
+        self.running = {}
+        self.started = []
+
+        def start(key, force=False):
+            if key in self.running:
+                raise ladder.LadderError(
+                    f"ladder {key} is already running "
+                    f"(pid {self.running[key]})"
+                )
+            self.started.append((key, force))
+            self.running[key] = 4000 + key
+            return self.running[key]
+
+        def stop(key):
+            return self.running.pop(key, None) is not None
+
+        for target, name, value in (
+            (ladder.TASK, "start", start),
+            (ladder.TASK, "stop", stop),
+            (ladder, "running_pid", self.running.get),
+            (api.notifier, "is_configured", lambda: True),
+        ):
+            p = mock.patch.object(target, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+        self.serve()
+
+    def add(self, **data):
+        change = {
+            "stock": "SOXL",
+            "direction": "down",
+            "step": 1,
+            "from": 35,
+        }
+        change.update(data)
+        return self.post("/api/ladders/add", change)
+
+    def test_add(self):
+        status, data = self.add()
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data,
+            {
+                "id": 1,
+                "text": "ladder 1 saved: SOXL down every "
+                "1 from 35",
+                "start_error": None,
+            },
+        )
+        saved = ladder.get(1)
+        self.assertEqual(saved["Stock"], "SOXL")
+        self.assertEqual(saved["Step"], 1.0)
+        self.assertEqual(saved["From"], 35.0)
+        self.assertEqual(self.started, [])
+
+    def test_add_and_run(self):
+        status, data = self.add(
+            stock="tsmx",
+            direction="UP",
+            step=2.5,
+            run=True,
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data["text"],
+            "ladder 1 saved: TSMX up every 2.5 from 35; "
+            "ladder 1 started (pid 4001), next alert at "
+            "37.5",
+        )
+        self.assertIsNone(data["start_error"])
+        # never force: that stays in the shell
+        self.assertEqual(self.started, [(1, False)])
+
+    def test_add_saved_but_not_started(self):
+        def refuse(key, force=False):
+            raise ladder.LadderError(
+                "another device runs the background tasks"
+            )
+
+        with mock.patch.object(
+            ladder.TASK, "start", refuse
+        ):
+            status, data = self.add(run=True)
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data["start_error"],
+            "another device runs the background tasks",
+        )
+        self.assertIsNotNone(ladder.get(data["id"]))
+
+    def test_add_refused(self):
+        for change, error in (
+            ({"stock": "XYZ"}, "unknown stock 'XYZ'"),
+            ({"direction": "left"}, "unknown direction"),
+            ({"direction": None}, "unknown direction"),
+            ({"step": "1"}, "must be numbers"),
+            ({"from": None}, "must be numbers"),
+            ({"step": 0}, "must be positive"),
+            ({"step": 40}, "a down ladder needs a step"),
+            ({"run": "yes"}, "run is true or false"),
+        ):
+            status, data = self.add(**change)
+            self.assertEqual(status, 400, change)
+            self.assertIn(error, data["error"], change)
+        with mock.patch.object(
+            api.notifier, "is_configured", lambda: False
+        ):
+            status, data = self.add()
+        self.assertEqual(status, 400)
+        self.assertEqual(
+            data["error"], api.notifier.setup_error()
+        )
+        self.assertEqual(ladder.get_all(), [])
+
+    def test_run_and_stop(self):
+        self.add()
+        status, data = self.post(
+            "/api/ladders/run", {"id": 1}
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(
+            data["text"],
+            "ladder 1 started (pid 4001), next alert at 34",
+        )
+        status, data = self.post(
+            "/api/ladders/run", {"id": 1}
+        )
+        self.assertEqual(status, 409)
+        self.assertIn("already running", data["error"])
+        status, data = self.post(
+            "/api/ladders/stop", {"id": 1}
+        )
+        self.assertEqual(
+            (status, data),
+            (200, {"text": "ladder 1 stopped"}),
+        )
+        status, data = self.post(
+            "/api/ladders/stop", {"id": 1}
+        )
+        self.assertEqual(
+            data["text"], "ladder 1 is not running"
+        )
+
+    def test_delete(self):
+        self.add()
+        self.add(stock="NVDL", run=True)
+        status, data = self.post(
+            "/api/ladders/delete", {"id": 1}
+        )
+        self.assertEqual(
+            (status, data),
+            (200, {"text": "ladder 1 deleted"}),
+        )
+        status, data = self.post(
+            "/api/ladders/delete", {"id": 2}
+        )
+        self.assertEqual(
+            data["text"], "ladder 2 stopped and deleted"
+        )
+        self.assertEqual(ladder.get_all(), [])
+        self.assertEqual(self.running, {})
+
+    def test_unknown_or_bad_id(self):
+        for path in ("run", "stop", "delete"):
+            status, data = self.post(
+                f"/api/ladders/{path}", {"id": 9}
+            )
+            self.assertEqual(status, 404, path)
+            self.assertEqual(
+                data["error"],
+                "no ladder 9, see 'ls ladders'",
+            )
+            for bad in ({"id": "1"}, {"id": 1.0}, {}):
+                status, _ = self.post(
+                    f"/api/ladders/{path}", bad
+                )
+                self.assertEqual(status, 400, (path, bad))
+
+    def test_read_only(self):
+        self.add()
+        config.DATA["web"] = {}
+        for path, change in (
+            ("add", {"stock": "SOXL"}),
+            ("run", {"id": 1}),
+            ("stop", {"id": 1}),
+            ("delete", {"id": 1}),
+        ):
+            status, data = self.post(
+                f"/api/ladders/{path}", change
+            )
+            self.assertEqual(status, 403, path)
+            self.assertEqual(
+                data["error"], api.READ_ONLY_ERROR
+            )
+        self.assertEqual(len(ladder.get_all()), 1)
+        self.assertEqual(self.started, [])
+
+
 class FakeClock:
     def __init__(self):
         self.now = 1000.0
