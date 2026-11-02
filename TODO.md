@@ -334,9 +334,9 @@ for your own use first. In this order:
   `read_only` off (taking the background tasks over
   stays in the shell). Still open (WEB_PLAN.md
   "Later"):
-  - the basetrades and chart pages (planned, see
+  - ~~the basetrades and chart pages~~ (done, see
     [WEB_PLAN.md](WEB_PLAN.md) "The basetrades
-    page" and "The chart page"), then rules
+    page" and "The chart page"); the rules page
   - the bank statement import on the trades page
   - the gain alerts on the main page, like
     `xtop al`

@@ -16,9 +16,9 @@ they were then: `assets/web/` is now `web/`, and
 the price cache and `/api/status` moved from
 `web_service.py` into `scripts/web/`). The trades
 page, the ladders page and the alerts page are
-done too (see their sections). Next come the
-basetrades page and the chart page (see their
-sections), then what is under "Later".
+done too, and so are the basetrades page and the
+chart page (see their sections); what comes next
+is under "Later".
 
 ## The style (style C)
 
