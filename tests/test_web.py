@@ -9,19 +9,23 @@
 # mock: test_alerts.py turns logging off for the run
 
 import http.client
+import json
 import os
 import socket
 import tempfile
 import threading
 import unittest
+from datetime import datetime
 from unittest import mock
 
 import paths  # noqa: F401, scripts/ on sys.path
 import config
 import process
 import storage
-from engines import web
+import tasks_owner
+from engines import overview, trades, web
 from services import web_service
+from storage import Stock, TradeType
 
 
 class FakeChild:
@@ -82,11 +86,11 @@ class WebConfigTest(unittest.TestCase):
             )
 
 
-class WebServerTest(unittest.TestCase):
-    def setUp(self):
-        self.server = web_service.make_server(
-            "127.0.0.1", 0
-        )
+class ServerMixin:
+    """a server in a thread on a free port"""
+
+    def serve(self, host="127.0.0.1"):
+        self.server = web_service.make_server(host, 0)
         self.port = self.server.server_address[1]
         thread = threading.Thread(
             target=self.server.serve_forever, daemon=True
@@ -99,7 +103,7 @@ class WebServerTest(unittest.TestCase):
         p.start()
         self.addCleanup(p.stop)
 
-    def request(self, path, method="GET"):
+    def request(self, path, method="GET", logged=True):
         conn = http.client.HTTPConnection(
             "127.0.0.1", self.port, timeout=5
         )
@@ -109,8 +113,13 @@ class WebServerTest(unittest.TestCase):
         response = conn.getresponse()
         body = response.read()
         # the request is logged, not printed
-        self.log.info.assert_called()
+        self.assertEqual(self.log.info.called, logged)
         return response, body
+
+
+class WebServerTest(ServerMixin, unittest.TestCase):
+    def setUp(self):
+        self.serve()
 
     def test_page(self):
         for path in ("/", "/?from=phone"):
@@ -196,6 +205,206 @@ class WebServerTest(unittest.TestCase):
         for method in ("POST", "PUT", "DELETE"):
             response, _ = self.request("/", method)
             self.assertEqual(response.status, 501, method)
+
+
+class FakeCache:
+    interval = 5
+
+    def __init__(
+        self, prices=None, updated=None, error=None
+    ):
+        self.result = {
+            "prices": prices or {},
+            "updated": updated,
+            "error": error,
+        }
+
+    def get(self):
+        return self.result
+
+
+class ApiStatusTest(ServerMixin, unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        for target, name, value in (
+            (storage, "DB_DIR", tmp.name),
+            (config, "DEMO", False),
+            (tasks_owner, "owner", lambda: None),
+        ):
+            p = mock.patch.object(target, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+        p = mock.patch.dict(config.DATA)
+        p.start()
+        self.addCleanup(p.stop)
+        config.DATA.pop("fee", None)
+
+    def api(self, cache=None, host="127.0.0.1"):
+        self.serve(host)
+        self.server.prices = cache or FakeCache()
+        # only the failures are logged
+        response, body = self.request(
+            "/api/status",
+            logged=host != "127.0.0.1",
+        )
+        return response, json.loads(body)
+
+    def test_empty(self):
+        response, data = self.api()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            response.getheader("Content-Type"),
+            "application/json",
+        )
+        self.assertEqual(
+            response.getheader("Cache-Control"), "no-store"
+        )
+        self.assertEqual(
+            data,
+            {
+                "updated": None,
+                "error": None,
+                "interval": 5,
+                "demo": False,
+                "positions": [],
+                "total": {
+                    "gain": 0,
+                    "cost": 0,
+                    "pct": None,
+                },
+                "tasks": [],
+                "mail_broker": {
+                    "state": "not started",
+                    "updated": None,
+                    "last_order": None,
+                    "error": None,
+                },
+                "owner": None,
+                "last_trades": [],
+            },
+        )
+
+    def test_positions(self):
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            20,
+            25,
+            "02.09.2026",
+            "15:31",
+        )
+        trades.add(
+            Stock.TSMX,
+            TradeType.BUY,
+            10,
+            40,
+            "10.09.2026",
+            "15:55",
+        )
+        cache = FakeCache(
+            {"SOXL": 30.0},
+            datetime(2026, 11, 2, 14, 30, 5),
+            "network is down",
+        )
+        _, data = self.api(cache)
+        self.assertEqual(
+            data["updated"], "2026-11-02T14:30:05"
+        )
+        self.assertEqual(data["error"], "network is down")
+        found = {p["stock"]: p for p in data["positions"]}
+        self.assertEqual(sorted(found), ["SOXL", "TSMX"])
+        soxl, tsmx = found["SOXL"], found["TSMX"]
+        self.assertEqual(
+            soxl,
+            {
+                "stock": "SOXL",
+                "count": 20,
+                "avg": 25.0,
+                "cost": 500.0,
+                "price": 30.0,
+                "gain": 100.0,
+                "pct": 20.0,
+            },
+        )
+        # no price yet
+        self.assertEqual(tsmx["stock"], "TSMX")
+        self.assertIsNone(tsmx["price"])
+        self.assertIsNone(tsmx["gain"])
+        self.assertEqual(
+            data["total"],
+            {"gain": 100.0, "cost": 500.0, "pct": 20.0},
+        )
+        self.assertEqual(
+            data["last_trades"][0],
+            {
+                "stock": "TSMX",
+                "id": 1,
+                "date": "10.09.2026",
+                "time": "15:55",
+                "type": "BUY",
+                "count": 10,
+                "price": 40.0,
+            },
+        )
+
+    def test_tasks_and_owner(self):
+        started = datetime(2026, 11, 2, 9, 0, 0)
+        row = {
+            "id": "-",
+            "task": "web",
+            "pid": 9,
+            "started": started,
+            "state": "serving",
+            "healthy": True,
+        }
+        phone = {"id": "a1", "name": "phone"}
+        with (
+            mock.patch.object(
+                overview, "tasks", lambda: [row]
+            ),
+            mock.patch.object(
+                tasks_owner, "owner", lambda: phone
+            ),
+            mock.patch.object(
+                tasks_owner, "this_device", lambda: phone
+            ),
+        ):
+            _, data = self.api()
+        self.assertEqual(
+            data["tasks"],
+            [dict(row, started="2026-11-02T09:00:00")],
+        )
+        self.assertEqual(
+            data["owner"], {"name": "phone", "here": True}
+        )
+
+    def test_only_on_localhost(self):
+        response, data = self.api(host="0.0.0.0")
+        self.assertEqual(response.status, 403)
+        self.assertIn("127.0.0.1", data["error"])
+        self.assertNotIn("positions", data)
+
+    def test_failure(self):
+        def broken(prices):
+            raise OSError("disk")
+
+        with mock.patch.object(overview, "status", broken):
+            self.serve()
+            self.server.prices = FakeCache()
+            response, body = self.request("/api/status")
+        self.assertEqual(response.status, 500)
+        self.assertIn("web log", json.loads(body)["error"])
+        self.log.exception.assert_called()
+
+    def test_head(self):
+        self.serve()
+        self.server.prices = FakeCache()
+        response, body = self.request(
+            "/api/status", "HEAD", logged=False
+        )
+        self.assertEqual(response.status, 200)
+        self.assertEqual(body, b"")
 
 
 class FakeClock:

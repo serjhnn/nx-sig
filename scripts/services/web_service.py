@@ -12,8 +12,15 @@
 #   /style.css    assets/web/style.css, the style
 #                 every page shares
 #   /fonts/<f>    a .woff2 of assets/web/fonts/
+#   /api/status   the main page's data as JSON (see
+#                 api_status()), only when it listens
+#                 on 127.0.0.1: the positions are
+#                 private, any other address gets 403
 # anything else is 404, a method other than GET or HEAD
 # 501 (http.server).
+#
+# a successful /api/status isn't logged: a page asks
+# every few seconds.
 #
 # the server keeps the prices for the main page in a
 # PriceCache (server.prices): a thread fetches them
@@ -25,6 +32,7 @@
 #
 # logs: {storage_dir}/logs/web.log
 
+import json
 import logging
 import os
 import sys
@@ -47,7 +55,7 @@ sys.path.insert(
 
 import config
 import process
-from engines import prices, web
+from engines import overview, prices, web
 
 LOGO_PATH = os.path.join(
     config.ROOT_DIR, "assets", "logo.svg"
@@ -55,6 +63,8 @@ LOGO_PATH = os.path.join(
 WEB_DIR = os.path.join(config.ROOT_DIR, "assets", "web")
 STYLE_PATH = os.path.join(WEB_DIR, "style.css")
 FONTS_DIR = os.path.join(WEB_DIR, "fonts")
+# the addresses /api/status answers on
+PRIVATE_HOSTS = ("127.0.0.1", "::1")
 # the prices are fetched while a page asked for them
 # this recently
 WATCH_SECONDS = 30
@@ -99,7 +109,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def _send(self, with_body):
         path = self.path.split("?", 1)[0]
-        if path == "/":
+        status = 200
+        if path == "/api/status":
+            status, data = self._api()
+            body = json.dumps(data).encode()
+            kind = "application/json"
+        elif path == "/":
             body = PAGE.encode()
             kind = "text/html; charset=utf-8"
         elif path == "/logo.svg":
@@ -114,19 +129,127 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
             return
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", len(body))
-        self.send_header("Cache-Control", "no-cache")
+        self.send_header(
+            "Cache-Control",
+            (
+                "no-store"
+                if kind == "application/json"
+                else "no-cache"
+            ),
+        )
         self.end_headers()
         if with_body:
             self.wfile.write(body)
+
+    def _api(self):
+        """(http status, data) of /api/status"""
+        host = self.server.server_address[0]
+        if host not in PRIVATE_HOSTS:
+            return 403, {
+                "error": "the positions are shown only "
+                "when the web server listens on "
+                "127.0.0.1 (config web host)"
+            }
+        try:
+            return 200, api_status(self.server.prices)
+        except Exception:
+            log.exception("/api/status failed")
+            return 500, {
+                "error": "can't read the data, see "
+                "the web log"
+            }
+
+    def log_request(self, code="-", size="-"):
+        # a page asks every few seconds: only the
+        # failures go to the log
+        path = self.path.split("?", 1)[0]
+        if path == "/api/status" and code == 200:
+            return
+        super().log_request(code, size)
 
     def log_message(self, format, *args):
         # to the log file, not stderr
         log.info(
             "%s %s", self.address_string(), format % args
         )
+
+
+def api_status(cache):
+    """the data of /api/status: overview.status() at
+    the cached prices, ready for json; times are ISO
+    strings, numbers as they are (the page rounds)
+
+    {"updated", "error": the prices' time and error,
+     "interval": seconds between two price requests,
+     "demo",
+     "positions": [{"stock", "count", "avg", "cost",
+                    "price", "gain", "pct"}],
+     "total": {"gain", "cost", "pct"},
+     "tasks": [{"id", "task", "pid", "started",
+                "state", "healthy"}],
+     "mail_broker": {"state", "updated",
+                     "last_order", "error"},
+     "owner": {"name", "here"} or None,
+     "last_trades": [{"stock", "id", "date", "time",
+                      "type", "count", "price"}]}"""
+    cached = cache.get()
+    status = overview.status(cached["prices"])
+    gain, cost, pct = status["total"]
+    mail = status["mail_broker"]
+    error = mail["error"]
+    owner = status["owner"]
+    return {
+        "updated": _iso(cached["updated"]),
+        "error": cached["error"],
+        "interval": cache.interval,
+        "demo": status["demo"],
+        "positions": [
+            dict(row, stock=row["stock"].name)
+            for row in status["positions"]
+        ],
+        "total": {"gain": gain, "cost": cost, "pct": pct},
+        "tasks": [
+            dict(task, started=_iso(task["started"]))
+            for task in status["tasks"]
+        ],
+        "mail_broker": {
+            "state": mail["state"],
+            "updated": _iso(mail["updated"]),
+            "last_order": mail["last_order"],
+            "error": error
+            and {
+                "time": _iso(error["time"]),
+                "text": error["text"],
+            },
+        },
+        "owner": owner
+        and {
+            "name": owner.get("name") or owner["id"],
+            "here": status["here"],
+        },
+        "last_trades": [
+            {
+                "stock": t["Stock"].name,
+                "id": t["Id"],
+                "date": t["Date"],
+                "time": t["Time"],
+                "type": t["Type"].name,
+                "count": t["Count"],
+                "price": t["Price"],
+            }
+            for t in status["last_trades"]
+        ],
+    }
+
+
+def _iso(when):
+    """a datetime as an ISO string, None as None"""
+    if when is None:
+        return None
+    return when.isoformat(timespec="seconds")
 
 
 def _read(path):

@@ -116,12 +116,17 @@ opened from another device.
    prices) for the page and logged once. New config
    `web` `interval` (`config.web_interval()`,
    default `5`, at least `1`).
-5. **`/api/status`**: JSON with each stock
-   (quantity, average, price, gain, gain %), the
-   total, the tasks, the last trades, the update
-   time and the error. Read on every request, so a
-   trade the mail broker records shows up. 403 when
-   not on `127.0.0.1`.
+5. ~~**`/api/status`**~~ (done): `api_status()` in
+   `web_service.py`, JSON with each stock (count,
+   average, cost, price, gain, gain %), the total,
+   the tasks, the mail broker, the device that runs
+   the tasks, the last trades, the prices' update
+   time and error, the interval. Read on every
+   request, so a trade the mail broker records shows
+   up. 403 when the server doesn't listen on
+   `127.0.0.1` (or `::1`), 500 with a short error
+   (the details in the log) if the data can't be
+   read. Only the failures are logged.
 6. **The main page `/`**: the top bar (the name in
    the logo colors, the live dot and update time,
    the theme button), the total gain/loss, the

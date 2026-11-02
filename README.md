@@ -552,9 +552,16 @@ A small web page with the nX-sig logo, as wide as the screen, served by
 other packages than the shell's). Open the address in a browser on the same device.
 
 - It serves only `/` (the page), `/logo.svg`, `/style.css` (the style
-  every page shares, `assets/web/style.css`) and the fonts it uses
-  (`/fonts/`, IBM Plex, bundled so nothing comes from the internet); it
-  reads no data and changes nothing, any other path is `404`.
+  every page shares, `assets/web/style.css`), the fonts it uses
+  (`/fonts/`, IBM Plex, bundled so nothing comes from the internet) and
+  `/api/status`; it changes nothing, any other path is `404`.
+- `/api/status` is the main page's data as JSON: each held stock with its
+  count, average, price, gain and gain %, the total, the running
+  background tasks, the mail broker, the device that runs the tasks, the
+  last 5 trades, the prices' time and error. It shows your positions, so
+  it answers only when the server listens on `127.0.0.1`; with any other
+  `host` it is `403`. A page asks for it every few seconds, so only its
+  failures are logged.
 - The main page with the live gain/loss comes next, planned in
   [WEB_PLAN.md](WEB_PLAN.md). For it, the server fetches the prices every
   config `web` `interval` seconds (default `5`), but only while a page
