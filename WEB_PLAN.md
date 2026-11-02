@@ -330,12 +330,23 @@ ladder <id> force`) stays in the shell.
    levels (`ladder.levels()`, new: a down ladder's
    stop above 0, none when done); `names` for the
    add form. Only on `127.0.0.1`, with `read_only`.
-3. **The page `/ladders`, read-only**: a card per
-   ladder (stock, "down 1 from 35", the last level
-   sent, the next one, the price and its distance,
-   the state as a chip) with a small picture of the
-   rungs and the price between them; phone first,
-   the Ladders link in the menu works.
+3. ~~**The page `/ladders`, read-only**~~ (done):
+   `web/ladders.html` and `web/js/ladders.js`, a
+   card per ladder (stock, "down 1 from 35", the
+   state as a chip, the next level and how far the
+   price still has to move, "price past the level"
+   for a stopped ladder that missed it, the last
+   level sent, since when) and the rungs: the last
+   level and the next three as ticks on a line,
+   the price as a dot, at an end with an arrow when
+   it is beyond them. A card is made once, only its
+   texts change (they flash). One column on a
+   phone, two from 720px. `put()` and
+   `shortDate()` moved from `trades.js` into
+   `app.js`. The Ladders link in the menu works.
+   Checked in a browser at 360, 390 and 1200px,
+   dark and light, with a ladder in every state: no
+   label outside its card, no errors.
 4. **The changes**: POST `/api/ladders/add`,
    `/run`, `/stop`, `/delete` behind the checks of
    a change, with `ladder.create()`, `start()`,

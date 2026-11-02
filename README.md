@@ -574,8 +574,15 @@ other packages than the shell's). Open the address in a browser on the same devi
   now) and deletes one (the bin of its row, after asking), like `add
   trade` and `rm trade`, with the same checks and texts. With it on (the
   default) the page only shows, and says "read-only".
+- The ladders page (`/ladders`): a card per saved ladder with its stock,
+  "down 1 from 35", its state (running, stopped, done, crashed), the next
+  level and how far the price still has to move to it ("price past the
+  level" when a stopped ladder missed it), and a picture of the rungs:
+  the last level and the next three as ticks, the price as a dot (at an
+  end with an arrow when it is beyond them). It only shows the ladders
+  for now: adding, running, stopping and deleting them come next.
 - It serves only `/` (`web/index.html`), `/trades` (`web/trades.html`),
-  `/logo` (a page with the logo), `/logo.svg`, `/style.css` (the style
+  `/ladders` (`web/ladders.html`), `/logo` (a page with the logo), `/logo.svg`, `/style.css` (the style
   every page shares, `web/style.css`), the pages' scripts (`/js/`,
   `web/js/`), the fonts they use (`/fonts/`, IBM Plex, bundled so nothing
   comes from the internet), `/api/status`, `/api/trades` and
@@ -599,8 +606,8 @@ other packages than the shell's). Open the address in a browser on the same devi
   they fail, and say whether `read_only` is on.
 - `/api/ladders` is the saved ladders as JSON (as `ls ladders`: the
   state, the next level), with the stock's price, how far it still has to
-  move to the next level (amount and %) and the next three levels; for
-  the ladders page, which comes next. The same rules as above.
+  move to the next level (amount and %) and the next three levels; the
+  ladders page uses it. The same rules as above.
 - Every `/api/` request must name the server in its `Host` (`127.0.0.1`,
   `localhost` or `[::1]` with its port), so a website that points
   another name at this device can't read it. A change (a POST: `/api/trades/add`,
@@ -777,9 +784,9 @@ nx-sig/
 ├── assets/modules.html  the module map (generated), also online:
 │                         serjhnn.github.io/nx-sig/assets/modules.html
 ├── web/                  the web pages: index.html, trades.html,
-│                         frame.html (the top bar and menu of every
-│                         page), style.css, js/ (app.js shared, main.js,
-│                         trades.js), fonts/ (IBM Plex)
+│                         ladders.html, frame.html (the top bar and menu
+│                         of every page), style.css, js/ (app.js shared,
+│                         main.js, trades.js, ladders.js), fonts/
 ├── tests/              the tests, test_<module>.py for scripts/<module>.py
 │                         (test_shell.py: every shell command)
 └── scripts/

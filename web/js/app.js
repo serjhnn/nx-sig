@@ -5,6 +5,9 @@
 //   $(id), el(tag, cls, text)   find and make elements
 //   num, signed, trend          numbers as text
 //   clock, dayTime              ISO times as text
+//   shortDate("02.09.2026")     "02.09.26", as the shell
+//   put(node, key, text)        set a node's text, flash
+//       it when the text under key changed
 //   showNotice(title, text), hideNotice()
 //   answer(response)            the JSON of a fetch
 //       response, or an Error with the server's text
@@ -86,6 +89,25 @@
     if (!d) return "-";
     return pad(d.getDate()) + "." + pad(d.getMonth() + 1) +
       " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+
+  // "02.09.2026" -> "02.09.26", as the shell
+  function shortDate(date) {
+    return date.length === 10
+      ? date.slice(0, 6) + date.slice(-2) : date;
+  }
+
+  var shown = {}; // key -> text, to flash changes
+
+  // set a node's text; flash it when it changed
+  function put(node, key, text) {
+    node.textContent = text;
+    if (key in shown && shown[key] !== text) {
+      node.classList.remove("flash");
+      void node.offsetWidth; // restart the animation
+      node.classList.add("flash");
+    }
+    shown[key] = text;
   }
 
   // ---------- the top bar and the notice ----------
@@ -250,6 +272,8 @@
     trend: trend,
     clock: clock,
     dayTime: dayTime,
+    shortDate: shortDate,
+    put: put,
     showNotice: showNotice,
     hideNotice: hideNotice,
     answer: answer,

@@ -25,34 +25,18 @@
   var num = nx.num;
   var signed = nx.signed;
   var trend = nx.trend;
+  var put = nx.put;
+  var shortDate = nx.shortDate;
   var lastData = null; // the last /api/trades
   var chosen = null; // the chosen stock's name
   var detail = null; // the last /api/trades/<chosen>
   var loading = null; // the stock being asked for
   var chips = {}; // stock name -> its button
-  var shown = {}; // key -> text, to flash changes
   var refresh = null; // asks /api/trades right away
   var scrolledTo = null; // the chip last scrolled to
   var doneTimer = null;
   var TRASH = "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13" +
     "M9 7V4h6v3";
-
-  // set a node's text; flash it when it changed
-  function put(node, key, text) {
-    node.textContent = text;
-    if (key in shown && shown[key] !== text) {
-      node.classList.remove("flash");
-      void node.offsetWidth; // restart the animation
-      node.classList.add("flash");
-    }
-    shown[key] = text;
-  }
-
-  // "02.09.2026" -> "02.09.26", as the shell
-  function shortDate(date) {
-    return date.length === 10
-      ? date.slice(0, 6) + date.slice(-2) : date;
-  }
 
   function pctText(s) {
     return s.pct === null ? "-" : signed(s.pct, 1) + "%";

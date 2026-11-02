@@ -35,6 +35,7 @@ SCRIPT_PATH = os.path.join(files.JS_DIR, "main.js")
 
 
 TRADES_SCRIPT = os.path.join(files.JS_DIR, "trades.js")
+LADDERS_SCRIPT = os.path.join(files.JS_DIR, "ladders.js")
 
 
 def scripts(page=SCRIPT_PATH):
@@ -253,6 +254,39 @@ class WebServerTest(ServerMixin, unittest.TestCase):
         for name in ids:
             self.assertIn(f'id="{name}"', page)
 
+    def test_ladders_page(self):
+        response, body = self.request("/ladders")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            body,
+            files.page(
+                files.LADDERS_PATH, self.server.token
+            ),
+        )
+        self.assertIn(b'<nav class="nav"', body)
+        self.assertLess(
+            body.index(b'src="/js/app.js"'),
+            body.index(b'src="/js/ladders.js"'),
+        )
+        response, body = self.request("/js/ladders.js")
+        self.assertEqual(response.status, 200)
+        with open(LADDERS_SCRIPT, "rb") as f:
+            script = f.read()
+        self.assertEqual(body, script)
+        self.assertIn(b'nx.poll("/api/ladders"', script)
+        # every element the scripts look up is there
+        ids = set(
+            re.findall(
+                r'\$\("([\w-]+)"\)', scripts(LADDERS_SCRIPT)
+            )
+        )
+        page = files.page(
+            files.LADDERS_PATH, self.server.token
+        ).decode()
+        self.assertGreater(len(ids), 5)
+        for name in ids:
+            self.assertIn(f'id="{name}"', page)
+
     def test_menu(self):
         # every page the menu links to is there, and
         # the frame isn't served by itself
@@ -260,6 +294,7 @@ class WebServerTest(ServerMixin, unittest.TestCase):
             links = re.findall(r'href="([^"]+)"', f.read())
         self.assertIn("/", links)
         self.assertIn("/trades", links)
+        self.assertIn("/ladders", links)
         for path in links:
             response, _ = self.request(path)
             self.assertEqual(response.status, 200, path)
@@ -1026,6 +1061,27 @@ class ApiLaddersTest(ApiMixin, unittest.TestCase):
         self.assertEqual(first["price"], 8.0)
         self.assertEqual(second["state"], "crashed")
         self.assertEqual(second["away"], 0.5)
+
+    def test_fields_of_the_page(self):
+        # every field ladders.js reads is in the JSON
+        ladder.create("SOXL", "down", 1, 35)
+        _, data = self.get(FakeCache({"SOXL": 34.5}))
+        fields = {
+            "data": data,
+            "lastData": data,
+            "l": data["ladders"][0],
+        }
+        used = re.findall(
+            r"\b(data|lastData|l)\.([a-z_]+)"
+            r"\b(?![A-Za-z(])",
+            scripts(LADDERS_SCRIPT),
+        )
+        self.assertGreater(len(used), 20)
+        array = {"length", "filter", "forEach"}
+        for name, field in set(used):
+            if field in array:
+                continue
+            self.assertIn(field, fields[name], name)
 
     def test_near_zero(self):
         ladder.create("SOXL", "down", 10, 25)

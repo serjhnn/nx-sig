@@ -747,6 +747,129 @@ td.act {
   height: 15px;
 }
 
+/* ---------- the ladder cards (ladders page) ---------- */
+
+.ladders {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 2px 12px 12px;
+}
+@media (min-width: 720px) {
+  .ladders {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.ladder {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px 8px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 0;
+}
+.ladder-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.ladder-h b {
+  font: 600 15px var(--mono);
+}
+.ladder-h .what {
+  font: 12px var(--mono);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ladder-h .chip {
+  margin-left: auto;
+}
+.ladder-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  font: 13px var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.ladder-next > span:first-child {
+  font-weight: 600;
+}
+.ladder-foot {
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+/* the rungs: ticks on a line, the price as a dot
+   with its value above, the levels below */
+.rungs {
+  position: relative;
+  height: 52px;
+  margin: 0 20px;
+}
+.rungs-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 24px;
+  height: 2px;
+  background: var(--line);
+}
+.rungs .tick {
+  position: absolute;
+  top: -6px;
+  width: 2px;
+  height: 14px;
+  margin-left: -1px;
+  background: var(--muted);
+}
+.rungs .tick.sent {
+  opacity: 0.45;
+}
+.rungs .tick.next {
+  top: -8px;
+  height: 18px;
+  background: var(--accent);
+}
+.rungs .tick span {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: 11px var(--mono);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.rungs .tick.next span {
+  color: var(--accent);
+  font-weight: 600;
+}
+.rungs .dot-price {
+  position: absolute;
+  top: -5px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: var(--price);
+  border: 2px solid var(--raised);
+}
+.rungs .dot-price.off {
+  opacity: 0.7;
+}
+.rungs .dot-price span {
+  position: absolute;
+  bottom: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: 600 11px var(--mono);
+  color: var(--price);
+  white-space: nowrap;
+}
+
 /* ---------- narrow screens, after the rules above ---------- */
 
 @media (max-width: 719px) {
