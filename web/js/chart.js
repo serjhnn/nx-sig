@@ -10,8 +10,9 @@
 // trades as B / S marks, a few price and date labels
 // and the cached price as the last point. A tap or
 // hover shows the date and price of the nearest
-// point. The stock and the period are in the address
-// (/chart?stock=TSMX&days=30); without a stock it is
+// point. The stocks and periods are in the address
+// (/chart?stock=TSMX&days=30&stock=SOXL&days=5, a
+// pair per chart); without a known stock it is
 // the first one held (/api/trades), else the first
 // of the config. Redrawn when the width changes.
 //
@@ -551,32 +552,48 @@
     chart.root.scrollIntoView({ block: "nearest" });
   });
 
-  // the stock and days of the address; a stock not
-  // in the config, or none: the first one held, else
-  // the first of the config
-  var query = new URLSearchParams(location.search);
-  var asked = (query.get("stock") || "").toUpperCase();
-  var askedDays = Number(query.get("days"));
-  var days = 5;
-  if (Number.isInteger(askedDays) && askedDays >= 1 &&
-      askedDays <= 1825) {
-    days = askedDays;
+  // days of the address as a number; missing or
+  // not 1 to 1825: 5
+  function toDays(text) {
+    var days = Number(text);
+    var fine = Number.isInteger(days) && days >= 1 &&
+      days <= 1825;
+    return fine ? days : 5;
   }
+
+  // the charts of the address with a stock of the
+  // config, a stock and days each, in pairs
+  // (?stock=TSMX&days=30&stock=SOXL&days=5), at most
+  // MAX_CHARTS; none: the first stock held, else the
+  // first of the config, with the first days
+  function start(found) {
+    var query = new URLSearchParams(location.search);
+    var all = query.getAll("days");
+    var known = query.getAll("stock").map(function (name, i) {
+      return { stock: name.toUpperCase(), days: toDays(all[i]) };
+    }).filter(function (one) {
+      return found.names.indexOf(one.stock) >= 0;
+    }).slice(0, MAX_CHARTS);
+    if (!known.length) {
+      var held = found.stocks.filter(function (s) {
+        return s.count !== 0;
+      })[0];
+      known = [{
+        stock: held ? held.stock : found.names[0],
+        days: toDays(all[0])
+      }];
+    }
+    known.forEach(function (one) {
+      addChart(one.stock, one.days);
+    });
+  }
+
   fetch("/api/trades", { cache: "no-store" })
     .then(nx.answer)
     .then(function (found) {
       // /api/trades: the stocks that have trades
       stocks = found;
-      var stock;
-      if (found.names.indexOf(asked) >= 0) {
-        stock = asked;
-      } else {
-        var held = found.stocks.filter(function (s) {
-          return s.count !== 0;
-        })[0];
-        stock = held ? held.stock : found.names[0];
-      }
-      addChart(stock, days);
+      start(found);
     })
     .catch(function (error) {
       nx.showNotice(error.status === 403

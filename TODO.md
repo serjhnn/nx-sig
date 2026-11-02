@@ -332,8 +332,8 @@ for your own use first. In this order:
   own stock and period. Done: the chart is made
   from a template (`Chart` in `web/js/chart.js`);
   "Add chart" and closing, up to 4, two columns
-  on a wide screen. Open: the charts in the
-  address (a reload shows only the first).
+  on a wide screen; the charts in the address, so
+  a reload keeps them. Open: the last docs step.
 - ~~**Web alerts page**~~ (done, see
   [WEB_PLAN.md](WEB_PLAN.md) "The alerts page"):
   `/alerts`, the alerts process and a card per

@@ -624,8 +624,10 @@ other packages than the shell's). Open the address in a browser on the same devi
   as a line with the average buy price dashed and the trades as B / S;
   the price, its change over the period and the bars' size above it. A
   tap or hover shows the date and price of the nearest point; the
-  cached price is the last point ("now"). The stock and period are in
-  the address (`/chart?stock=TSMX&days=30`); without a stock it shows
+  cached price is the last point ("now"). The stocks and periods are in
+  the address, a pair per chart (`/chart?stock=TSMX&days=30`, or
+  `?stock=TSMX&days=30&stock=SOXL&days=5` for two charts), so a reload
+  or a bookmark shows the same charts; without a known stock it shows
   the first one held. It asks for new values like the other pages (the
   bars at most once a minute). "Add chart" adds another chart below
   (the next held stock not shown, the same period), up to 4, each with

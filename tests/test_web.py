@@ -416,6 +416,14 @@ class WebServerTest(ServerMixin, unittest.TestCase):
             "again.stop = function",
             scripts(CHART_SCRIPT),
         )
+        # the charts of the address, a stock and
+        # days each
+        self.assertIn(
+            'query.getAll("stock")', script.decode()
+        )
+        self.assertIn(
+            'query.getAll("days")', script.decode()
+        )
         # the periods
         self.assertEqual(
             re.findall(

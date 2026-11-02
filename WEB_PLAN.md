@@ -714,9 +714,18 @@ own stock and period, in one window.
    when its width changes. Checked in the demo at
    390 and 1280px: 4 charts, periods per chart,
    closing, nothing wider than the screen.
-3. **The charts in the address**:
-   `?stock=TSMX&days=30&stock=SOXL&days=5`; the
-   links of the other pages stay as they are.
+3. ~~**The charts in the address**~~ (done):
+   `?stock=TSMX&days=30&stock=SOXL&days=5`, a
+   `stock` and `days` pair per chart, read back
+   on a reload (`start()` in `chart.js`); a stock
+   not in the config is left out with its days,
+   days missing or not 1 to 1825 are 5, at most
+   4 charts; none left: the first stock held with
+   the first days, as before. The links of the
+   other pages stay as they are. Checked in the
+   demo: two charts, the old one-chart link, no
+   stock, a bad stock, bad days, more than 4, a
+   reload after adding.
 4. **Tests and docs**: `test_web.py`, README,
    this plan, `TODO.md`.
 
