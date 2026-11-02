@@ -623,17 +623,18 @@ other packages than the shell's). Open the address in a browser on the same devi
   or a loss, in money or in % of the average buy price) and deletes one
   (after asking), like `run alerts`, `stop alerts`, `add alert` and `rm
   alert`, with the same checks and texts.
-- The basetrades page (`/basetrades`): a card per basetrade, like `ls
-  basetrades al`: the count and buying price, the price and its change %
-  from the buying price, a line with the buying price and each
-  basetrades alert's level as ticks and the price as a dot, and the
-  alerts ("down 10% · 25.88", marked when reached).
+- The basetrades page (`/basetrades`): a small card per basetrade, like
+  `ls basetrades al`, three a row on a wide screen: the count, buying
+  price and cost, the change % of the price from the buying price, a line
+  with the buying price and each basetrades alert's level as ticks and the
+  price as a dot with its value, and the alerts ("down 10% · 25.88",
+  marked when reached).
 - With `read_only` off, the basetrades page also adds a basetrade ("Add
   basetrade": a stock, from its trades or a price and count, filled in
   with its lowest buy since the last sell), sets all of them from the
   trades ("All from trades", after asking which it replaces) and deletes
-  one (after asking), like `add basetrade <stock>`, `add basetrade all`
-  and `rm basetrade`, with the same checks and texts.
+  one (the bin of its card, after asking), like `add basetrade <stock>`,
+  `add basetrade all` and `rm basetrade`, with the same checks and texts.
 - The charts page (`/charts`): a stock's price over 5 days, 1 month, 3
   months or 1 year, like `chart <stock> period <n>`, as a line with the
   average buy price dashed and the trades as B / S; the price, its change

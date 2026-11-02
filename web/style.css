@@ -998,8 +998,63 @@ td.act {
     margin-left: auto;
   }
 }
+/* smaller than a ladder card: the cost in the head,
+   a lower line, the alerts and the bin on one line,
+   three cards a row on a wide screen */
+.bts {
+  gap: 8px;
+  padding: 2px 10px 10px;
+}
+@media (min-width: 1100px) {
+  .bts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.basetrade {
+  gap: 2px;
+  padding: 7px 10px 6px;
+}
+.basetrade .ladder-h b {
+  font-size: 14px;
+}
+.basetrade .ladder-h .chip {
+  font-size: 11px;
+  padding: 1px 6px;
+}
+.basetrade .rungs {
+  height: 40px;
+  margin: 2px 18px 0;
+}
+.basetrade .rungs-line {
+  top: 18px;
+}
+.basetrade .rungs .tick span {
+  top: 15px;
+  font-size: 10px;
+}
+.basetrade .rungs .dot-price span {
+  bottom: 11px;
+  font-size: 10px;
+}
 .basetrade .ladder-foot {
-  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+.basetrade .bt-alerts {
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.basetrade .bt-alerts .chip {
+  font-size: 10px;
+  padding: 0 5px;
+}
+.basetrade .del {
+  margin-left: auto;
+  flex: none;
 }
 
 /* ---------- the chart page ---------- */

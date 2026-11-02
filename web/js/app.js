@@ -8,6 +8,8 @@
 //   shortDate("02.09.2026")     "02.09.26", as the shell
 //   chartLink(name)             a link to the chart of
 //       stock name, with the name as its text
+//   binButton(label)            a bin button (class
+//       "del") that deletes, label its name
 //   put(node, key, text)        set a node's text, flash
 //       it when the text under key changed
 //   showNotice(title, text), hideNotice()
@@ -111,6 +113,31 @@
     var link = el("a", "to-chart", name);
     link.href = "/charts?stock=" + encodeURIComponent(name);
     return link;
+  }
+
+  var SVG = "http://www.w3.org/2000/svg";
+  var BIN = "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13" +
+    "M9 7V4h6v3";
+
+  // a bin button that deletes, label its name (read
+  // out and shown on hover)
+  function binButton(label) {
+    var button = el("button", "del");
+    button.type = "button";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    var svg = document.createElementNS(SVG, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    var path = document.createElementNS(SVG, "path");
+    path.setAttribute("d", BIN);
+    svg.appendChild(path);
+    button.appendChild(svg);
+    return button;
   }
 
   var shown = {}; // key -> text, to flash changes
@@ -351,6 +378,7 @@
     dayTime: dayTime,
     shortDate: shortDate,
     chartLink: chartLink,
+    binButton: binButton,
     put: put,
     showNotice: showNotice,
     hideNotice: hideNotice,

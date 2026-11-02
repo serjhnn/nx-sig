@@ -333,6 +333,10 @@ for your own use first. In this order:
   two columns on a wide screen, all of them in
   the address so a reload keeps them; `Chart` in
   `web/js/charts.js`.
+- ~~**Web menu: Charts and Basetrades as tabs**~~
+  (done): Ladders and Alerts under More on a
+  phone, `/charts` a chart per stock by default,
+  smaller basetrade cards with a bin.
 - ~~**Web alerts page**~~ (done, see
   [WEB_PLAN.md](WEB_PLAN.md) "The alerts page"):
   `/alerts`, the alerts process and a card per

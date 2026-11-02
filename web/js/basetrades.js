@@ -3,11 +3,11 @@
 //
 // app.js asks /api/basetrades every interval; this
 // draws a card per basetrade, like 'ls basetrades
-// al': its stock, count and buying price, the
-// stock's price and its change % from the buying
-// price, and a line with the buying price and the
-// levels of the basetrades alerts as ticks and the
-// price as a dot; below it each alert, marked when
+// al': its stock, count, buying price and cost, the
+// change % of the price from the buying price, a
+// line with the buying price and the levels of the
+// basetrades alerts as ticks and the price as a dot
+// with its value; below it each alert, marked when
 // the price reached it. A card is made once and only
 // its texts change, so nothing jumps while the page
 // updates.
@@ -17,7 +17,7 @@
 // or a price and count, filled in with its lowest buy
 // since the last sell; POST /api/basetrades/add),
 // "All from trades" sets every stock's from its
-// trades and each card has Delete (both after
+// trades and each card has a bin (both after
 // asking; POST /api/basetrades/add with "all",
 // /api/basetrades/delete). The server checks them
 // like the shell; its texts are shown.
@@ -88,27 +88,19 @@
     head.appendChild(c.what);
     head.appendChild(c.change);
     c.box.appendChild(head);
-    var now = el("div", "ladder-next");
-    c.price = el("span");
-    c.away = el("span", "muted");
-    now.appendChild(c.price);
-    now.appendChild(c.away);
-    c.box.appendChild(now);
     c.line = el("div", "rungs");
     c.line.setAttribute("aria-hidden", "true");
     c.box.appendChild(c.line);
+    // the alerts and the bin on one line
+    var foot = el("div", "ladder-foot");
     c.alerts = el("div", "bt-alerts");
-    c.box.appendChild(c.alerts);
-    c.foot = el("div", "ladder-foot");
-    c.acts = el("span", "acts");
-    c.del = el("button", "btn danger sm", "Delete");
-    c.del.type = "button";
+    foot.appendChild(c.alerts);
+    c.del = nx.binButton("Delete the basetrade of " + name);
     c.del.addEventListener("click", function () {
       remove(name, c.del);
     });
-    c.acts.appendChild(c.del);
-    c.foot.appendChild(c.acts);
-    c.box.appendChild(c.foot);
+    foot.appendChild(c.del);
+    c.box.appendChild(foot);
     cards[name] = c;
     return c;
   }
@@ -133,18 +125,15 @@
     var c = card(b.stock);
     var k = b.stock + ":";
     c.box.setAttribute("aria-label", "Basetrade " + b.stock);
-    c.what.textContent = b.count + " @ " + num(b.buy, 2);
+    c.what.textContent = b.count + " @ " + num(b.buy, 2) +
+      " · cost " + num(b.buy * b.count, 2);
     put(c.change, k + "change", b.change_pct === null
       ? "-" : nx.signed(b.change_pct, 2) + "%");
     var trend = nx.trend(b.change_pct);
     c.change.className = "chip " + (trend || "idle");
-    put(c.price, k + "price", b.price === null
-      ? "no price" : "price " + num(b.price, 2));
-    c.price.className = trend;
-    c.away.textContent = "cost " + num(b.buy * b.count, 2);
     drawLine(c.line, b);
     drawAlerts(c.alerts, b);
-    c.foot.hidden = !canChange();
+    c.del.hidden = !canChange();
     return c.box;
   }
 
@@ -185,14 +174,14 @@
     var what = b ? ": " + amount(b.count, b.buy) : "";
     if (!window.confirm("Delete the basetrade of " + name +
       what + "?")) return;
-    busy(button, "Deleting…");
+    button.disabled = true;
     nx.send("/api/basetrades/delete", { stock: name })
       .then(function (result) {
         nx.tell(result.text);
         refresh();
       })
       .catch(function (error) {
-        idle(button);
+        button.disabled = false;
         nx.tell("basetrade of " + name + " not deleted: " +
           (error.message || error), true);
       });

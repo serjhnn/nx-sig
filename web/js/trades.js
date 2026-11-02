@@ -34,8 +34,6 @@
   var chips = {}; // stock name -> its button
   var refresh = null; // asks /api/trades right away
   var scrolledTo = null; // the chip last scrolled to
-  var TRASH = "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13" +
-    "M9 7V4h6v3";
 
   function pctText(s) {
     return s.pct === null ? "-" : signed(s.pct, 1) + "%";
@@ -173,24 +171,7 @@
 
   function deleteCell(t) {
     var td = el("td", "act");
-    var button = el("button", "del");
-    button.type = "button";
-    var label = "Delete trade " + t.id;
-    button.setAttribute("aria-label", label);
-    button.title = label;
-    var svg = document.createElementNS(
-      "http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("fill", "none");
-    svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", "2");
-    svg.setAttribute("stroke-linecap", "round");
-    svg.setAttribute("stroke-linejoin", "round");
-    var path = document.createElementNS(
-      "http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", TRASH);
-    svg.appendChild(path);
-    button.appendChild(svg);
+    var button = nx.binButton("Delete trade " + t.id);
     button.addEventListener("click", function () {
       remove(detail.stock.stock, t, button);
     });
