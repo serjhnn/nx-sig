@@ -16,7 +16,8 @@ they were then: `assets/web/` is now `web/`, and
 the price cache and `/api/status` moved from
 `web_service.py` into `scripts/web/`). The trades
 page and the ladders page are done too (see their
-sections); what comes next is under "Later".
+sections). The alerts page is next, see "The alerts
+page".
 
 ## The style (style C)
 
@@ -399,6 +400,61 @@ ladder <id> force`) stays in the shell.
    the demo's web settings and sample data, the
    tests), `TODO.md` and the module map;
    `COMMANDS.md` didn't change.
+
+## The alerts page
+
+`/alerts`: the saved alerts like `ls alerts`, each
+with its level per stock (`ls basetrades al`, `xtop
+al`): the price, how far it is and whether it was
+reached; adding and deleting alerts, running and
+stopping their process, like `add alert`, `rm
+alert`, `run alerts` and `stop alerts`. The same
+`read_only` option and checks of a change as the
+other pages; taking the background tasks over from
+another device (`run alerts force`) stays in the
+shell.
+
+One process checks every alert: run and stop are
+for the page, not for one alert. Adding an alert
+starts it, deleting the last one stops it, as in
+the shell.
+
+1. ~~**The process state in the engine**~~ (done):
+   `alerts.process_state()`, whether the process
+   runs (with its last check), runs on another
+   device (which one) or not, moved from
+   `shell/alert_cmd.py`. `ls alerts` prints the
+   same (compared in every state, with and without
+   color).
+2. **`/api/alerts`**: the process state, each alert
+   (kind, the shell's text, created) with its level
+   per stock (`basetrade_levels()`,
+   `gain_levels()`): the price, the distance in %,
+   reached or not; the stock names for the form.
+   Only on `127.0.0.1`, with `read_only`.
+3. **The page `/alerts`, read-only**: a bar with the
+   process state and its last check, a card per
+   alert with its stocks (level, price, distance, a
+   "reached" chip); phone first, the Alerts link in
+   the menu works.
+4. **The changes**: POST `/api/alerts/add`
+   (basetrades: down or up, a %; gain: a stock or
+   all, up or down, an amount or a %), `/delete`,
+   `/run`, `/stop` behind the checks of a change,
+   with `alerts.create()`, `create_gain()`,
+   `remove()`, `start()` (never force), `stop()` and
+   the shell's texts.
+5. **The forms**: "Add alert" with a
+   basetrades/gain switch; Run or Stop in the
+   process bar; Delete on each card after asking.
+   Hidden while `read_only` is on.
+6. **Tests**: the state, the api with both kinds
+   and reached levels, the changes (processes
+   faked), the page's ids and fields; a browser
+   check at 360, 390 and 1200px, dark and light,
+   read-only and not, and once with the real alerts
+   process in the demo.
+7. **Docs**: README, `TODO.md`, the module map.
 
 ## Later
 

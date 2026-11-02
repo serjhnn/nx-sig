@@ -71,6 +71,9 @@
 #       the log file of the process
 #   task()
 #       its task row, None if it isn't running
+#   process_state()
+#       whether the process runs here, on another
+#       device or not, for 'ls alerts' and the web
 #
 # a task row (the 'ls tasks' row, the web's task
 # list) is {"id", "task", "pid", "started", "state",
@@ -83,6 +86,7 @@ from datetime import datetime
 import config
 import process
 import storage
+import tasks_owner
 from storage import (
     ROOT_DIR,
     alert_add,
@@ -412,6 +416,40 @@ def task():
         "state": state,
         "healthy": healthy,
     }
+
+
+def process_state():
+    """whether the alerts process runs:
+
+    {"state": "running", "elsewhere" (not here, the
+              background tasks run on another device)
+              or "stopped",
+     "pid": its pid when running, else None,
+     "updated": its last check (a datetime) when
+                running, None before the first,
+     "owner": the other device (tasks_owner.describe())
+              when elsewhere, else None}"""
+    pid = running_pid()
+    found = {
+        "state": "stopped",
+        "pid": None,
+        "updated": None,
+        "owner": None,
+    }
+    if pid:
+        found.update(
+            state="running",
+            pid=pid,
+            updated=_time(status() or {}, "updated"),
+        )
+        return found
+    current = tasks_owner.owner()
+    if current and tasks_owner.lost():
+        found.update(
+            state="elsewhere",
+            owner=tasks_owner.describe(current),
+        )
+    return found
 
 
 def _time(heartbeat, key):

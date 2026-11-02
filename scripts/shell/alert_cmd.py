@@ -13,7 +13,6 @@
 # part of 'ls basetrades al' below its table
 
 import textwrap
-from datetime import datetime
 
 from notifiers import notifier
 import tasks_owner
@@ -394,28 +393,20 @@ def _list_lines(head, items):
 
 def _task_line():
     """whether the alerts process runs"""
-    if alerts.running_pid():
-        updated = _time(alerts.status() or {}, "updated")
-        if updated is None:
+    found = alerts.process_state()
+    if found["state"] == "running":
+        if found["updated"] is None:
             return "alerts: running"
         return (
-            f"alerts: running, last check {updated:%H:%M}"
+            "alerts: running, last check "
+            f"{found['updated']:%H:%M}"
         )
-    current = tasks_owner.owner()
-    if current and tasks_owner.lost():
+    if found["state"] == "elsewhere":
         return (
             "alerts: not running here, the background "
-            f"tasks run on {tasks_owner.describe(current)}"
+            f"tasks run on {found['owner']}"
         )
     return "alerts: not running, see 'run alerts'"
-
-
-def _time(status, key):
-    """the time status[key] of a heartbeat, or None"""
-    try:
-        return datetime.fromisoformat(status[key])
-    except (KeyError, TypeError, ValueError):
-        return None
 
 
 def _print_alerts(saved):

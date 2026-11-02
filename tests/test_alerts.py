@@ -13,6 +13,7 @@ import paths  # noqa: F401, scripts/ on sys.path
 import config
 from storage import Stock, alerts_get_all
 import storage
+import tasks_owner
 from services.alert_service import _check
 from engines import alerts as alerts_engine
 from engines.alerts import (
@@ -396,6 +397,73 @@ class TaskTest(unittest.TestCase):
         row = alerts_engine.task()
         self.assertIsNone(row["started"])
         self.assertTrue(row["healthy"])
+
+
+class ProcessStateTest(unittest.TestCase):
+    """alerts.process_state(): 'ls alerts' and the web"""
+
+    def patch(self, target, name, value):
+        p = mock.patch.object(target, name, value)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def owner(self, owner, lost):
+        self.patch(tasks_owner, "owner", lambda: owner)
+        self.patch(tasks_owner, "lost", lambda: lost)
+
+    def test_running(self):
+        self.patch(alerts_engine, "running_pid", lambda: 21)
+        self.patch(
+            alerts_engine,
+            "status",
+            lambda: {"updated": "2026-11-02T10:44:05"},
+        )
+        self.assertEqual(
+            alerts_engine.process_state(),
+            {
+                "state": "running",
+                "pid": 21,
+                "updated": datetime(2026, 11, 2, 10, 44, 5),
+                "owner": None,
+            },
+        )
+        # before its first check
+        self.patch(alerts_engine, "status", lambda: None)
+        self.assertIsNone(
+            alerts_engine.process_state()["updated"]
+        )
+
+    def test_elsewhere(self):
+        self.patch(
+            alerts_engine, "running_pid", lambda: None
+        )
+        phone = {"id": "a1", "name": "phone"}
+        self.owner(phone, True)
+        found = alerts_engine.process_state()
+        self.assertEqual(found["state"], "elsewhere")
+        self.assertEqual(
+            found["owner"], tasks_owner.describe(phone)
+        )
+        self.assertIsNone(found["pid"])
+
+    def test_stopped(self):
+        self.patch(
+            alerts_engine, "running_pid", lambda: None
+        )
+        for owner, lost in (
+            (None, False),
+            ({"id": "a1", "name": "pc"}, False),
+        ):
+            self.owner(owner, lost)
+            self.assertEqual(
+                alerts_engine.process_state(),
+                {
+                    "state": "stopped",
+                    "pid": None,
+                    "updated": None,
+                    "owner": None,
+                },
+            )
 
 
 # the warnings of the failed notify
