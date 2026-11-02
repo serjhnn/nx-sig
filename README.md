@@ -230,7 +230,7 @@ The `terminal` settings:
 | `theme` | `"colored"` (default) or `"plain"` for no colors |
 | `chart_height` | the number of price rows of `chart` (default `15`, at least `3`) |
 
-The `web` settings (optional, `"web": {"host": "127.0.0.1", "port": 8080}`):
+The `web` settings (in `config.json` with their defaults, all optional):
 
 | Key | Meaning |
 |---|---|
