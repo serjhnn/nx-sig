@@ -310,7 +310,8 @@ for your own use first. In this order:
     updated by itself; planned in
     [WEB_PLAN.md](WEB_PLAN.md). Steps 1 (the shared
     style, `/style.css`), 2 (the positions in
-    `engines/positions.py`) and 3 (the status in
-    `engines/overview.py`) are done
+    `engines/positions.py`), 3 (the status in
+    `engines/overview.py`) and 4 (the price cache
+    in the web server) are done
   - maybe start it after a phone restart, with the
     ladders (Termux:Boot)

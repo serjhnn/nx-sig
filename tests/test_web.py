@@ -43,6 +43,7 @@ class WebConfigTest(unittest.TestCase):
         self.patch({})
         self.assertEqual(config.web_host(), "127.0.0.1")
         self.assertEqual(config.web_port(), 8080)
+        self.assertEqual(config.web_interval(), 5)
         self.assertEqual(
             web.url(), "http://127.0.0.1:8080/"
         )
@@ -61,6 +62,24 @@ class WebConfigTest(unittest.TestCase):
             self.assertEqual(config.web_port(), 8080)
         self.patch({"web": "on"})
         self.assertEqual(config.web_port(), 8080)
+        self.assertEqual(config.web_interval(), 5)
+
+    def test_interval(self):
+        for value, expected in (
+            (10, 10),
+            (1, 1),
+            (2.5, 2.5),
+            (0.5, 5),
+            (0, 5),
+            (-3, 5),
+            ("10", 5),
+            (True, 5),
+            (None, 5),
+        ):
+            self.patch({"web": {"interval": value}})
+            self.assertEqual(
+                config.web_interval(), expected, value
+            )
 
 
 class WebServerTest(unittest.TestCase):
@@ -177,6 +196,135 @@ class WebServerTest(unittest.TestCase):
         for method in ("POST", "PUT", "DELETE"):
             response, _ = self.request("/", method)
             self.assertEqual(response.status, 501, method)
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+class PriceCacheTest(unittest.TestCase):
+    def setUp(self):
+        self.calls = 0
+        self.result = {"SOXL": 30.0}
+        self.clock = FakeClock()
+        self.cache = web_service.PriceCache(
+            0.01,
+            fetch=self.fetch,
+            watch=30,
+            clock=self.clock,
+        )
+        self.addCleanup(self.cache.stop)
+        self.log = mock.Mock()
+        p = mock.patch.object(web_service, "log", self.log)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def fetch(self):
+        self.calls += 1
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+    def wait_for(self, check):
+        # the thread runs every 0.01s
+        for _ in range(500):
+            if check():
+                return
+            threading.Event().wait(0.01)
+        self.fail("timed out")
+
+    def test_nothing_without_a_page(self):
+        threading.Event().wait(0.05)
+        self.assertEqual(self.calls, 0)
+        self.assertFalse(self.cache.fetching())
+
+    def test_first_get(self):
+        first = self.cache.get()
+        self.assertEqual(
+            first,
+            {"prices": {}, "updated": None, "error": None},
+        )
+        self.assertTrue(self.cache.fetching())
+        self.wait_for(lambda: self.cache.get()["updated"])
+        got = self.cache.get()
+        self.assertEqual(got["prices"], {"SOXL": 30.0})
+        self.assertIsNone(got["error"])
+
+    def test_one_thread(self):
+        before = threading.active_count()
+        for _ in range(20):
+            self.cache.get()
+        self.assertEqual(
+            threading.active_count(), before + 1
+        )
+
+    def test_error_keeps_the_prices(self):
+        self.cache.get()
+        self.wait_for(lambda: self.cache.get()["updated"])
+        updated = self.cache.get()["updated"]
+        self.result = OSError("network is down")
+        self.wait_for(lambda: self.cache.get()["error"])
+        got = self.cache.get()
+        self.assertEqual(got["error"], "network is down")
+        self.assertEqual(got["prices"], {"SOXL": 30.0})
+        self.assertEqual(got["updated"], updated)
+        # logged once, not every interval
+        calls = self.calls
+        self.wait_for(lambda: self.calls > calls + 3)
+        self.assertEqual(self.log.warning.call_count, 1)
+        # back: the error is gone
+        self.result = {"SOXL": 31.0}
+        self.wait_for(
+            lambda: self.cache.get()["error"] is None
+        )
+        self.assertEqual(
+            self.cache.get()["prices"], {"SOXL": 31.0}
+        )
+
+    def test_missing_key(self):
+        self.result = KeyError("APCA_API_KEY_ID")
+        self.cache.get()
+        self.wait_for(lambda: self.cache.get()["error"])
+        self.assertEqual(
+            self.cache.get()["error"],
+            "missing APCA_API_KEY_ID in .env",
+        )
+
+    def test_stops_when_nobody_watches(self):
+        self.cache.get()
+        self.wait_for(lambda: self.calls >= 2)
+        # 30s without a get(): the thread ends
+        self.clock.now += 30
+        self.wait_for(lambda: not self.cache.fetching())
+        calls = self.calls
+        threading.Event().wait(0.05)
+        self.assertEqual(self.calls, calls)
+        # a page again: fetching again
+        self.cache.get()
+        self.assertTrue(self.cache.fetching())
+        self.wait_for(lambda: self.calls > calls)
+
+    def test_stop(self):
+        self.cache.get()
+        self.cache.stop()
+        self.wait_for(lambda: not self.cache.fetching())
+        self.cache.get()
+        self.assertFalse(self.cache.fetching())
+
+    def test_server_has_one(self):
+        server = web_service.make_server("127.0.0.1", 0)
+        self.addCleanup(server.server_close)
+        self.assertIsInstance(
+            server.prices, web_service.PriceCache
+        )
+        self.assertEqual(
+            server.prices.interval, config.web_interval()
+        )
+        self.assertFalse(server.prices.fetching())
 
 
 class WebProcessTest(unittest.TestCase):

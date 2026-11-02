@@ -235,6 +235,7 @@ The `web` settings (optional, `"web": {"host": "127.0.0.1", "port": 8080}`):
 |---|---|
 | `host` | the address the web server listens on (default `"127.0.0.1"`, only this device); `"0.0.0.0"` lets the other devices of the network open it too |
 | `port` | its port, `1` to `65535` (default `8080`) |
+| `interval` | seconds between two price requests while the main page is open, at least `1` (default `5`) |
 
 With `auto`, the width is read again for every command, so the output adjusts
 to the screen as it is now; it is never less than 48. On a screen wider than 48
@@ -548,14 +549,18 @@ web server started (pid 948), open
 
 A small web page with the nX-sig logo, as wide as the screen, served by
 `scripts/services/web_service.py` with Python's own `http.server` (no
-packages to install). Open the address in a browser on the same device.
+other packages than the shell's). Open the address in a browser on the same device.
 
 - It serves only `/` (the page), `/logo.svg`, `/style.css` (the style
   every page shares, `assets/web/style.css`) and the fonts it uses
   (`/fonts/`, IBM Plex, bundled so nothing comes from the internet); it
   reads no data and changes nothing, any other path is `404`.
 - The main page with the live gain/loss comes next, planned in
-  [WEB_PLAN.md](WEB_PLAN.md).
+  [WEB_PLAN.md](WEB_PLAN.md). For it, the server fetches the prices every
+  config `web` `interval` seconds (default `5`), but only while a page
+  asked for them in the last 30 seconds: with no page open it requests
+  nothing, and however many pages are open it makes one request per
+  interval. A missing key or a network error is logged once.
 - `run web` starts it, `stop web` stops it; it keeps running when the shell
   is closed. `status` shows `web: running at http://127.0.0.1:8080/`, and
   `ls tasks` its row (`stop tasks all` stops it too).

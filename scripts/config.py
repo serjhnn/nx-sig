@@ -27,6 +27,8 @@
 #   interval(key)    "timing" key in seconds
 #   web_host(), web_port()
 #                    the address of the web server
+#   web_interval()   its seconds between two price
+#                    requests
 #   width_setting(), theme_setting()
 #                    (setting, "config.json"|"default")
 #   theme()          colored or plain
@@ -70,6 +72,8 @@ DEFAULT_INTERVAL = 30
 # the web server: only this device by default
 DEFAULT_WEB_HOST = "127.0.0.1"
 DEFAULT_WEB_PORT = 8080
+# seconds between two price requests of the web page
+DEFAULT_WEB_INTERVAL = 5
 # a trade's fee when config.json has no "fee"
 DEFAULT_FEE = 0
 # the width the shell's tables are made for
@@ -233,6 +237,15 @@ def web_port():
     ):
         return value
     return DEFAULT_WEB_PORT
+
+
+def web_interval():
+    """config "web" "interval": a number of seconds,
+    at least 1, else DEFAULT_WEB_INTERVAL"""
+    value = _section("web").get("interval")
+    if _is_number(value) and value >= 1:
+        return value
+    return DEFAULT_WEB_INTERVAL
 
 
 def _terminal(key, default):

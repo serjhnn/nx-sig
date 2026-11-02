@@ -15,11 +15,21 @@
 # anything else is 404, a method other than GET or HEAD
 # 501 (http.server).
 #
+# the server keeps the prices for the main page in a
+# PriceCache (server.prices): a thread fetches them
+# every config "web" "interval" seconds, but only
+# while a page asked for them in the last
+# WATCH_SECONDS, so no page open means no requests,
+# and one request per interval however many pages are
+# open.
+#
 # logs: {storage_dir}/logs/web.log
 
 import logging
 import os
 import sys
+import threading
+import time
 from datetime import datetime
 from http.server import (
     BaseHTTPRequestHandler,
@@ -37,7 +47,7 @@ sys.path.insert(
 
 import config
 import process
-from engines import web
+from engines import prices, web
 
 LOGO_PATH = os.path.join(
     config.ROOT_DIR, "assets", "logo.svg"
@@ -45,6 +55,9 @@ LOGO_PATH = os.path.join(
 WEB_DIR = os.path.join(config.ROOT_DIR, "assets", "web")
 STYLE_PATH = os.path.join(WEB_DIR, "style.css")
 FONTS_DIR = os.path.join(WEB_DIR, "fonts")
+# the prices are fetched while a page asked for them
+# this recently
+WATCH_SECONDS = 30
 PAGE = """<!doctype html>
 <html lang="en">
 <head>
@@ -133,11 +146,103 @@ def _font(path):
     return os.path.join(FONTS_DIR, name)
 
 
+class PriceCache:
+    """the last prices, fetched by a thread every
+    interval seconds while get() was called in the last
+    watch seconds; fetch() gives {stock name: price}"""
+
+    def __init__(
+        self,
+        interval,
+        fetch=prices.get_latest_prices,
+        watch=WATCH_SECONDS,
+        clock=time.monotonic,
+    ):
+        self.interval = interval
+        self.watch = watch
+        self._fetch = fetch
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        self._thread = None
+        self._asked = None
+        self._prices = {}
+        self._updated = None
+        self._error = None
+
+    def get(self):
+        """{"prices", "updated", "error"}: the last
+        prices and when they came (a datetime, None
+        before the first), the error of the last fetch
+        (the prices are then the ones before it);
+        starts the fetching if it is idle"""
+        with self._lock:
+            self._asked = self._clock()
+            if self._thread is None and (
+                not self._stop.is_set()
+            ):
+                self._thread = threading.Thread(
+                    target=self._run, daemon=True
+                )
+                self._thread.start()
+            return {
+                "prices": dict(self._prices),
+                "updated": self._updated,
+                "error": self._error,
+            }
+
+    def fetching(self):
+        """True while its thread runs"""
+        with self._lock:
+            return self._thread is not None
+
+    def stop(self):
+        """end the thread, for good"""
+        self._stop.set()
+
+    def _run(self):
+        while not self._stop.is_set():
+            self._fetch_once()
+            if self._stop.wait(self.interval):
+                break
+            with self._lock:
+                idle = self._clock() - self._asked
+                if idle >= self.watch:
+                    # nobody watches: end here, the
+                    # next get() starts a new thread
+                    self._thread = None
+                    return
+        with self._lock:
+            self._thread = None
+
+    def _fetch_once(self):
+        try:
+            found = self._fetch()
+        except KeyError as e:
+            error = f"missing {e.args[0]} in .env"
+        except Exception as e:  # network or API errors
+            error = str(e) or type(e).__name__
+        else:
+            with self._lock:
+                self._prices = dict(found)
+                self._updated = datetime.now()
+                self._error = None
+            return
+        with self._lock:
+            new = error != self._error
+            self._error = error
+        if new:
+            # once, not every interval
+            log.warning("can't get the prices: %s", error)
+
+
 def make_server(host, port):
     """a server on host:port (port 0: a free one),
-    not serving yet; raises OSError if the port is
-    taken"""
-    return ThreadingHTTPServer((host, port), Handler)
+    not serving yet, with its PriceCache in .prices;
+    raises OSError if the port is taken"""
+    server = ThreadingHTTPServer((host, port), Handler)
+    server.prices = PriceCache(config.web_interval())
+    return server
 
 
 def run():
@@ -169,6 +274,7 @@ def run():
         web.save_status(pid, started, "crashed")
         sys.exit(1)
     finally:
+        server.prices.stop()
         server.server_close()
 
 

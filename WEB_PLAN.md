@@ -107,12 +107,15 @@ opened from another device.
    broker's line in 'status' into
    `mail_broker.summary()`. The shell prints the
    same as before.
-4. **The price cache in the web service**: a thread
-   with `prices.get_latest_prices()`, running only
-   while a page is watched. A missing key or a
-   network error is kept and shown on the page. New
-   config `web` `interval` (default `5`, at least
-   `1`).
+4. ~~**The price cache in the web service**~~
+   (done): `PriceCache` in `web_service.py`
+   (`server.prices`), a thread with
+   `prices.get_latest_prices()` running only while
+   a page asked in the last 30 seconds. A missing
+   key or a network error is kept (with the last
+   prices) for the page and logged once. New config
+   `web` `interval` (`config.web_interval()`,
+   default `5`, at least `1`).
 5. **`/api/status`**: JSON with each stock
    (quantity, average, price, gain, gain %), the
    total, the tasks, the last trades, the update
