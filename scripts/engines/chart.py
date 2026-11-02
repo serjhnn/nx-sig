@@ -38,14 +38,19 @@
 #   timeframe(days, columns)
 #       (Alpaca timeframe, label) of the bars for days
 #       that fill columns
-#   data(stock, days, points)
+#   data(stock, days, points, get_bars=None)
 #       the chart's data of a Stock over days, the bars
 #       of the coarsest timeframe with about points
 #       prices: {"bars": [(time, price)] oldest first,
 #       "timeframe", "label", "avg": the average buy
 #       price, None when none are held, "trades":
 #       [(time, 'B' or 'S', price)]}; the same errors
-#       as stock_chart()
+#       as stock_chart(). get_bars(symbol, days,
+#       timeframe) gets the bars, prices.get_bars by
+#       default (the web keeps them a while)
+#   thin(bars, most)
+#       bars with at most most of them, neighbours
+#       averaged
 #   stock_chart(stock, period, width, colors=None)
 #       the lines of the chart of a Stock, [] when
 #       there are no prices in the period; KeyError for
@@ -132,13 +137,14 @@ def timeframe(days, columns):
     return TIMEFRAMES[-1][:2]
 
 
-def data(stock, days, points):
+def data(stock, days, points, get_bars=None):
     """the bars of stock over days with its average
     buy price and trades, see the top"""
     tf, label = timeframe(days, points)
     count, avg = trades.total(stock)
+    get_bars = get_bars or prices.get_bars
     return {
-        "bars": prices.get_bars(stock.name, days, tf),
+        "bars": get_bars(stock.name, days, tf),
         "timeframe": tf,
         "label": label,
         "avg": avg if count > 0 else None,
@@ -162,6 +168,15 @@ def stock_chart(stock, period, width, colors=None):
         trades=found["trades"],
         colors=colors,
     )
+
+
+def thin(bars, most):
+    """bars, [(time, price)], or at most most points:
+    each the average of the bars in it, at the time of
+    its first"""
+    if len(bars) <= most:
+        return list(bars)
+    return [(t, p) for _, t, p in _fit(bars, most)]
 
 
 def _trades(stock):

@@ -16,8 +16,10 @@ import socket
 import tempfile
 import threading
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
+
+import requests
 
 import paths  # noqa: F401, scripts/ on sys.path
 import config
@@ -25,8 +27,10 @@ import process
 import storage
 import tasks_owner
 from engines import alerts as alerts_engine
+from engines import prices as prices_engine
 from engines import (
     basetrades,
+    chart,
     ladder,
     overview,
     trades,
@@ -1534,6 +1538,258 @@ class ApiBasetradesTest(ApiMixin, unittest.TestCase):
             response, body = self.request("/api/basetrades")
         self.assertEqual(response.status, 500)
         self.log.exception.assert_called()
+
+
+class ApiChartTest(ApiMixin, unittest.TestCase):
+    """/api/chart/<stock>?days=<n>, with fake bars"""
+
+    def setUp(self):
+        super().setUp()
+        self.calls = []
+        start = datetime(2026, 10, 12, 9, 0)
+        self.bars = [
+            (start + timedelta(hours=i), 10.0 + i)
+            for i in range(5)
+        ]
+
+        def get_bars(symbol, days, tf):
+            self.calls.append((symbol, days, tf))
+            if isinstance(self.bars, Exception):
+                raise self.bars
+            return self.bars
+
+        for target, name, value in (
+            (prices_engine, "get_bars", get_bars),
+            (api, "bars", price_cache.BarsCache()),
+        ):
+            p = mock.patch.object(target, name, value)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def get(
+        self, path, cache=None, host="127.0.0.1", ok=True
+    ):
+        """(response, data) of a GET of path; only a
+        failure (not ok) is logged"""
+        self.serve(host)
+        self.server.prices = cache or FakeCache()
+        response, body = self.request(
+            path, logged=host != "127.0.0.1" or not ok
+        )
+        return response, json.loads(body)
+
+    def test_chart(self):
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            4,
+            10,
+            "11.10.2026",
+            "10:00",
+        )
+        trades.add(
+            Stock.SOXL,
+            TradeType.BUY,
+            4,
+            12,
+            "12.10.2026",
+            "10:30",
+        )
+        response, data = self.get(
+            "/api/chart/soxl", FakeCache({"SOXL": 14.5})
+        )
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            data,
+            {
+                "updated": None,
+                "error": None,
+                "interval": 5,
+                "demo": False,
+                "read_only": True,
+                "stock": "SOXL",
+                "days": 5,
+                "timeframe": "15Min",
+                "label": "15m",
+                "points": [
+                    [
+                        f"2026-10-12T{9 + i:02}:00:00",
+                        10.0 + i,
+                    ]
+                    for i in range(5)
+                ],
+                "avg": 11.0,
+                # the buy before the first point isn't
+                # on the chart
+                "trades": [
+                    {
+                        "time": "2026-10-12T10:30:00",
+                        "side": "B",
+                        "price": 12.0,
+                    }
+                ],
+                "price": 14.5,
+                "names": [s.name for s in Stock],
+            },
+        )
+        self.assertEqual(self.calls, [("SOXL", 5, "15Min")])
+
+    def test_days(self):
+        _, data = self.get("/api/chart/SOXL?days=365")
+        self.assertEqual(data["days"], 365)
+        self.assertEqual(data["timeframe"], "1Day")
+        self.assertIsNone(data["avg"])
+        self.assertIsNone(data["price"])
+        # empty: the default
+        _, data = self.get("/api/chart/SOXL?days=")
+        self.assertEqual(data["days"], chart.DEFAULT_DAYS)
+        for days in (
+            "0",
+            "x",
+            "1.5",
+            "-3",
+            "%C2%B2",  # a superscript 2
+            str(chart.MAX_DAYS + 1),
+        ):
+            response, data = self.get(
+                f"/api/chart/SOXL?days={days}", ok=False
+            )
+            self.assertEqual(response.status, 400, days)
+            self.assertEqual(
+                data["error"],
+                "days must be a whole number from 1 "
+                f"to {chart.MAX_DAYS}",
+            )
+
+    def test_at_most_chart_points(self):
+        start = datetime(2026, 1, 1)
+        self.bars = [
+            (start + timedelta(days=i), float(i))
+            for i in range(1000)
+        ]
+        _, data = self.get("/api/chart/SOXL?days=1500")
+        points = data["points"]
+        self.assertEqual(len(points), api.CHART_POINTS)
+        # each the average of 5 bars, at the first's time
+        self.assertEqual(
+            points[0], ["2026-01-01T00:00:00", 2.0]
+        )
+        self.assertEqual(points[-1][1], 997.0)
+
+    def test_no_bars(self):
+        self.bars = []
+        trades.add(Stock.SOXL, TradeType.BUY, 4, 10)
+        response, data = self.get("/api/chart/SOXL")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(data["points"], [])
+        self.assertEqual(data["trades"], [])
+
+    def test_bars_kept(self):
+        # a reload or another tab: no new request
+        self.get("/api/chart/SOXL?days=30")
+        self.get("/api/chart/SOXL?days=30")
+        self.get("/api/chart/TSMX?days=30")
+        self.assertEqual(
+            self.calls,
+            [("SOXL", 30, "15Min"), ("TSMX", 30, "15Min")],
+        )
+
+    def test_unknown_stock(self):
+        response, data = self.get(
+            "/api/chart/XXX", ok=False
+        )
+        self.assertEqual(response.status, 404)
+        self.assertTrue(
+            data["error"].startswith("unknown stock 'XXX'")
+        )
+        self.assertEqual(self.calls, [])
+
+    def test_fetch_errors(self):
+        self.bars = requests.ConnectionError("no network")
+        response, data = self.get(
+            "/api/chart/SOXL", ok=False
+        )
+        self.assertEqual(response.status, 503)
+        self.assertEqual(
+            data,
+            {"error": "can't get the prices: no network"},
+        )
+
+        def missing_key(symbol, days, tf):
+            raise KeyError("APCA_API_KEY_ID")
+
+        with mock.patch.object(
+            prices_engine, "get_bars", missing_key
+        ):
+            response, data = self.get(
+                "/api/chart/SOXL?days=6", ok=False
+            )
+        self.assertEqual(response.status, 503)
+        self.assertEqual(
+            data["error"],
+            "missing APCA_API_KEY_ID in .env, can't get "
+            "the prices",
+        )
+
+    def test_only_on_localhost(self):
+        response, data = self.get(
+            "/api/chart/SOXL", host="0.0.0.0"
+        )
+        self.assertEqual(response.status, 403)
+        self.assertEqual(list(data), ["error"])
+        self.assertEqual(self.calls, [])
+
+
+class BarsCacheTest(unittest.TestCase):
+    def setUp(self):
+        self.now = 0.0
+        self.calls = []
+
+        def fetch(symbol, days, tf):
+            self.calls.append((symbol, days, tf))
+            if symbol == "BAD":
+                raise OSError("down")
+            return [(self.now, 1.0)]
+
+        self.cache = price_cache.BarsCache(
+            keep=60, fetch=fetch, clock=lambda: self.now
+        )
+
+    def test_kept_a_while(self):
+        first = self.cache.get_bars("SOXL", 5, "15Min")
+        self.now = 59
+        self.assertEqual(
+            self.cache.get_bars("SOXL", 5, "15Min"), first
+        )
+        # another key, then too old
+        self.cache.get_bars("SOXL", 30, "1Hour")
+        self.now = 60
+        self.assertEqual(
+            self.cache.get_bars("SOXL", 5, "15Min"),
+            [(60, 1.0)],
+        )
+        self.assertEqual(
+            self.calls,
+            [
+                ("SOXL", 5, "15Min"),
+                ("SOXL", 30, "1Hour"),
+                ("SOXL", 5, "15Min"),
+            ],
+        )
+
+    def test_old_ones_go(self):
+        self.cache.get_bars("SOXL", 5, "15Min")
+        self.now = 100
+        self.cache.get_bars("TSMX", 5, "15Min")
+        self.assertEqual(
+            list(self.cache._found), [("TSMX", 5, "15Min")]
+        )
+
+    def test_error_not_kept(self):
+        for _ in range(2):
+            with self.assertRaises(OSError):
+                self.cache.get_bars("BAD", 5, "15Min")
+        self.assertEqual(len(self.calls), 2)
 
 
 class ChangeTest(ApiMixin, unittest.TestCase):

@@ -9,9 +9,17 @@
 # means no requests, and one request per interval
 # however many pages are open.
 #
+# BarsCache keeps the bars of the chart page a
+# while, so a reload or another tab doesn't ask for
+# them again.
+#
 # public classes:
 #   PriceCache(interval)
 #       get() the last prices, fetching() and stop()
+#   BarsCache(keep=BARS_SECONDS)
+#       get_bars(symbol, days, timeframe), like
+#       prices.get_bars, from the cache while younger
+#       than keep seconds
 
 import logging
 import threading
@@ -23,6 +31,8 @@ from engines import prices
 # the prices are fetched while a page asked for them
 # this recently
 WATCH_SECONDS = 30
+# the bars of the chart page are kept this long
+BARS_SECONDS = 60
 
 log = logging.getLogger("web")
 
@@ -115,3 +125,39 @@ class PriceCache:
         if new:
             # once, not every interval
             log.warning("can't get the prices: %s", error)
+
+
+class BarsCache:
+    """the bars of prices.get_bars, kept keep seconds
+    per symbol, days and timeframe; an error isn't
+    kept"""
+
+    def __init__(
+        self,
+        keep=BARS_SECONDS,
+        fetch=None,
+        clock=time.monotonic,
+    ):
+        self.keep = keep
+        self._fetch = fetch
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._found = {}  # key -> (time, bars)
+
+    def get_bars(self, symbol, days, timeframe):
+        key = (symbol, days, timeframe)
+        now = self._clock()
+        with self._lock:
+            # the old ones go, so it doesn't grow
+            self._found = {
+                k: v
+                for k, v in self._found.items()
+                if now - v[0] < self.keep
+            }
+            if key in self._found:
+                return self._found[key][1]
+        fetch = self._fetch or prices.get_bars
+        bars = fetch(symbol, days, timeframe)
+        with self._lock:
+            self._found[key] = (self._clock(), bars)
+        return bars

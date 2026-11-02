@@ -19,6 +19,14 @@
 #   /api/basetrades    the basetrades with the price
 #                      and their alert levels,
 #                      basetrade_rows()
+#   /api/chart/<s>?days=<n>
+#                      the prices of stock s over n
+#                      days (DEFAULT_DAYS without),
+#                      its average buy price and
+#                      trades, stock_chart(); 404 for
+#                      a stock not in the config, 400
+#                      for a bad n, 503 when the
+#                      prices can't be fetched
 # and the changes (POST, see below):
 #   /api/trades/add    add a trade, add_trade()
 #   /api/trades/delete delete a trade, delete_trade()
@@ -61,9 +69,10 @@
 # OPTIONS (CORS preflight).
 #
 # public functions:
-#   find(path, address, headers, cache)
-#       (http status, data) of a GET of path, None if
-#       it isn't an /api path
+#   find(path, address, headers, cache, query="")
+#       (http status, data) of a GET of path with its
+#       query (after the ?), None if it isn't an /api
+#       path
 #   change(path, address, headers, body, token)
 #       (http status, data) of a POST of path
 #   prices(cache)
@@ -74,6 +83,7 @@
 #   ladders(cache)
 #   alerts(cache)
 #   basetrade_rows(cache)
+#   stock_chart(cache, name, query)
 #       the data of the paths above
 #   add_trade(data)
 #   delete_trade(data)
@@ -94,12 +104,18 @@ import json
 import logging
 import math
 
+from urllib.parse import parse_qs
+
+import requests
+
 import config
 from engines import alerts as alerts_engine
+from engines import chart
 from engines import basetrades, ladder, overview, positions
 from engines import trades as trades_engine
 from notifiers import notifier
 from storage import Stock, TradeType
+from web.price_cache import BarsCache
 
 # the addresses the api answers on
 PRIVATE_HOSTS = ("127.0.0.1", "::1")
@@ -123,6 +139,10 @@ TOKEN_HEADER = "X-NX-Token"
 MAX_BODY = 10_000
 # the levels of a ladder for the page's picture
 LADDER_LEVELS = 3
+# the most points of a chart
+CHART_POINTS = 200
+# the bars of the chart page, kept a minute
+bars = BarsCache()
 log = logging.getLogger("web")
 
 
@@ -130,17 +150,27 @@ class NotFound(Exception):
     """a 404 of the api; the text says why"""
 
 
-def find(path, address, headers, cache):
+class BadRequest(Exception):
+    """a 400 of the api; the text says why"""
+
+
+class Unavailable(Exception):
+    """a 503 of the api: the prices can't be fetched;
+    the text says why"""
+
+
+def find(path, address, headers, cache, query=""):
     """(http status, data) of a GET of path (without
-    its ?query) with the request headers, for a server
-    on address (host, port) with the price cache
-    cache; None if it isn't an api path"""
+    its ?query, which is query) with the request
+    headers, for a server on address (host, port) with
+    the price cache cache; None if it isn't an api
+    path"""
     answer = PATHS.get(path)
     if answer is None:
         for prefix, one in PREFIXES.items():
             rest = path.removeprefix(prefix)
             if rest != path and rest and "/" not in rest:
-                answer = _with(one, rest)
+                answer = _with(one, rest, query)
                 break
         else:
             return None
@@ -151,6 +181,10 @@ def find(path, address, headers, cache):
         return 200, answer(cache)
     except NotFound as e:
         return 404, {"error": str(e)}
+    except BadRequest as e:
+        return 400, {"error": str(e)}
+    except Unavailable as e:
+        return 503, {"error": str(e)}
     except Exception:
         log.exception("%s failed", path)
         return 500, {
@@ -308,9 +342,9 @@ def trades(cache):
     return data
 
 
-def stock_trades(cache, name):
-    """the data of /api/trades/<name>: what every
-    answer has (see prices()) and
+def stock_trades(cache, name, query=""):
+    """the data of /api/trades/<name> (query isn't
+    used): what every answer has (see prices()) and
 
     {"stock": the stock (see _stock()),
      "trades": [{"id", "date", "time", "type",
@@ -488,6 +522,80 @@ def basetrade_rows(cache):
         data["from_trades"][stock.name] = _trade(lowest)
     data["names"] = [stock.name for stock in Stock]
     return data
+
+
+def stock_chart(cache, name, query):
+    """the data of /api/chart/<name>?days=<n>: what
+    every answer has (see prices()) and
+
+    {"stock", "days",
+     "timeframe", "label": the bars' ("1Hour", "1h"),
+     "points": [[time, price]], oldest first, at most
+               CHART_POINTS (more bars are averaged),
+     "avg": the average buy price, None when none are
+            held,
+     "trades": [{"time", "side": "B" or "S",
+                 "price"}] since the first point,
+     "price": the stock's cached price, None without,
+     "names": the names of every stock of the config,
+              for the picker}
+
+    raises NotFound if name (any case) isn't a stock
+    of the config, BadRequest for days not a whole
+    number from 1 to chart.MAX_DAYS, Unavailable when
+    the bars can't be fetched"""
+    stock = _stock_named(name)
+    if stock is None:
+        raise NotFound(_unknown_stock(name))
+    days = _days(query)
+    found_prices, data = prices(cache)
+    try:
+        found = chart.data(
+            stock, days, CHART_POINTS, bars.get_bars
+        )
+    except KeyError as e:
+        raise Unavailable(
+            f"missing {e.args[0]} in .env, can't get "
+            "the prices"
+        )
+    except (requests.RequestException, ValueError) as e:
+        raise Unavailable(f"can't get the prices: {e}")
+    points = chart.thin(found["bars"], CHART_POINTS)
+    first = points[0][0] if points else None
+    data.update(
+        stock=stock.name,
+        days=days,
+        timeframe=found["timeframe"],
+        label=found["label"],
+        points=[[_iso(t), p] for t, p in points],
+        avg=found["avg"],
+        trades=[
+            {"time": _iso(t), "side": side, "price": p}
+            for t, side, p in found["trades"]
+            if first is not None and t >= first
+        ],
+        price=found_prices.get(stock.name),
+        names=[s.name for s in Stock],
+    )
+    return data
+
+
+def _days(query):
+    """the days of a chart's query, DEFAULT_DAYS
+    without; BadRequest if they aren't 1 to
+    MAX_DAYS"""
+    given = parse_qs(query).get("days")
+    if not given:
+        return chart.DEFAULT_DAYS
+    text = given[-1]
+    if not (text.isascii() and text.isdigit()) or not (
+        1 <= int(text) <= chart.MAX_DAYS
+    ):
+        raise BadRequest(
+            "days must be a whole number from 1 to "
+            f"{chart.MAX_DAYS}"
+        )
+    return int(text)
 
 
 def _alert(alert, stocks, found_prices):
@@ -1137,9 +1245,10 @@ def _trade(t):
     }
 
 
-def _with(answer, name):
-    """answer(cache, name) as a function of cache"""
-    return lambda cache: answer(cache, name)
+def _with(answer, name, query):
+    """answer(cache, name, query) as a function of
+    cache"""
+    return lambda cache: answer(cache, name, query)
 
 
 # {path: function(cache) giving its data}
@@ -1150,8 +1259,12 @@ PATHS = {
     "/api/alerts": alerts,
     "/api/basetrades": basetrade_rows,
 }
-# {path prefix: function(cache, the rest of the path)}
-PREFIXES = {"/api/trades/": stock_trades}
+# {path prefix: function(cache, the rest of the
+# path, the query)}
+PREFIXES = {
+    "/api/trades/": stock_trades,
+    "/api/chart/": stock_chart,
+}
 # {path: function(data) of a change, see change()}
 CHANGES = {
     "/api/trades/add": add_trade,

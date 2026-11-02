@@ -624,19 +624,27 @@ so `read_only` doesn't change it.
    `chart` prints the same (the shell tests).
    `gen_deps.py` no longer names chart as an
    engine by hand.
-2. **`/api/chart/<stock>?days=<n>`**: the points
-   (time, price; at most about 200, more are
-   averaged), the timeframe, the average buy
-   price, the trades and the stock's cached price;
-   `names` for the stock picker. `api.find()` gets
-   the request's query (today it is cut off);
-   `days` from 1 to `chart.MAX_DAYS`, 5 by default,
-   else 400. The bars are kept for a minute per
-   stock, days and timeframe, so a reload or
-   another tab doesn't fetch them again. A missing
-   key or a network error gives the engine's text
-   (503), like the price cache. Works in the demo
-   with its made-up bars. Only on `127.0.0.1`.
+2. ~~**`/api/chart/<stock>?days=<n>`**~~ (done):
+   `api.stock_chart()`, the `points` ([time,
+   price], at most `CHART_POINTS`, 200; more bars
+   are averaged by `chart.thin()`), `timeframe`
+   and `label`, the average buy price (`avg`), the
+   `trades` since the first point (time, side,
+   price) and the stock's cached `price`; `names`
+   for the stock picker. `api.find()` gets the
+   request's query and passes it to the path
+   prefix answers; `days` from 1 to
+   `chart.MAX_DAYS`, 5 by default (also for an
+   empty one), else 400 (`BadRequest`). The bars
+   are kept for a minute per stock, days and
+   timeframe (`BarsCache` in `price_cache.py`,
+   passed to `chart.data()` as `get_bars`), so a
+   reload or another tab doesn't fetch them again;
+   an error isn't kept. A missing key or a network
+   error is 503 (`Unavailable`) with the shell's
+   text. Checked in the demo with its made-up bars
+   (5, 30, 365 and 1825 days). Only on
+   `127.0.0.1`.
 3. **The page `/chart`, read-only**:
    `web/chart.html` and `web/js/chart.js`: a stock
    picker and the periods 5d, 1m, 3m, 1y (kept in

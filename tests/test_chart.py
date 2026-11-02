@@ -234,6 +234,19 @@ class ChartTest(unittest.TestCase):
         self.assertIn("<a>.</>", lines[5])
         self.assertTrue(lines[5].endswith("<d> avg</>"))
 
+    def test_thin(self):
+        bars = hourly(range(10))
+        self.assertEqual(chart.thin(bars, 10), bars)
+        self.assertEqual(chart.thin([], 3), [])
+        # pairs averaged, at the first one's time
+        self.assertEqual(
+            chart.thin(bars, 5),
+            [
+                (bars[i][0], i + 0.5)
+                for i in range(0, 10, 2)
+            ],
+        )
+
 
 class ChartDataTest(unittest.TestCase):
     """chart.data() with fake bars, the trades in a

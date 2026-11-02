@@ -89,13 +89,14 @@ class Handler(BaseHTTPRequestHandler):
         self._reply(status, body, "application/json", True)
 
     def _send(self, with_body):
-        path = self.path.split("?", 1)[0]
+        path, _, query = self.path.partition("?")
         status = 200
         answer = api.find(
             path,
             self.server.server_address,
             self.headers,
             self.server.prices,
+            query,
         )
         if answer:
             status, data = answer
